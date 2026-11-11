@@ -16,6 +16,8 @@ import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 import org.sumidoku.android.core.api.model.ProgressPatch
 import org.sumidoku.android.core.api.model.SortOrder
+import org.sumidoku.android.core.data.OfflineProgressStore
+import org.sumidoku.android.core.data.PendingProgress
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -87,6 +89,7 @@ class ReaderViewModel @Inject constructor(
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val localDownloads: org.sumidoku.android.core.download.LocalDownloadEngine,
+    private val offlineProgressStore: OfflineProgressStore,
 ) : ViewModel() {
 
     val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
@@ -175,6 +178,16 @@ class ReaderViewModel @Inject constructor(
                     ),
                 ).await()
             } catch (_: Exception) {
+                // M2 offline progress queue (design §12): a failed
+                // write is kept locally and flushed on the next app
+                // start; the reader keeps working offline.
+                offlineProgressStore.add(
+                    PendingProgress(
+                        chapterId = cur.chapterId,
+                        lastPageRead = clamped,
+                        isRead = clamped >= cur.pages.size - 1,
+                    ),
+                )
             }
         }
     }

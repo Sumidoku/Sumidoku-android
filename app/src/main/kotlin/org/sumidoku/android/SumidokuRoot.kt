@@ -41,8 +41,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.sumidoku.android.core.api.model.ProgressPatch
+import retrofit2.await
 import androidx.lifecycle.viewModelScope
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.feature.browse.AddSourceScreen
@@ -76,6 +80,8 @@ import javax.inject.Inject
 class AppViewModel @Inject constructor(
     repository: ServerProfileRepository,
     appearanceStore: org.sumidoku.android.core.data.AppearanceStore,
+    private val offlineProgressStore: org.sumidoku.android.core.data.OfflineProgressStore,
+    private val clientFactory: org.sumidoku.android.core.network.SumidokuClientFactory,
 ) : ViewModel() {
     /** null while loading; false = no server configured yet. */
     val hasServer: StateFlow<Boolean?> = repository.activeProfile
@@ -85,6 +91,30 @@ class AppViewModel @Inject constructor(
     /** Appearance preference (M9 theming): system | dark | light. */
     val theme: StateFlow<String> = appearanceStore.theme
         .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
+
+    init {
+        // M2 offline progress queue: replay progress writes captured
+        // while the server was unreachable. Best-effort — failed
+        // entries stay queued for the next start.
+        viewModelScope.launch {
+            val profile = repository.activeProfile.filterNotNull().first()
+            val api = clientFactory.create<org.sumidoku.android.core.api.MangaApi>(profile)
+            offlineProgressStore.pending.first().forEach { entry ->
+                try {
+                    api.updateChapterProgress(
+                        entry.chapterId,
+                        ProgressPatch(
+                            lastPageRead = entry.lastPageRead.toLong(),
+                            isRead = if (entry.isRead) true else null,
+                        ),
+                    ).await()
+                    offlineProgressStore.remove(setOf(entry.chapterId))
+                } catch (_: Exception) {
+                    // stays queued
+                }
+            }
+        }
+    }
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)

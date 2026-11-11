@@ -49,6 +49,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -64,14 +67,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -80,6 +89,9 @@ import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 
 /** Reader MVP: paged (HorizontalPager + pinch zoom + tap zones) and webtoon
@@ -192,18 +204,23 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
     val initialDisplay = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
         .coerceAtLeast(0)
+    // M2 chapter transition pages (design §12, webui TransitionPage
+    // parity): virtual slots before the first and after the last
+    // display page when adjacent chapters exist. Landing on a slot
+    // does not advance; the reader confirms explicitly.
+    val prevSlot = if (state.prevChapter != null) 1 else 0
     val pagerState = rememberPagerState(
-        initialPage = initialDisplay,
-        pageCount = { displayPages.size },
+        initialPage = initialDisplay + prevSlot,
+        pageCount = { displayPages.size + prevSlot + if (state.nextChapter != null) 1 else 0 },
     )
     LaunchedEffect(pagerState, displayPages) {
         snapshotFlow { pagerState.settledPage }.collect { slot ->
-            displayPages.getOrNull(slot)?.let { viewModel.setIndex(it.pages.last().index.toInt()) }
+            displayPages.getOrNull(slot - prevSlot)?.let { viewModel.setIndex(it.pages.last().index.toInt()) }
         }
     }
     LaunchedEffect(state.chapterId) {
         if (state.index > 0) {
-            val target = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
+            val target = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } } + prevSlot
             if (target > 0 && pagerState.currentPage != target) {
                 pagerState.scrollToPage(target)
             }
@@ -234,6 +251,15 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
 
     var zoomed by remember { mutableStateOf(false) }
+    // Tap zones navigate through the pager so transition slots are
+    // reachable by tapping too (settledPage drives progress writes).
+    val pagerScope = rememberCoroutineScope()
+    val pageBack: () -> Unit = {
+        if (pagerState.currentPage > 0) pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+    }
+    val pageForward: () -> Unit = {
+        if (pagerState.currentPage < pagerState.pageCount - 1) pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+    }
     CompositionLocalProvider(
         LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
@@ -243,7 +269,22 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             userScrollEnabled = !zoomed,
             beyondViewportPageCount = 1,
         ) { slot ->
-            val display = displayPages[slot]
+            val contentIndex = slot - prevSlot
+            if (contentIndex == -1 || contentIndex == displayPages.size) {
+                // Transition slot: confirm or go back (design §12).
+                val isNext = contentIndex == displayPages.size
+                val chapter = if (isNext) state.nextChapter else state.prevChapter
+                if (chapter != null) {
+                    TransitionPage(
+                        chapter = chapter,
+                        isNext = isNext,
+                        onConfirm = { viewModel.openChapter(chapter.id) },
+                        onBack = { pagerScope.launch { pagerState.animateScrollToPage(slot - 1) } },
+                    )
+                }
+                return@HorizontalPager
+            }
+            val display = displayPages[contentIndex]
             if (display.pages.size == 2) {
                 // Double-page spread: two fit-height pages side by
                 // side in reading order (design §12). Zoom stays off
@@ -255,19 +296,9 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     tapZones = state.tapZones,
                     rtl = rtl,
                     colorFilter = readerColorFilter(state),
-                    onTapLeft = {
-                        if (pagerState.currentPage > 0) {
-                            displayPages.getOrNull(pagerState.currentPage - 1)?.let {
-                                viewModel.setIndex(it.pages.last().index.toInt())
-                            }
-                        }
-                    },
+                    onTapLeft = pageBack,
                     onTapCenter = { viewModel.toggleOverlay() },
-                    onTapRight = {
-                        displayPages.getOrNull(pagerState.currentPage + 1)?.let {
-                            viewModel.setIndex(it.pages.last().index.toInt())
-                        }
-                    },
+                    onTapRight = pageForward,
                 )
             } else {
                 ReaderPage(
@@ -280,23 +311,54 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     pageScale = state.pageScale,
                     colorFilter = readerColorFilter(state),
                     onZoomChange = { zoomed = it },
-                    onTapLeft = {
-                        if (pagerState.currentPage > 0) {
-                            displayPages.getOrNull(pagerState.currentPage - 1)?.let {
-                                viewModel.setIndex(it.pages.last().index.toInt())
-                            }
-                        }
-                    },
+                    onTapLeft = pageBack,
                     onTapCenter = { viewModel.toggleOverlay() },
-                    onTapRight = {
-                        displayPages.getOrNull(pagerState.currentPage + 1)?.let {
-                            viewModel.setIndex(it.pages.last().index.toInt())
-                        }
-                    },
+                    onTapRight = pageForward,
                 )
             }
         }
     }
+}
+
+/** M2 transition page (design §12, webui TransitionPage parity): the
+ *  virtual slot between chapters. It only confirms the advance — no
+ *  auto-navigation, no progress write. */
+@Composable
+private fun TransitionPage(
+    chapter: ChapterWithDownload,
+    isNext: Boolean,
+    onConfirm: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            if (isNext) "本章结束" else "到达第一章",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.size(16.dp))
+        Text(
+            (if (isNext) "下一章" else "上一章") + " · " + chapterLabel(chapter),
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.size(24.dp))
+        Button(onClick = onConfirm) { Text("继续阅读") }
+        Spacer(Modifier.size(8.dp))
+        TextButton(onClick = onBack) { Text("返回本章") }
+    }
+}
+
+/** Chapter card label: prefer the title, fall back to the number
+ *  (12.0 renders as 12). */
+private fun chapterLabel(chapter: ChapterWithDownload): String {
+    chapter.title?.takeIf { it.isNotBlank() }?.let { return it }
+    val n = chapter.chapterNumber
+    return if (n != null) "第 ${if (n % 1f == 0f) n.toInt().toString() else n.toString()} 话" else "未命名章节"
 }
 
 @Composable
@@ -305,7 +367,45 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.setIndex(it) }
     }
-    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+    // M2 pull-to-next-chapter (design §12, webui pullNextChapter
+    // parity): dragging past the end rubber-bands a hint, releasing
+    // past the threshold (160dp) advances to the next chapter.
+    val density = LocalDensity.current
+    val pullThreshold = with(density) { 160.dp.toPx() }
+    var pull by remember { mutableFloatStateOf(0f) }
+    val nextChapter = state.nextChapter
+    val nestedScroll = remember(nextChapter) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (nextChapter == null) return Offset.Zero
+                if (!listState.canScrollForward && available.y < 0f) {
+                    pull += available.y / 2.5f
+                    return available
+                }
+                if (pull != 0f && available.y > 0f) {
+                    pull = (pull + available.y / 2.5f).coerceAtMost(0f)
+                    return available
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (pull <= -pullThreshold) {
+                    nextChapter?.let { viewModel.openChapter(it.id) }
+                }
+                pull = 0f
+                return Velocity.Zero
+            }
+        }
+    }
+    // Snap the hint back when the finger lifts without flinging.
+    LaunchedEffect(pull) {
+        if (pull != 0f) {
+            delay(500)
+            pull = 0f
+        }
+    }
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScroll)) {
         items(state.pages.size, key = { state.pages[it].index }) { position ->
             val page = state.pages[position]
             Box(
@@ -324,6 +424,25 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                         contentScale = ContentScale.FillWidth,
                         colorFilter = readerColorFilter(state),
                     )
+                }
+            }
+        }
+        if (nextChapter != null) {
+            item(key = "next-chapter-footer") {
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (pull != 0f) {
+                        Text(
+                            if (pull <= -pullThreshold) "松开进入下一章" else "继续下拉进入下一章",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    TextButton(onClick = { viewModel.openChapter(nextChapter.id) }) {
+                        Text("下一章 · " + chapterLabel(nextChapter))
+                    }
                 }
             }
         }
