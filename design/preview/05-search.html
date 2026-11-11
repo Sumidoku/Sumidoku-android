@@ -8,7 +8,7 @@
 </head>
 <body>
 <h1 class="page-title">聚合搜索</h1>
-<p class="page-sub">跨源搜索 · 按源分组的流式结果 · 失败源不拖垮整体</p>
+<p class="page-sub">跨源搜索 · 按源分组的流式结果 · 失败源不拖垮整体 · 分级/语言/图源三态筛选（对齐 Aidoku FilterHeaderView 与 webui SearchPanel）</p>
 <div class="phone">
   <div class="statusbar"><span>21:33</span><span class="icons">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
@@ -24,9 +24,13 @@
   </div>
 
   <div class="content">
+    <!-- 三态筛选行：点按开底部弹层，选项在 包含✓/排除✕/不限 间循环；仅决定哪些源参与（客户端过滤，服务端不过滤） -->
     <div class="chips">
-      <span class="chip active">全部源</span>
-      <span class="chip">3/4 已完成</span>
+      <span class="chip">分级 ▾</span>
+      <span class="chip active" style="border-color:var(--success)">语言 · 含 中文 ✓</span>
+      <span class="chip active" style="border-color:var(--error);color:var(--error)">图源 · 排除 禁漫天堂 ✕</span>
+      <span class="chip" style="color:var(--faint)">重置</span>
+      <span class="chip" style="margin-left:auto;color:var(--faint)">3/4 源已完成</span>
     </div>
 
     <div class="hscroll-title"><b>拷贝漫画</b><span>6 个结果</span></div>
@@ -52,6 +56,19 @@
       <div class="cover" style="opacity:.3"></div>
       <div class="cover" style="opacity:.3"></div>
     </div>
+  </div>
+
+  <!-- 「语言」筛选弹层：每项三态循环 不限 → 包含✓ → 排除✕；multi 恒在顶部（对齐 Aidoku/webui 约定）；选择跨会话持久化 -->
+  <div class="sheet">
+    <div style="display:flex;align-items:center;margin-bottom:6px">
+      <b style="font-size:15px">语言</b>
+      <span style="margin-left:auto;font-size:12px;color:var(--faint)">重置本组</span>
+    </div>
+    <div class="setitem"><span>多语言源（multi）</span><span style="color:var(--faint);font-size:12px">不限</span></div>
+    <div class="setitem"><span>中文</span><span style="color:var(--success);font-size:12px">✓ 包含</span></div>
+    <div class="setitem"><span>日文</span><span style="color:var(--faint);font-size:12px">不限</span></div>
+    <div class="setitem"><span>英文</span><span style="color:var(--error);font-size:12px">✕ 排除</span></div>
+    <div class="setitem" style="border-bottom:0"><span>韩文</span><span style="color:var(--faint);font-size:12px">不限</span></div>
   </div>
 </div>
 </body>
