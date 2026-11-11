@@ -377,6 +377,14 @@ NDJSON partial streaming (phase 2, progressive enhancement):
   body. The client ships non-streaming first and opts in per screen
   where progressive rendering matters (cross-source search, home).
 
+Cross-source search filters (Aidoku `FilterHeaderView` / webui
+`SearchPanel` parity): content rating, language and source are tri-state
+(include/exclude) filters that only decide which sources participate —
+filtering is client-side, the server endpoint is unfiltered. Selections
+persist across sessions (webui: `sumidoku.globalSearch.filters` in
+localStorage) and are shared with the metadata-match dialog's source
+search tab. The `multi` language sentinel sorts first, same as Aidoku.
+
 ## 11. Settings
 
 Three kinds, clearly separated:
