@@ -1,6 +1,8 @@
 package org.sumidoku.android.feature.browse
 
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -260,14 +263,34 @@ fun AddSourceScreen(
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.addState.collectAsState()
+    val context = LocalContext.current
+    var showInternalDialog by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { viewModel.loadRepoSources() }
+    LaunchedEffect(state.error) { state.error?.let { snackbar.showSnackbar(it) } }
+
+    // 导入 .aix：系统文件选择器拿到字节后直接上传 sources/import
+    val aixLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+            if (bytes != null) {
+                val name = it.lastPathSegment?.substringAfterLast('/') ?: "source.aix"
+                viewModel.importAix(name, bytes) {}
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("添加图源") },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("返回") }
+                },
+                actions = {
+                    TextButton(onClick = { aixLauncher.launch("*/*") }) { Text("导入 .aix") }
+                    TextButton(onClick = { showInternalDialog = true }) { Text("内部源") }
                 },
             )
         },
@@ -312,6 +335,102 @@ fun AddSourceScreen(
             }
         }
     }
+
+    if (showInternalDialog) {
+        InternalSourceDialog(
+            onDismiss = { showInternalDialog = false },
+            onCreateLocal = { name, dirs, oneshots ->
+                viewModel.createInternalLocal(name, dirs, oneshots) { showInternalDialog = false }
+            },
+            onCreateOpds = { name, url ->
+                viewModel.createInternalOpds(name, url) { showInternalDialog = false }
+            },
+        )
+    }
+}
+
+/** 添加内部源：本地文件夹或 OPDS 目录（服务器侧路径/URL）。
+ *  对齐 webui InternalSourceModal 的核心字段。 */
+@Composable
+private fun InternalSourceDialog(
+    onDismiss: () -> Unit,
+    onCreateLocal: (name: String, dirs: List<String>, oneshotsDir: String?) -> Unit,
+    onCreateOpds: (name: String, url: String) -> Unit,
+) {
+    var isLocal by remember { mutableStateOf(true) }
+    var name by remember { mutableStateOf("") }
+    var dirsText by remember { mutableStateOf("") }
+    var oneshotsDir by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加内部源") },
+        text = {
+            Column {
+                Row {
+                    TextButton(onClick = { isLocal = true }) {
+                        Text("本地文件夹", color = if (isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = { isLocal = false }) {
+                        Text("OPDS 目录", color = if (!isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                if (isLocal) {
+                    OutlinedTextField(
+                        value = dirsText,
+                        onValueChange = { dirsText = it },
+                        label = { Text("目录（每行一个，服务器路径）") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = oneshotsDir,
+                        onValueChange = { oneshotsDir = it },
+                        label = { Text("单话目录（可选）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        label = { Text("OPDS 目录 URL") },
+                        placeholder = { Text("https://…/opds") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            val valid = name.isNotBlank() && if (isLocal) dirsText.isNotBlank() else url.isNotBlank()
+            TextButton(
+                onClick = {
+                    if (isLocal) {
+                        onCreateLocal(
+                            name.trim(),
+                            dirsText.lines().map { it.trim() }.filter { it.isNotEmpty() },
+                            oneshotsDir.trim().ifEmpty { null },
+                        )
+                    } else {
+                        onCreateOpds(name.trim(), url.trim())
+                    }
+                },
+                enabled = valid,
+            ) { Text("创建") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }
 
 @Composable

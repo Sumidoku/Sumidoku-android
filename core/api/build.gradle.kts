@@ -104,6 +104,22 @@ tasks.register("patchGeneratedSources") {
                 if (changed) union.writeText(patched.joinToString(System.lineSeparator()))
             }
         }
+        // RegisterInternalRequest's oneOf implementations are dropped by the
+        // generator (only the sealed interface survives), so callers can never
+        // construct a request. The wire body is a plain externally-tagged JSON
+        // object ({"Local": {...}} / {"Opds": {...}}), so accept JsonObject
+        // directly — the kotlinx converter serializes it as-is.
+        // NOTE: relative File() resolves against the Gradle daemon CWD,
+        // not this project — use projectDir so the patch actually lands.
+        val sourcesApi = File(projectDir, "build/generated/openapi/src/main/kotlin/org/sumidoku/android/core/api/SourcesApi.kt")
+        if (sourcesApi.exists()) {
+            val original = sourcesApi.readText()
+            val patched = original.replace(
+                "registerInternalSource(@Body registerInternalRequest: RegisterInternalRequest)",
+                "registerInternalSource(@Body body: kotlinx.serialization.json.JsonObject)",
+            )
+            if (patched != original) sourcesApi.writeText(patched)
+        }
     }
 }
 

@@ -8,6 +8,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
 import org.sumidoku.android.core.api.ReposApi
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.model.InstallSourceRequest
@@ -154,6 +163,68 @@ class BrowseViewModel @Inject constructor(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _addState.update { it.copy(installingKeys = it.installingKeys - source.key, error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    // --- internal sources (local folders / OPDS catalogs) & .aix import ---
+
+    /** Create a built-in local source. Dirs are server filesystem paths. */
+    fun createInternalLocal(name: String, dirs: List<String>, oneshotsDir: String?, onDone: () -> Unit) {
+        val body = buildJsonObject {
+            putJsonObject("Local") {
+                put("name", name)
+                putJsonArray("dirs") { dirs.forEach { add(it) } }
+                if (!oneshotsDir.isNullOrBlank()) put("oneshots_dir", oneshotsDir)
+            }
+        }
+        registerInternal(body, onDone)
+    }
+
+    /** Create a built-in OPDS source from an external catalog URL. */
+    fun createInternalOpds(name: String, url: String, onDone: () -> Unit) {
+        val body = buildJsonObject {
+            putJsonObject("Opds") {
+                put("name", name)
+                put("url", url)
+            }
+        }
+        registerInternal(body, onDone)
+    }
+
+    private fun registerInternal(body: JsonObject, onDone: () -> Unit) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile).registerInternalSource(body).await()
+                refresh()
+                onDone()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _addState.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    /** Upload a local .aix package — server installs it through the same
+     *  scan/register path as repo installs. */
+    fun importAix(fileName: String, bytes: ByteArray, onDone: () -> Unit) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            _addState.update { it.copy(loading = true, error = null) }
+            try {
+                val part = MultipartBody.Part.createFormData(
+                    "file",
+                    fileName,
+                    bytes.toRequestBody("application/octet-stream".toMediaType()),
+                )
+                clientFactory.create<SourcesApi>(profile).importSource(part).await()
+                _addState.update { it.copy(loading = false) }
+                refresh()
+                onDone()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _addState.update { it.copy(loading = false, error = e.message ?: e.toString()) }
             }
         }
     }
