@@ -447,18 +447,21 @@ lineage from existing work:
   entry lands on the second half; mark-read, tracker push and
   download cleanup fire only when the *last* half of the last page is
   reached (`splitEndReached`).
-- Swipe-to-turn: 1:1 drag follow on the spread track, release decides
-  (`swipeTurn.ts`, port the constants verbatim). A release turns when
-  the drag's *projected landing* — offset + release velocity × 150ms —
-  crosses `min(25% viewport width, 96px)` in a direction, or on a
-  flick: velocity ≥ 0.2px/ms with at least 16px of travel. Anything
-  shorter springs back over the 300ms track animation. Release
-  velocity is measured over the last ~100ms of the drag only (a
-  finger slows before it lifts; a whole-drag average under-reads
-  flicks). Offsets are screen-space mapped into reading direction by
-  a forward sign, so RTL needs no separate code path. Compose:
-  `detectHorizontalDragGestures` + `VelocityTracker` with the same
-  window math; spring-back via `Animatable`.
+- Swipe-to-turn: use the platform gesture, not a port. Compose
+  `HorizontalPager`/`VerticalPager` gives 1:1 drag follow,
+  velocity-based fling, snap-back and RTL mapping out of the box via
+  `PagerDefaults.flingBehavior` (`SnapFlingBehavior`); tune
+  `snapPositionalThreshold` and `snapAnimationSpec` (300ms,
+  reduced-motion off) toward the web reader's feel instead of
+  reimplementing release math. The web UI's `swipeTurn.ts` constants
+  stay as the parity reference if hand-tuning is ever needed:
+  projected landing (offset + velocity × 150ms) against
+  `min(25% viewport, 96px)`, a flick shortcut at 0.2px/ms with 16px
+  travel, release velocity over the last ~100ms window only. What the
+  pager does *not* solve and stays custom input work: pinch-zoom pan
+  vs page-turn arbitration, pull-to-next-chapter at the boundary
+  (rubber-band over the pager's edge), tap zones above the pager, and
+  the transition-page slot.
 - Prefetch: Coil `enqueue` lookahead ±3 pages in reading direction,
   generation-tagged so stale prefetches are dropped on chapter change
   (Aidoku's `ReaderPagePrefetcher` policy).
