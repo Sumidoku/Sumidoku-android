@@ -49,8 +49,11 @@ Goals — full parity with the web UI's feature set:
 - Browse: installed sources (pin/reorder/enable), source home and
   listings, single-source and cross-source search with dynamic filters
   and saved filter groups
-- Source administration: repositories (add/refresh/install/update),
-  source settings (schema-driven editor), source login
+- Source administration: Aidoku-style install flow — an "Add source"
+  sheet aggregating installable sources across all repositories with
+  one-tap install (repository URLs themselves are managed under
+  Settings → Source repositories), plus updates, source settings
+  (schema-driven editor), source login
   (basic/web/oauth), internal sources (local instances and OPDS
   catalogs), local trash management
 - Manga detail: chapters with batch operations, category assignment,
@@ -466,11 +469,12 @@ reading, M3+ reach full web-UI parity.
 - **M4 — updates, history, realtime.** Updates screen, history,
   foreground SSE wiring, WorkManager update checks with notification,
   NDJSON opt-in for search/home.
-- **M5 — source administration.** Repositories (add/refresh/install/
-  update, `.aix` sideload), schema-driven source settings, source
-  login (basic + WebView-assisted web/oauth), internal sources (local
-  instances, OPDS catalogs), local trash management, task queue
-  viewer.
+- **M5 — source administration.** Add-source sheet (aggregated
+  installable list, one-tap install/update), repository management
+  under Settings (add/refresh/delete, `.aix` sideload), schema-driven
+  source settings, source login (basic + WebView-assisted web/oauth),
+  internal sources (local instances, OPDS catalogs), local trash
+  management, task queue viewer.
 - **M6 — metadata and trackers.** Metadata edit dialog and match
   wizard (preview diff, field locks, restore), cover picker with
   alternates, tracker accounts (WebView OAuth connect), bindings,

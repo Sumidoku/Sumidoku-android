@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>添加图源 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .sheetpage { display: flex; flex-direction: column; height: 100%; }
+  .src-icon {
+    width: 44px; height: 44px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; color: rgba(255,255,255,.9);
+  }
+  .srcrow { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+  .srcrow .grow { flex: 1; min-width: 0; }
+  .srcrow .t { font-size: 15px; }
+  .srcrow .t .ver { color: var(--faint); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .srcrow .t .r18 { font-size: 10px; color: var(--muted); background: rgba(235,87,87,.25); border-radius: 5px; padding: 1px 5px; margin-left: 6px; vertical-align: 1px; }
+  .srcrow .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .getbtn {
+    flex: none; font-size: 12.5px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 99px; padding: 6px 15px;
+  }
+  .getbtn.done { color: var(--faint); background: var(--surface2); }
+  .bigbtn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--surface2); border-radius: 12px; padding: 13px;
+    font-size: 14px; font-weight: 600; margin-bottom: 4px;
+  }
+  .bigbtn svg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<h1 class="page-title">添加图源（浏览页 ＋ 进入）</h1>
+<p class="page-sub">对齐 Aidoku AddSource：所有仓库的可装源聚合成一个平面列表，点「获取」一步安装；仓库 URL 的增删在设置里管理，不在这</p>
+<div class="phone">
+  <div class="statusbar"><span>21:31</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar">
+    <span class="iconbtn" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+    <span class="title" style="font-size:16.5px">添加图源</span>
+    <span class="iconbtn" title="筛选（语言 / 内容分级）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10m-7 6h4"/></svg></span>
+  </div>
+
+  <div class="content sheetpage">
+    <div class="searchbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      搜索可安装的图源…
+    </div>
+
+    <div class="bigbtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6m-3-3h6"/></svg>
+      从文件导入 .aix
+    </div>
+
+    <div class="sech" style="margin-top:10px"><b>内部源</b></div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A8C6E,#24402F)">本</span>
+      <div class="grow"><div class="t">本地漫画</div><div class="s">扫描设备/服务器目录的 CBZ·图片</div></div>
+      <span class="getbtn">创建</span>
+    </div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A7A8C,#23404A)">O</span>
+      <div class="grow"><div class="t">OPDS 目录</div><div class="s">接入 Komga / Kavita / Calibre-Web</div></div>
+      <span class="getbtn">创建</span>
+    </div>
+
+    <div class="sech"><b>可安装的图源</b><span style="color:var(--faint)">来自 2 个仓库 · 按语言筛选</span></div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#8C7A4A,#453B22)">M</span>
+      <div class="grow"><div class="t">MangaDex<span class="ver">2.1.0</span><span class="r18">18+</span></div><div class="s">multi · aidoku-community</div></div>
+      <span class="getbtn">获取</span>
+    </div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#8C4A6B,#452A38)">禁</span>
+      <div class="grow"><div class="t">禁漫天堂<span class="ver">1.2.0</span></div><div class="s">zh · aidoku-community</div></div>
+      <span class="getbtn">获取</span>
+    </div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A5B8C,#2A2F45)">拷</span>
+      <div class="grow"><div class="t">拷贝漫画<span class="ver">1.4.3</span></div><div class="s">zh · aidoku-community</div></div>
+      <span class="getbtn">获取</span>
+    </div>
+    <div class="srcrow">
+      <span class="src-icon" style="background:linear-gradient(150deg,#6B4A8C,#352444)">B</span>
+      <div class="grow"><div class="t">Bato<span class="ver">1.0.8</span></div><div class="s">multi · komga-mirror</div></div>
+      <span class="getbtn done">已安装</span>
+    </div>
+
+    <div style="font-size:11.5px;color:var(--faint);line-height:1.7;margin-top:14px">
+      数据 = GET /source-repos/sources（服务端已把全部仓库缓存聚合并标注 installedId /
+      updateVersion）；已安装默认隐藏，「获取」= POST /source-repos/install 一步完成，
+      装完该行从列表消失。仓库 URL 的添加/刷新/删除在 设置 → 图源仓库。
+    </div>
+  </div>
+</div>
+</body>
+</html>
