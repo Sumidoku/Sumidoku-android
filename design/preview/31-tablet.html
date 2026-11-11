@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>平板适配 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  body { align-items: stretch; padding: 40px 24px; }
+  .tablet { width: 960px; height: 640px; margin: 0 auto; border: 10px solid #000; border-radius: 26px; background: var(--bg); overflow: hidden; display: flex; position: relative; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+  .rail { width: 72px; flex: none; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 18px; gap: 6px; }
+  .rail .ritem { width: 56px; padding: 7px 0 5px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); }
+  .rail .ritem.on { background: var(--accent-soft); color: var(--accent); }
+  .rail .ritem svg { width: 20px; height: 20px; }
+  .listpane { flex: 1.35; min-width: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .detailpane { flex: 1; min-width: 0; padding: 18px 20px; overflow: hidden; }
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 14px 18px; }
+  .tgrid .name { font-size: 11px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hinge-note { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 10.5px; color: var(--faint); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 12px; }
+</style>
+</head>
+<body>
+<h1 class="page-title" style="text-align:center">平板 / 折叠屏适配（expanded 宽度）</h1>
+<p class="page-sub" style="text-align:center;max-width:960px;margin-left:auto;margin-right:auto">NavigationSuiteScaffold 底栏→侧边导航轨 · ListDetailPaneScaffold 书库网格+详情双栏 · GridCells.Adaptive(150dp) 对齐 webui auto-fill · 横屏默认双页布局（viewer 覆盖优先）· 折叠屏铰链避让点按区/滑块 · 无独立平板屏，同一路由图两种布局</p>
+
+<div class="tablet">
+  <div class="rail">
+    <div class="ritem on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/></svg>书库</div>
+    <div class="ritem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5z"/></svg>浏览</div>
+    <div class="ritem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>更新</div>
+    <div class="ritem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>历史</div>
+    <div class="ritem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.2 2.2M4.9 19.1l2.2-2.2M16.9 7.1l2.2-2.2"/></svg>设置</div>
+  </div>
+
+  <div class="listpane">
+    <div class="appbar" style="border-bottom:1px solid var(--border)">
+      <span class="title" style="font-size:17px">全部 ▾</span>
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
+    </div>
+    <div class="tgrid">
+      <div><div class="cover g1"><span class="ct">我推的孩子</span></div><div class="name">我推的孩子</div></div>
+      <div><div class="cover g2"><span class="ct">咒术回战</span><span class="ubadge">3</span></div><div class="name">咒术回战</div></div>
+      <div><div class="cover g3"><span class="ct">葬送的芙莉莲</span><span class="dlbadge">✓</span></div><div class="name">葬送的芙莉莲</div></div>
+      <div><div class="cover g4"><span class="ct">胆大党</span></div><div class="name">胆大党</div></div>
+      <div><div class="cover g5"><span class="ct">坂本日常</span></div><div class="name">坂本日常</div></div>
+      <div><div class="cover g6"><span class="ct">废渊战鬼</span><span class="ubadge">1</span></div><div class="name">废渊战鬼</div></div>
+      <div><div class="cover g2"><span class="ct">瑠璃龙龙</span></div><div class="name">瑠璃龙龙</div></div>
+      <div><div class="cover g1"><span class="ct">青之箱</span></div><div class="name">青之箱</div></div>
+    </div>
+  </div>
+
+  <div class="detailpane">
+    <div style="display:flex;gap:14px;margin-bottom:12px">
+      <div class="cover g3" style="width:96px;flex:none"><span class="ct">葬送的芙莉莲</span></div>
+      <div style="min-width:0">
+        <div style="font-size:17px;font-weight:700">葬送的芙莉莲</div>
+        <div style="font-size:11.5px;color:var(--muted);margin:4px 0">山田钟人 · 连载中</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag">🔒 tracker:anilist</span><span class="tag ok">在库</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <span class="btn" style="padding:7px 14px;font-size:12px">继续阅读</span>
+          <span class="btn ghost" style="padding:7px 12px;font-size:12px">⋯</span>
+        </div>
+      </div>
+    </div>
+    <div class="chapter"><div><div class="t">第 132 话</div><div class="s">11-10</div></div><span class="st-dl">✓</span></div>
+    <div class="chapter cur"><div><div class="t">第 131 话</div><div class="s">12/18 页</div></div></div>
+    <div class="chapter read"><div><div class="t">第 130 话</div><div class="s">11-03</div></div></div>
+    <div class="chapter read"><div><div class="t">第 129 话</div><div class="s">11-03</div></div></div>
+    <div style="font-size:10.5px;color:var(--faint);margin-top:8px">选中即替换此栏，不推路由（ListDetailPaneScaffold）；阅读器仍全屏独占</div>
+  </div>
+
+  <div class="hinge-note">折叠屏：铰链区不布置点按区与滑块 · 书本姿态双页跨页对齐物理两半</div>
+</div>
+</body>
+</html>

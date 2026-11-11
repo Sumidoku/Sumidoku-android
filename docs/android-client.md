@@ -527,9 +527,10 @@ reading, M3+ reach full web-UI parity.
   `.tachibk` import wizards (upload → dry-run preview → source
   mapping → confirm), scheduled-backup settings, restore from server
   files.
-- **M9 — polish.** Tablet/foldable adaptive layouts, double-page and
-  wide-split parity with the web reader, tap-zone/scale/filter
-  options, theming, release pipeline (GitHub APK; evaluate F-Droid).
+- **M9 — polish.** Tablet/foldable adaptive layouts (§17),
+  double-page and wide-split parity with the web reader,
+  tap-zone/scale/filter options, theming, release pipeline (GitHub
+  APK; evaluate F-Droid).
 
 ## 15. Repository and release strategy
 
@@ -570,6 +571,53 @@ instead of by accident.
 - **GIF pages.** Aidoku renders animated pages (`GIFImageNode`).
   Trivial on Android — Coil already decodes GIF; just do not strip
   animation in the reader image pipeline.
+
+## 17. Tablets and foldables
+
+Phone-first but not phone-only. The web UI stays content-fluid
+(cover grids `auto-fill minmax(150px,1fr)`, settings two-pane at
+≥768px); Android gets structural adaptation via `material3-adaptive`
+on top of the same feature modules — no separate tablet screens.
+
+- **Window size classes** drive everything: `compact` = the phone UI
+  as designed in §4; `medium`/`expanded` swap the bottom bar for a
+  navigation rail via `NavigationSuiteScaffold` (same five
+  destinations, same routes).
+- **Grids**: `LazyVerticalGrid(GridCells.Adaptive(150.dp))`
+  everywhere the phone uses a fixed 3-column grid — mirrors the web
+  UI's `auto-fill minmax(150px,1fr)` so cover density stays familiar
+  at any width.
+- **List–detail**: on `expanded`, library/browse grids and the manga
+  detail share the screen (`ListDetailPaneScaffold`): selecting a
+  manga replaces the detail pane instead of pushing a route; the
+  reader always leaves the scaffold and takes the full screen.
+  Browse (source list) + source home works the same way. Below
+  `expanded` the navigation graph is unchanged — one NavDisplay, two
+  layouts.
+- **Settings**: two-pane group list + panel, mirroring the web UI's
+  150px nav + content split at ≥768px (`SettingsLayout`).
+- **Dialogs** (metadata edit, match wizard, migrate, cover picker)
+  cap at 560dp and stay centered; wizards keep their step sequence
+  regardless of width.
+- **Reader**: on `expanded` width in landscape the default layout
+  suggestion becomes `double` (the server-side `viewer` flags and
+  per-manga overrides still win — this only changes the fallback);
+  wide-page split is less relevant there since landscape pages
+  already get solo spreads. Tap zones scale with the viewport; the
+  Kindle layout's top strip stays 25%.
+- **Foldables**: Jetpack WindowManager `FoldingFeature` — never place
+  tap zones, the page slider or the pull-to-next-chapter threshold
+  zone on the hinge; in book posture (half-opened), align the
+  double-page spread to the physical halves so each screen shows one
+  page. Dual-screen devices use the same path: hinge bounds = spread
+  boundary.
+- **Input**: with a keyboard attached, keep the web reader's
+  shortcuts (arrows/space to turn, `c` cycles page scale) — the
+  shortcut layer already exists for ChromeOS-class devices.
+
+Milestone: folded into M9 (§14); the `ListDetailPaneScaffold` and
+rail swap are cheap once feature modules are navigation-clean from
+M1, so nothing here blocks M2.
 
 ## Appendix A — Aidoku references
 
