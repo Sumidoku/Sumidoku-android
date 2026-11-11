@@ -75,6 +75,7 @@ fun BrowseScreen(
     onOpenSource: (Long) -> Unit = {},
     onOpenSourceSettings: (Long) -> Unit = {},
     onAddSource: () -> Unit = {},
+    onMigrate: () -> Unit = {},
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -105,6 +106,13 @@ fun BrowseScreen(
                             Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("迁移…") },
+                                onClick = {
+                                    showMenu = false
+                                    onMigrate()
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(if (state.updateAllRunning) "更新中…" else "全部更新") },
                                 enabled = !state.updateAllRunning,

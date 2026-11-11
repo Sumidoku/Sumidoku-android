@@ -43,6 +43,7 @@ import org.sumidoku.android.feature.downloads.DownloadsScreen
 import org.sumidoku.android.feature.history.HistoryScreen
 import org.sumidoku.android.feature.library.LibraryScreen
 import org.sumidoku.android.feature.manga.MangaScreen
+import org.sumidoku.android.feature.migrate.MigrateScreen
 import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.repos.ReposScreen
 import org.sumidoku.android.feature.servers.ServersScreen
@@ -168,6 +169,7 @@ private fun MainTabs(
                     onOpenSource = { innerNav.navigate("source/$it") },
                     onOpenSourceSettings = { innerNav.navigate("source-settings/$it") },
                     onAddSource = { innerNav.navigate("add-source") },
+                    onMigrate = { innerNav.navigate("migrate") },
                 )
             }
             composable("add-source") {
@@ -214,6 +216,9 @@ private fun MainTabs(
             }
             composable("trackers") {
                 TrackersScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("migrate") {
+                MigrateScreen(onBack = { innerNav.popBackStack() })
             }
         }
     }
