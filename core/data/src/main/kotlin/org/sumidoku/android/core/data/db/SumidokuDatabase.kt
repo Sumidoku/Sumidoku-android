@@ -1,0 +1,13 @@
+package org.sumidoku.android.core.data.db
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+
+@Database(
+    entities = [ServerProfileEntity::class],
+    version = 1,
+    exportSchema = false,
+)
+abstract class SumidokuDatabase : RoomDatabase() {
+    abstract fun serverProfileDao(): ServerProfileDao
+}

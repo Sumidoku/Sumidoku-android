@@ -1,0 +1,16 @@
+# Gradle / Android build
+.gradle/
+build/
+*/build/
+local.properties
+*.iml
+.idea/
+.cxx/
+
+# Kotlin/IDE
+.kotlin/
+*.hprof
+
+# Signing (never commit)
+*.jks
+*.keystore
