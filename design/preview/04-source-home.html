@@ -5,10 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>图源主页 · sumidoku-android 设计稿</title>
 <link rel="stylesheet" href="assets/mock.css">
+<style>
+  .listtabs { display: flex; gap: 18px; padding: 2px 16px 10px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .listtabs span { font-size: 14px; color: var(--muted); white-space: nowrap; padding-bottom: 6px; }
+  .listtabs span.on { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
+  .banner { position: relative; border-radius: 14px; height: 150px; overflow: hidden; margin: 12px 0 4px; }
+  .banner .bt { position: absolute; left: 14px; bottom: 12px; font-size: 15px; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  .banner .bs { position: absolute; left: 14px; bottom: 32px; font-size: 11px; color: rgba(255,255,255,.75); text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  .dots { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 5px; }
+  .dots i { width: 6px; height: 6px; border-radius: 99px; background: rgba(255,255,255,.4); }
+  .dots i.on { background: #fff; }
+  .mrow { display: flex; gap: 12px; align-items: center; padding: 7px 0; }
+  .mrow .mc { width: 46px; height: 64px; border-radius: 8px; flex: none; position: relative; overflow: hidden; }
+  .mrow .mt { font-size: 14px; font-weight: 600; }
+  .mrow .ms { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .linkrow { display: flex; align-items: center; padding: 12px 2px; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+  .linkrow .chev { margin-left: auto; color: var(--faint); }
+</style>
 </head>
 <body>
-<h1 class="page-title">图源主页</h1>
-<p class="page-sub">动态组件行（listing 横滑）· NDJSON 渐进渲染</p>
+<h1 class="page-title">图源页</h1>
+<p class="page-sub">对齐 Aidoku SourceHomeContentView：顶部 listing 切换头 + HomeLayout 组件栈（imageScroller / scroller / mangaList / mangaChapterList / links）</p>
 <div class="phone">
   <div class="statusbar"><span>21:32</span><span class="icons">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
@@ -17,12 +34,26 @@
   <div class="appbar">
     <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
     <span class="title" style="font-size:18px">拷贝漫画</span>
-    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
-    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
+    <span class="iconbtn" title="搜索本源"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
+    <span class="iconbtn" title="在浏览器打开"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></svg></span>
+    <span class="iconbtn" title="源信息 / 设置 / 登录"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></span>
+  </div>
+
+  <div class="listtabs">
+    <span class="on">主页</span><span>热门</span><span>最新</span><span>分类</span><span>排行榜</span>
   </div>
 
   <div class="content">
-    <div class="hscroll-title"><b>热门连载</b><span>listing · 查看全部 ›</span></div>
+    <!-- imageScroller：大图轮播，点按进详情 -->
+    <div class="banner" style="background:linear-gradient(120deg,#2A3A5C 0%,#3A2A4C 100%)">
+      <div class="cover g1" style="position:absolute;inset:0;border-radius:0;opacity:.45"></div>
+      <div class="bs">imageScroller · 2/4</div>
+      <div class="bt">我推的孩子</div>
+      <div class="dots"><i></i><i class="on"></i><i></i><i></i></div>
+    </div>
+
+    <!-- scroller：横滑封面行 -->
+    <div class="hscroll-title"><b>热门连载</b><span>scroller · 查看全部 ›</span></div>
     <div class="hscroll">
       <div><div class="cover g1"><span class="ct">我推的孩子</span></div><div class="name">我推的孩子</div></div>
       <div><div class="cover g4"><span class="ct">咒术回战</span></div><div class="name">咒术回战</div></div>
@@ -30,24 +61,22 @@
       <div><div class="cover g3"><span class="ct">坂本日常</span></div><div class="name">坂本日常</div></div>
     </div>
 
-    <div class="hscroll-title"><b>最新上架</b><span>listing · 查看全部 ›</span></div>
-    <div class="hscroll">
-      <div><div class="cover g5"><span class="ct">废渊战鬼</span></div><div class="name">废渊战鬼</div></div>
-      <div><div class="cover g2"><span class="ct">瑠璃龙龙</span></div><div class="name">瑠璃龙龙</div></div>
-      <div><div class="cover g4"><span class="ct">神乐钵</span></div><div class="name">神乐钵</div></div>
-      <div><div class="cover g1"><span class="ct">正义使者</span></div><div class="name">正义使者</div></div>
-    </div>
+    <!-- mangaList：纵向列表行 -->
+    <div class="hscroll-title"><b>最新上架</b><span>mangaList · 查看全部 ›</span></div>
+    <div class="mrow"><div class="mc cover g5"><span class="ct" style="font-size:10px">废渊战鬼</span></div><div><div class="mt">废渊战鬼</div><div class="ms">裏那圭 · 连载中</div></div></div>
+    <div class="mrow"><div class="mc cover g2"><span class="ct" style="font-size:10px">瑠璃龙龙</span></div><div><div class="mt">瑠璃龙龙</div><div class="ms">真藤雅兴 · 连载中</div></div></div>
+    <div class="mrow"><div class="mc cover g4"><span class="ct" style="font-size:10px">神乐钵</span></div><div><div class="mt">神乐钵</div><div class="ms">外薗健 · 连载中</div></div></div>
 
-    <div class="hscroll-title"><b>专题推荐</b><span>component · scroller</span></div>
-    <div style="border-radius:12px;background:linear-gradient(120deg,#2A3A5C,#3A2A4C);height:88px;display:flex;align-items:center;padding:0 18px">
-      <div><div style="font-size:15px;font-weight:700">本周编辑精选</div><div style="font-size:11.5px;color:var(--muted);margin-top:4px">12 部作品 · 每周一更新</div></div>
-    </div>
+    <!-- mangaChapterList：封面+最近章节 -->
+    <div class="hscroll-title"><b>最近更新</b><span>mangaChapterList</span></div>
+    <div class="mrow"><div class="mc cover g6"><span class="ct" style="font-size:10px">胆大党</span></div><div><div class="mt">胆大党</div><div class="ms">第 187 话 · 2 小时前</div></div></div>
+    <div class="mrow"><div class="mc cover g3"><span class="ct" style="font-size:10px">坂本日常</span></div><div><div class="mt">坂本日常</div><div class="ms">第 212 话 · 5 小时前</div></div></div>
 
-    <div class="hscroll-title"><b>分类浏览</b></div>
-    <div class="chips" style="flex-wrap:wrap">
-      <span class="chip">热血</span><span class="chip">恋爱</span><span class="chip">奇幻</span>
-      <span class="chip">悬疑</span><span class="chip">日常</span><span class="chip">科幻</span>
-    </div>
+    <!-- links：整行跳转链接 -->
+    <div class="hscroll-title"><b>links</b></div>
+    <div class="linkrow">分类浏览<span class="chev">›</span></div>
+    <div class="linkrow">排行榜<span class="chev">›</span></div>
+    <div class="linkrow" style="border-bottom:0">在浏览器打开官网<span class="chev">↗</span></div>
   </div>
 
   <div class="bottomnav">
@@ -55,7 +84,7 @@
     <span class="tab active"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5z"/></svg></span>浏览</span>
     <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span>更新</span>
     <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span>历史</span>
-    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>设置</span>
+    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4-1-2 3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>设置</span>
   </div>
 </div>
 </body>
