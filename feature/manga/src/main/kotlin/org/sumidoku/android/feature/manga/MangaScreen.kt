@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.North
 import androidx.compose.material.icons.outlined.South
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -333,6 +334,28 @@ fun MangaScreen(
             )
         }
         null -> Unit
+    }
+
+    // M6 sync-pull preview: show what would be applied, then confirm.
+    meta.syncPreview?.let { (provider, result) ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSyncPreview() },
+            title = { Text("从追踪器同步进度") },
+            text = {
+                Text(
+                    buildString {
+                        result.progress?.let { append("远端读到第 $it 话\n") }
+                        append("将标记 ${result.marked} 章为已读。\n确定应用吗？")
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.applySync(provider) }) { Text("应用") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSyncPreview() }) { Text("取消") }
+            },
+        )
     }
 }
 

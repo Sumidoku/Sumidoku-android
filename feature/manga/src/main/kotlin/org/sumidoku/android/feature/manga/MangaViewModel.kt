@@ -471,11 +471,26 @@ class MangaViewModel @AssistedInject constructor(
         }
     }
 
-    /** Pull remote progress into local chapters (webui "从追踪器同步进度"). */
+    /** Pull remote progress — preview first (design §14 M6); the
+     *  sheet asks for confirmation, then applySync applies for real. */
     fun syncLink(provider: TrackerProvider) {
         val profile = _state.value.profile ?: return
         viewModelScope.launch {
-            _meta.value = _meta.value.copy(linkBusy = true)
+            _meta.value = _meta.value.copy(linkBusy = true, syncPreview = null)
+            try {
+                val result = clientFactory.create<TrackersApi>(profile)
+                    .syncTrackerLink(mangaId, provider, TrackerSyncRequest(preview = true))
+                    .await()
+                _meta.value = _meta.value.copy(linkBusy = false, syncPreview = provider to result)
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Apply the previewed sync-pull for real. */
+    fun applySync(provider: TrackerProvider) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true, syncPreview = null)
             try {
                 val result = clientFactory.create<TrackersApi>(profile)
                     .syncTrackerLink(mangaId, provider, TrackerSyncRequest(preview = false))
@@ -485,6 +500,10 @@ class MangaViewModel @AssistedInject constructor(
                 loadLinks()
             } catch (e: Exception) { fail(e) }
         }
+    }
+
+    fun dismissSyncPreview() {
+        _meta.value = _meta.value.copy(syncPreview = null)
     }
 
     // ---- M7: single-manga migration ----
@@ -598,6 +617,9 @@ data class MetaUiState(
     val applyBusy: Boolean = false,
     val links: List<TrackerLink>? = null,
     val linkBusy: Boolean = false,
+    /** Preview of a sync-pull (design §14 M6): the remote progress
+     *  that would be applied, awaiting user confirmation. */
+    val syncPreview: Pair<TrackerProvider, org.sumidoku.android.core.api.model.TrackerSyncResult>? = null,
     /** Server categories for the categories editor sheet (M2/M7). */
     val categories: List<org.sumidoku.android.core.api.model.Category>? = null,
     // M7 single-manga migration sheet state.
