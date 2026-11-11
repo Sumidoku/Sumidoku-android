@@ -135,6 +135,23 @@ tasks.register("patchGeneratedSources") {
                 if (patched != original) target.writeText(patched)
             }
         }
+        // Filter rule values are free-form scalars (null for flag rules,
+        // integer for valued rules, string for author/tag); the generated
+        // empty wrapper classes would drop them, so expose the raw element.
+        listOf(
+            "FilterRule.kt" to "FilterRuleValue?",
+            "FilterRuleInput.kt" to "FilterRuleInputValue?",
+        ).forEach { (name, wrapper) ->
+            val target = File(modelDir, name)
+            if (target.exists()) {
+                val original = target.readText()
+                val patched = original.replace(
+                    wrapper,
+                    "kotlinx.serialization.json.JsonElement?",
+                )
+                if (patched != original) target.writeText(patched)
+            }
+        }
     }
 }
 

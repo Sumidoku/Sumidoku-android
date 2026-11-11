@@ -60,6 +60,8 @@ import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.feature.settings.ApiKeysScreen
 import org.sumidoku.android.feature.settings.CacheScreen
 import org.sumidoku.android.feature.settings.CategoriesScreen
+import org.sumidoku.android.feature.settings.FilterGroupsScreen
+import org.sumidoku.android.feature.settings.ServerSettingsScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.settings.TasksScreen
 import org.sumidoku.android.feature.settings.TrashScreen
@@ -241,10 +243,18 @@ private fun MainTabs(
                     onOpenTasks = { innerNav.navigate("tasks") },
                     onOpenTrash = { innerNav.navigate("trash") },
                     onOpenCategories = { innerNav.navigate("categories") },
+                    onOpenFilterGroups = { innerNav.navigate("filter-groups") },
+                    onOpenServerSettings = { innerNav.navigate("server-settings") },
                 )
             }
             composable("categories") {
                 CategoriesScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("filter-groups") {
+                FilterGroupsScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("server-settings") {
+                ServerSettingsScreen(onBack = { innerNav.popBackStack() })
             }
             composable("trash") {
                 TrashScreen(onBack = { innerNav.popBackStack() })

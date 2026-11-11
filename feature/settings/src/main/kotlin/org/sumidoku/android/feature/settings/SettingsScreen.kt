@@ -9,11 +9,13 @@ import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +46,8 @@ fun SettingsScreen(
     onOpenTasks: () -> Unit = {},
     onOpenTrash: () -> Unit = {},
     onOpenCategories: () -> Unit = {},
+    onOpenFilterGroups: () -> Unit = {},
+    onOpenServerSettings: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -128,6 +132,24 @@ fun SettingsScreen(
                     subtitle = "书库分类的新建、重命名、删除与排序",
                     enabled = true,
                     onClick = onOpenCategories,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.FilterList,
+                    title = "过滤组",
+                    subtitle = "保存的书库筛选规则集",
+                    enabled = true,
+                    onClick = onOpenFilterGroups,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Settings,
+                    title = "服务器设置",
+                    subtitle = "阅读、书库更新、下载、计划备份与缓存上限",
+                    enabled = true,
+                    onClick = onOpenServerSettings,
                 )
             }
             item {
