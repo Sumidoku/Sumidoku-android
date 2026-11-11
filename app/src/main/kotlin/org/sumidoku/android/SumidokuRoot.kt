@@ -35,6 +35,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import androidx.lifecycle.viewModelScope
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.feature.browse.AddSourceScreen
+import org.sumidoku.android.feature.browse.BrowseScreen
 import org.sumidoku.android.feature.library.LibraryScreen
 import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.ui.theme.SumidokuTheme
@@ -80,9 +82,7 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
                         })
                     }
                     composable("main") {
-                        MainTabs(onManageServers = {
-                            nav.navigate("servers")
-                        })
+                        MainTabs()
                     }
                 }
             }
@@ -91,7 +91,7 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun MainTabs(onManageServers: () -> Unit) {
+private fun MainTabs() {
     val innerNav = rememberNavController()
     val backStack by innerNav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
@@ -122,18 +122,21 @@ private fun MainTabs(onManageServers: () -> Unit) {
             modifier = Modifier.padding(padding),
         ) {
             composable("library") { LibraryScreen() }
-            composable("browse") { PlaceholderTab("浏览 · M1 后续") }
+            composable("browse") {
+                BrowseScreen(onAddSource = { innerNav.navigate("add-source") })
+            }
+            composable("add-source") {
+                AddSourceScreen(onBack = { innerNav.popBackStack() })
+            }
             composable("updates") { PlaceholderTab("更新 · M3") }
             composable("history") { PlaceholderTab("历史 · M3") }
-            composable("settings") {
-                PlaceholderTab("设置 · M5+\n长按可管理服务器", onLongPressHint = onManageServers)
-            }
+            composable("settings") { PlaceholderTab("设置 · M5+") }
         }
     }
 }
 
 @Composable
-private fun PlaceholderTab(label: String, onLongPressHint: (() -> Unit)? = null) {
+private fun PlaceholderTab(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
