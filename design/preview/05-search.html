@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>聚合搜索 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<h1 class="page-title">聚合搜索</h1>
+<p class="page-sub">跨源搜索 · 按源分组的流式结果 · 失败源不拖垮整体</p>
+<div class="phone">
+  <div class="statusbar"><span>21:33</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar" style="gap:8px">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <div class="searchbox" style="flex:1;margin:0;color:var(--text)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      芙莉莲
+      <span style="margin-left:auto;color:var(--faint)">✕</span>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="chips">
+      <span class="chip active">全部源</span>
+      <span class="chip">3/4 已完成</span>
+    </div>
+
+    <div class="hscroll-title"><b>拷贝漫画</b><span>6 个结果</span></div>
+    <div class="hscroll">
+      <div><div class="cover g2"><span class="ct">葬送的芙莉莲</span></div><div class="name">葬送的芙莉莲</div></div>
+      <div><div class="cover g5"><span class="ct">芙莉莲公式书</span></div><div class="name">芙莉莲公式书</div></div>
+      <div><div class="cover g6"><span class="ct">同人精选</span></div><div class="name">同人精选</div></div>
+      <div><div class="cover g1"><span class="ct">…</span></div><div class="name">…</div></div>
+    </div>
+
+    <div class="hscroll-title"><b>MangaDex</b><span>2 个结果</span></div>
+    <div class="hscroll">
+      <div><div class="cover g2"><span class="ct">Frieren</span></div><div class="name">Sousou no Frieren</div></div>
+      <div><div class="cover g3"><span class="ct">Frieren DJ</span></div><div class="name">Frieren DJ</div></div>
+    </div>
+
+    <div class="hscroll-title"><b>禁漫天堂</b><span style="color:var(--error)">加载失败 · 重试</span></div>
+    <div style="font-size:12px;color:var(--faint);padding:4px 2px">网络错误（源内失败不阻塞其他源）</div>
+
+    <div class="hscroll-title"><b>本地漫画</b><span style="color:var(--faint)">搜索中…</span></div>
+    <div class="hscroll">
+      <div class="cover" style="opacity:.3"></div>
+      <div class="cover" style="opacity:.3"></div>
+      <div class="cover" style="opacity:.3"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

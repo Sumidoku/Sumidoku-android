@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sumidoku-android 界面设计稿 · 画廊</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  body { align-items: stretch; }
+  .head { max-width: 1500px; width: 100%; margin-bottom: 34px; }
+  .head h1 { font-size: 24px; margin-bottom: 8px; }
+  .head p { color: var(--muted); font-size: 13.5px; line-height: 1.7; max-width: 760px; }
+  .head code { background: var(--surface2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="head">
+  <h1>sumidoku-android 界面设计稿</h1>
+  <p>依据 <code>docs/android-client.md</code> 绘制的静态 HTML 屏幕稿（深色 Material 3 风格，393×852 手机框）。
+  覆盖设计文档 §4 信息架构的全部功能面：服务器管理、书库、浏览/图源、聚合搜索、漫画详情、阅读器、
+  下载、更新、历史、设置、图源设置（schema 驱动）、tracker、迁移向导、备份。
+  点击任意手机框进入对应屏幕。纯展示稿，无交互逻辑。</p>
+</div>
+<div class="gallery">
+  <div class="shot"><a href="01-servers.html"><iframe class="phone" src="01-servers.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>01 · 服务器</b>多实例列表 / 添加 / 连接状态</div></div>
+  <div class="shot"><a href="02-library.html"><iframe class="phone" src="02-library.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>02 · 书库</b>网格 + 分类 chips + 未读/下载角标</div></div>
+  <div class="shot"><a href="03-browse.html"><iframe class="phone" src="03-browse.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>03 · 浏览</b>图源列表 · 置顶排序 · 仓库管理</div></div>
+  <div class="shot"><a href="04-source-home.html"><iframe class="phone" src="04-source-home.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>04 · 图源主页</b>动态组件行（listing 横滑）</div></div>
+  <div class="shot"><a href="05-search.html"><iframe class="phone" src="05-search.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>05 · 聚合搜索</b>跨源流式结果（NDJSON）</div></div>
+  <div class="shot"><a href="06-manga.html"><iframe class="phone" src="06-manga.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>06 · 漫画详情</b>元数据锁 / tracker / 章节列表</div></div>
+  <div class="shot"><a href="07-reader-paged.html"><iframe class="phone" src="07-reader-paged.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>07 · 阅读器 · 分页</b>覆盖层 + 滑块 + 方向/双页</div></div>
+  <div class="shot"><a href="08-reader-webtoon.html"><iframe class="phone" src="08-reader-webtoon.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>08 · 阅读器 · 条漫</b>连续滚动 + 进度侧条</div></div>
+  <div class="shot"><a href="09-downloads.html"><iframe class="phone" src="09-downloads.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>09 · 下载</b>服务端队列 / 本机离线双 tab</div></div>
+  <div class="shot"><a href="10-updates.html"><iframe class="phone" src="10-updates.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>10 · 更新</b>新章时间线 + 更新摘要</div></div>
+  <div class="shot"><a href="11-history.html"><iframe class="phone" src="11-history.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>11 · 历史</b>阅读历史按日分组</div></div>
+  <div class="shot"><a href="12-settings.html"><iframe class="phone" src="12-settings.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>12 · 设置</b>系统设置分组</div></div>
+  <div class="shot"><a href="13-source-settings.html"><iframe class="phone" src="13-source-settings.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>13 · 图源设置</b>schema 驱动编辑器 / 登录 / base-url</div></div>
+  <div class="shot"><a href="14-trackers.html"><iframe class="phone" src="14-trackers.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>14 · Tracker</b>AniList/MAL/Bangumi 绑定与状态</div></div>
+  <div class="shot"><a href="15-migrate.html"><iframe class="phone" src="15-migrate.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>15 · 迁移向导</b>跨源迁移三步流程</div></div>
+  <div class="shot"><a href="16-backups.html"><iframe class="phone" src="16-backups.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>16 · 备份</b>文档导出/导入（.aib / .tachibk）</div></div>
+</div>
+</body>
+</html>

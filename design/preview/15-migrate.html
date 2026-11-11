@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>迁移向导 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<h1 class="page-title">跨源迁移</h1>
+<p class="page-sub">选源 → 匹配确认 → 模式（copy / migrate / migrateWithHistory）</p>
+<div class="phone">
+  <div class="statusbar"><span>21:41</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <span class="title" style="font-size:18px">迁移到新源</span>
+  </div>
+
+  <div class="content">
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--faint);margin:4px 2px 16px">
+      <span style="color:var(--accent)">① 选源</span> — <span style="color:var(--accent)">② 确认匹配</span> — <span>③ 模式</span>
+    </div>
+
+    <div class="listitem">
+      <span class="cover g2"><span class="ct">芙</span></span>
+      <div class="grow">
+        <div class="name">葬送的芙莉莲</div>
+        <div class="sub">拷贝漫画 → MangaDex · 章节 132↔131 匹配 98%</div>
+        <div class="pbar" style="margin-top:6px"><i style="width:98%"></i></div>
+      </div>
+      <span class="tag ok">已匹配</span>
+    </div>
+    <div class="listitem">
+      <span class="cover g4"><span class="ct">我</span></span>
+      <div class="grow">
+        <div class="name">我独自升级</div>
+        <div class="sub">Bato → 本地 · 进度按章号 max 合并</div>
+        <div class="pbar" style="margin-top:6px"><i style="width:87%"></i></div>
+      </div>
+      <span class="tag ok">已匹配</span>
+    </div>
+    <div class="listitem">
+      <span class="cover g5"><span class="ct">链</span></span>
+      <div class="grow">
+        <div class="name">链锯人</div>
+        <div class="sub">禁漫天堂 → 未找到候选 · 点选手动搜索</div>
+      </div>
+      <span class="tag warn">待确认</span>
+    </div>
+
+    <div class="setgroup" style="margin-top:20px">
+      <div class="gh">迁移模式</div>
+      <div class="setitem"><div class="grow"><div class="t">仅复制（copy）</div><div class="s">新源加入书库，旧源保留</div></div><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--faint);flex:none"></span></div>
+      <div class="setitem"><div class="grow"><div class="t">迁移（migrate）</div><div class="s">进度合并到新源，旧源移出书库</div></div><span style="width:18px;height:18px;border-radius:50%;border:5px solid var(--accent);flex:none"></span></div>
+      <div class="setitem"><div class="grow"><div class="t">迁移含历史</div><div class="s">migrateWithHistory · 阅读历史一并搬运</div></div><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--faint);flex:none"></span></div>
+    </div>
+
+    <div class="btnrow" style="margin-top:16px">
+      <span class="btn ghost" style="flex:1">上一步</span>
+      <span class="btn" style="flex:1">迁移 3 部</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

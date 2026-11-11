@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracker · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<h1 class="page-title">Tracker</h1>
+<p class="page-sub">账号绑定（WebView OAuth）· 同步台账 · 推送策略</p>
+<div class="phone">
+  <div class="statusbar"><span>21:40</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <span class="title" style="font-size:18px">Tracker</span>
+  </div>
+
+  <div class="content">
+    <div class="setgroup">
+      <div class="gh">账号</div>
+      <div class="setitem"><span class="sic" style="background:#1D2943;color:#7BA7F0"><b style="font-size:13px">AL</b></span><div class="grow"><div class="t">AniList</div><div class="s">已绑定 @moku · 进度只前进推送</div></div><span class="tag ok">已连接</span></div>
+      <div class="setitem"><span class="sic" style="background:#2E1A1A;color:#F08A8A"><b style="font-size:13px">MAL</b></span><div class="grow"><div class="t">MyAnimeList</div><div class="s">未绑定 · WebView 内 OAuth，无需粘贴回调</div></div><span class="btn ghost" style="padding:7px 16px;font-size:13px">绑定</span></div>
+      <div class="setitem"><span class="sic" style="background:#1A2E2A;color:#6FCF97"><b style="font-size:13px">BGM</b></span><div class="grow"><div class="t">Bangumi</div><div class="s">已绑定 @moku · nameCN 优先</div></div><span class="tag ok">已连接</span></div>
+      <div class="setitem"><span class="sic"><b style="font-size:13px">MB</b></span><div class="grow"><div class="t">MangaBaka</div><div class="s">未绑定</div></div><span class="btn ghost" style="padding:7px 16px;font-size:13px">绑定</span></div>
+    </div>
+
+    <div class="setgroup">
+      <div class="gh">同步策略（服务端执行）</div>
+      <div class="setitem"><div class="grow"><div class="t">读完自动推送进度</div><div class="s">decide() 纯函数 · 只前进不回退</div></div><span class="sw on"></span></div>
+      <div class="setitem"><div class="grow"><div class="t">从 tracker 拉取进度</div><div class="s">镜像 Aidoku getChaptersToSyncProgressFromTracker</div></div><span class="sw"></span></div>
+    </div>
+
+    <div class="setgroup">
+      <div class="gh">最近推送台账</div>
+      <div class="setitem"><div class="grow"><div class="t">葬送的芙莉莲 → 89 话</div><div class="s">AniList · 成功 · 21:12</div></div><span class="tag ok">✓</span></div>
+      <div class="setitem"><div class="grow"><div class="t">我独自升级 → 200 话</div><div class="s">Bangumi · 跳过（远端更靠前）</div></div><span class="tag">–</span></div>
+      <div class="setitem"><div class="grow"><div class="t">青之驱魔师 → 147 话</div><div class="s">AniList · 429 已重试成功</div></div><span class="tag warn">重试</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
