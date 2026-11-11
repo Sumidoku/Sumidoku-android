@@ -1,0 +1,114 @@
+package org.sumidoku.android.feature.settings
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+
+/** Settings hub — static entry rows. Server-side setting groups
+ *  (updates/library/download/…) land with M8; this screen only hosts
+ *  entries that already have screens. Preview 12-settings. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    onOpenRepos: () -> Unit,
+    onManageServers: () -> Unit,
+) {
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("设置") }) },
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            item { SectionHeader("图源") }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Extension,
+                    title = "图源仓库",
+                    subtitle = "添加、刷新与删除来源列表",
+                    onClick = onOpenRepos,
+                )
+            }
+            item { SectionHeader("服务器") }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Dns,
+                    title = "服务器管理",
+                    subtitle = "切换或添加 Sumidoku 实例",
+                    onClick = onManageServers,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Sync,
+                    title = "实例间同步（M8）",
+                    subtitle = "多实例 peer 同步，即将支持",
+                    enabled = false,
+                    onClick = {},
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.CloudQueue,
+                    title = "备份与恢复（M8）",
+                    subtitle = "文档备份、Aidoku .aib / Mihon .tachibk 导入，即将支持",
+                    enabled = false,
+                    onClick = {},
+                )
+            }
+            item { SectionHeader("关于") }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Info,
+                    title = "关于",
+                    subtitle = "Sumidoku Android（M5 构建中）",
+                    enabled = false,
+                    onClick = {},
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        leadingContent = { Icon(icon, contentDescription = null) },
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}

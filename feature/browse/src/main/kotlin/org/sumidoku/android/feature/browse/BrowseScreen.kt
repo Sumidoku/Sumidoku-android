@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,6 +66,7 @@ import org.sumidoku.android.core.model.ServerProfile
 @Composable
 fun BrowseScreen(
     onOpenSource: (Long) -> Unit = {},
+    onOpenSourceSettings: (Long) -> Unit = {},
     onAddSource: () -> Unit = {},
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
@@ -145,19 +147,19 @@ fun BrowseScreen(
                 if (state.updatable.isNotEmpty()) {
                     item { SectionHeader("可更新（${state.updatable.size}）") }
                     items(state.updatable, key = { "u${it.id}" }) { source ->
-                        SourceRow(source, state.profile, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) })
+                        SourceRow(source, state.profile, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
                     }
                 }
                 if (state.pinned.isNotEmpty()) {
                     item { SectionHeader("置顶") }
                     items(state.pinned, key = { "p${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) })
+                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
                     }
                 }
                 if (state.installed.isNotEmpty()) {
                     item { SectionHeader("已安装") }
                     items(state.installed, key = { "i${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) })
+                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
                     }
                 }
             }
@@ -181,6 +183,7 @@ private fun SourceRow(
     profile: ServerProfile?,
     badge: String? = null,
     onClick: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     ListItem(
         leadingContent = { SourceIcon(source, profile) },
@@ -203,18 +206,24 @@ private fun SourceRow(
             )
         },
         trailingContent = {
-            if (source.missingFromRepos) {
-                Icon(
-                    Icons.Outlined.Warning,
-                    contentDescription = "已不在任何来源列表中",
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            } else {
-                Icon(
-                    Icons.Outlined.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (source.missingFromRepos) {
+                    Icon(
+                        Icons.Outlined.Warning,
+                        contentDescription = "已不在任何来源列表中",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+                // 齿轮进图源设置（webui：OPDS 源无齿轮）
+                if (source.kind != Source.Kind.OPDS) {
+                    IconButton(onClick = onSettings) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = "图源设置",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         },
         modifier = Modifier.clickable(onClick = onClick),

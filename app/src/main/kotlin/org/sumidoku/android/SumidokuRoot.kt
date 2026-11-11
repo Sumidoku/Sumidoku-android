@@ -44,7 +44,11 @@ import org.sumidoku.android.feature.history.HistoryScreen
 import org.sumidoku.android.feature.library.LibraryScreen
 import org.sumidoku.android.feature.manga.MangaScreen
 import org.sumidoku.android.feature.reader.ReaderScreen
+import org.sumidoku.android.feature.repos.ReposScreen
 import org.sumidoku.android.feature.servers.ServersScreen
+import org.sumidoku.android.feature.settings.SettingsScreen
+import org.sumidoku.android.feature.source.SourceHomeScreen
+import org.sumidoku.android.feature.source.SourceSettingsScreen
 import org.sumidoku.android.feature.updates.UpdatesScreen
 import org.sumidoku.android.ui.theme.SumidokuTheme
 import javax.inject.Inject
@@ -89,9 +93,12 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
                         })
                     }
                     composable("main") {
-                        MainTabs(onOpenReader = { mangaId, chapterId ->
-                            nav.navigate("reader/$mangaId/$chapterId")
-                        })
+                        MainTabs(
+                            onOpenReader = { mangaId, chapterId ->
+                                nav.navigate("reader/$mangaId/$chapterId")
+                            },
+                            onManageServers = { nav.navigate("servers") },
+                        )
                     }
                     composable(
                         route = "reader/{mangaId}/{chapterId}",
@@ -110,7 +117,10 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun MainTabs(onOpenReader: (mangaId: Long, chapterId: Long) -> Unit) {
+private fun MainTabs(
+    onOpenReader: (mangaId: Long, chapterId: Long) -> Unit,
+    onManageServers: () -> Unit,
+) {
     val innerNav = rememberNavController()
     val backStack by innerNav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
@@ -153,10 +163,34 @@ private fun MainTabs(onOpenReader: (mangaId: Long, chapterId: Long) -> Unit) {
                 )
             }
             composable("browse") {
-                BrowseScreen(onAddSource = { innerNav.navigate("add-source") })
+                BrowseScreen(
+                    onOpenSource = { innerNav.navigate("source/$it") },
+                    onOpenSourceSettings = { innerNav.navigate("source-settings/$it") },
+                    onAddSource = { innerNav.navigate("add-source") },
+                )
             }
             composable("add-source") {
                 AddSourceScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable(
+                route = "source/{sourceId}",
+                arguments = listOf(navArgument("sourceId") { type = NavType.LongType }),
+            ) { entry ->
+                val sourceId = entry.arguments?.getLong("sourceId") ?: return@composable
+                SourceHomeScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenSettings = { innerNav.navigate("source-settings/$sourceId") },
+                )
+            }
+            composable(
+                route = "source-settings/{sourceId}",
+                arguments = listOf(navArgument("sourceId") { type = NavType.LongType }),
+            ) {
+                SourceSettingsScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("repos") {
+                ReposScreen(onBack = { innerNav.popBackStack() })
             }
             composable("updates") {
                 UpdatesScreen(
@@ -170,7 +204,12 @@ private fun MainTabs(onOpenReader: (mangaId: Long, chapterId: Long) -> Unit) {
             composable("history") {
                 HistoryScreen(onOpenManga = { innerNav.navigate("manga/$it") })
             }
-            composable("settings") { PlaceholderTab("设置 · M5+") }
+            composable("settings") {
+                SettingsScreen(
+                    onOpenRepos = { innerNav.navigate("repos") },
+                    onManageServers = onManageServers,
+                )
+            }
         }
     }
 }

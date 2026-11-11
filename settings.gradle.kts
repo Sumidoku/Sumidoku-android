@@ -30,6 +30,8 @@ include(":feature:downloads")
 include(":feature:migrate")
 include(":feature:trackers")
 include(":feature:settings")
+include(":feature:source")
+include(":feature:repos")
 
 // Core layer
 include(":core:source")

@@ -75,18 +75,34 @@ tasks.register("patchGeneratedSources") {
             }
             if (changed) source.writeText(patched.joinToString(System.lineSeparator()))
         }
-        // PageContent is an externally-tagged union emitted as a data class
-        // whose variant fields are all *required*; the wire only carries the
+        // Externally-tagged unions are emitted as data classes whose
+        // variant fields are all *required*; the wire only carries the
         // active variant, so any decode fails with MissingFieldException.
-        // Make every variant field nullable with a null default.
-        val pageContent = File(modelDir, "PageContent.kt")
-        if (pageContent.exists()) {
-            val original = pageContent.readText()
-            val patched = original.replace(
-                Regex("""^(\s*val \w+: [^=\n]+),$""", RegexOption.MULTILINE),
-                "$1? = null,",
-            )
-            if (patched != original) pageContent.writeText(patched)
+        // Make every variant field nullable with a null default. The set
+        // of union files is derived from the spec's oneOf/discriminator
+        // shapes and must be re-checked when the spec changes.
+        listOf("PageContent.kt", "SettingValue.kt", "HomeComponentValue.kt", "FilterValue.kt", "LinkValue.kt").forEach { name ->
+            val union = File(modelDir, name)
+            if (union.exists()) {
+                val lines = union.readLines()
+                var changed = false
+                val patched = lines.map { line ->
+                    val trimmed = line.trimStart()
+                    val candidate = trimmed.removeSuffix(",")
+                    if (
+                        trimmed.startsWith("val ") &&
+                        !candidate.contains('?') &&
+                        !candidate.contains('=') &&
+                        candidate.length > 4
+                    ) {
+                        changed = true
+                        "${line.substringBefore("val ")}$candidate? = null${if (trimmed.endsWith(",")) "," else ""}"
+                    } else {
+                        line
+                    }
+                }
+                if (changed) union.writeText(patched.joinToString(System.lineSeparator()))
+            }
         }
     }
 }
