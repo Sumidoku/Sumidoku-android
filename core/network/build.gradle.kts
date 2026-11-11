@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.sumidoku.android.core.network"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
     }
@@ -26,6 +26,7 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:common"))
     implementation(libs.okhttp)
+    implementation(libs.javax.inject)
     implementation(libs.okhttp.logging)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)

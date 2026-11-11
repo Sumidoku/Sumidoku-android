@@ -2,6 +2,7 @@ package org.sumidoku.android.core.network
 
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.sumidoku.android.core.model.ServerProfile
@@ -121,7 +122,7 @@ class SumidokuClientFactory @Inject constructor() {
 
         private fun okhttp3.Request.rebasedOn(newBase: String): okhttp3.Request? {
             val current = url
-            val base = okhttp3.HttpUrl.Companion.toHttpUrlOrNull(newBase.ensureSlash()) ?: return null
+            val base = newBase.ensureSlash().toHttpUrlOrNull() ?: return null
             val relative = current.encodedPath.removePrefix(base.encodedPath.removeSuffix("/"))
             val rebased = base.newBuilder()
                 .encodedPath(base.encodedPath.removeSuffix("/") + relative)

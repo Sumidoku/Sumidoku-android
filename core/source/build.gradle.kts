@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "org.sumidoku.android.core.source"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
     }

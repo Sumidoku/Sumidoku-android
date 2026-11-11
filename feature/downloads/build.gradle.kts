@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.sumidoku.android.feature.downloads"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
     }

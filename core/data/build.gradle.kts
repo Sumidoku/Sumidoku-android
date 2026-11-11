@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "org.sumidoku.android.core.data"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
     }
@@ -25,6 +25,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:model"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
