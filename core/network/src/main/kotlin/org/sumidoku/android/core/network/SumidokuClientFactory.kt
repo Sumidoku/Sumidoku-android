@@ -1,9 +1,14 @@
 package org.sumidoku.android.core.network
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.sumidoku.android.core.model.ServerProfile
 import retrofit2.Retrofit
@@ -52,6 +57,36 @@ class SumidokuClientFactory @Inject constructor() {
 
     /** Create one of the generated OpenAPI services (e.g. `SystemApi`). */
     inline fun <reified T : Any> create(profile: ServerProfile): T = retrofit(profile).create(T::class.java)
+
+    /** NDJSON partial streaming — design §14. The server streams
+     *  newline-delimited JSON when the request asks for it; this is a
+     *  client-side opt-in enhancement for screens that benefit from
+     *  progressive rendering (cross-source search, source home). The
+     *  terminating {"type":"final","payload":…} event mirrors the
+     *  non-streaming response body. */
+    fun ndjsonCall(
+        profile: ServerProfile,
+        path: String,
+        body: JsonObject,
+    ): Flow<JsonObject> = flow {
+        val url = profile.baseUrl.trimEnd('/') + "/api/v1" + path
+        val request = Request.Builder()
+            .url(url)
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody("application/json".toMediaType()))
+            .header("Accept", "application/x-ndjson")
+            .build()
+        okHttp(profile).newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("NDJSON call failed: ${response.code}")
+            val reader = response.body.byteStream().bufferedReader()
+            while (true) {
+                val line = reader.readLine() ?: break
+                if (line.isBlank()) continue
+                val obj = json.parseToJsonElement(line) as? JsonObject ?: continue
+                emit(obj)
+                if (obj["type"]?.toString()?.trim('"') == "final" || obj["type"]?.toString()?.trim('"') == "error") break
+            }
+        }
+    }
 
     /**
      * Connectivity probe used when adding a server: GET /api/v1/version is the

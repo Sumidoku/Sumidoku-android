@@ -18,6 +18,15 @@ import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import retrofit2.await
 import javax.inject.Inject
 
@@ -56,6 +65,8 @@ class SearchViewModel @Inject constructor(
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state
 
+    private val streamJson = Json { ignoreUnknownKeys = true }
+
     init {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: return@launch
@@ -89,17 +100,91 @@ class SearchViewModel @Inject constructor(
         if (query.isEmpty() || ids.isEmpty()) return
         viewModelScope.launch {
             _state.value = _state.value.copy(searching = true, searched = true, sections = emptyList(), error = null)
+            val names = _state.value.sources.associate { it.id to (it.name ?: "图源 ${it.id}") }
             try {
-                val response = clientFactory.create<SourcesApi>(profile)
-                    .searchAllSources(GlobalSearchRequest(sourceIds = ids.toList(), query = query, page = 1))
-                    .await()
-                val names = _state.value.sources.associate { it.id to (it.name ?: "图源 ${it.id}") }
-                _state.value = _state.value.copy(
-                    searching = false,
-                    sections = response.sources.map { it.toSection(names[it.sourceId] ?: "图源 ${it.sourceId}") },
-                )
+                // NDJSON opt-in (design §14): sources appear as each one
+                // finishes instead of waiting for the slowest fan-out leg.
+                var received = false
+                clientFactory.ndjsonCall(
+                    profile,
+                    "/search",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("query", query)
+                        put("page", 1)
+                        putJsonArray("sourceIds") { ids.forEach { add(it) } }
+                    },
+                ).collect { event ->
+                    val type = event["type"]?.jsonPrimitive?.contentOrNull ?: return@collect
+                    if (type == "source" || type == "sourceError") received = true
+                    when (type) {
+                        "source" -> {
+                            val sourceId = event["sourceId"]!!.jsonPrimitive.long
+                            val entriesEl = event["entries"] ?: event["results"]
+                            val entries = entriesEl?.let {
+                                runCatching { streamJson.decodeFromJsonElement<List<SearchManga>>(it) }.getOrNull()
+                            } ?: emptyList()
+                            val hasNext = event["hasNextPage"]?.jsonPrimitive?.booleanOrNull ?: false
+                            _state.value = _state.value.copy(
+                                sections = _state.value.sections + SourceSearchSection(
+                                    sourceId = sourceId,
+                                    sourceName = names[sourceId] ?: "图源 $sourceId",
+                                    entries = entries,
+                                    hasNextPage = hasNext,
+                                    page = 1,
+                                ),
+                            )
+                        }
+                        "sourceError" -> {
+                            val sourceId = event["sourceId"]!!.jsonPrimitive.long
+                            val message = (event["error"] as? kotlinx.serialization.json.JsonObject)
+                                ?.get("message")?.jsonPrimitive?.contentOrNull
+                                ?: event["message"]?.jsonPrimitive?.contentOrNull
+                                ?: "搜索失败"
+                            _state.value = _state.value.copy(
+                                sections = _state.value.sections + SourceSearchSection(
+                                    sourceId = sourceId,
+                                    sourceName = names[sourceId] ?: "图源 $sourceId",
+                                    entries = emptyList(),
+                                    hasNextPage = false,
+                                    page = 1,
+                                    error = message,
+                                ),
+                            )
+                        }
+                        "final" -> _state.value = _state.value.copy(searching = false)
+                    }
+                }
+                if (!received) {
+                    // Server answered without streaming — fall back to the
+                    // plain aggregated response.
+                    val response = clientFactory.create<SourcesApi>(profile)
+                        .searchAllSources(GlobalSearchRequest(sourceIds = ids.toList(), query = query, page = 1))
+                        .await()
+                    _state.value = _state.value.copy(
+                        searching = false,
+                        sections = response.sources.map { it.toSection(names[it.sourceId] ?: "图源 ${it.sourceId}") },
+                    )
+                } else {
+                    _state.value = _state.value.copy(searching = false)
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                // Streaming failed mid-way: if nothing arrived yet, retry
+                // through the plain endpoint before surfacing the error.
+                if (_state.value.sections.isEmpty()) {
+                    try {
+                        val response = clientFactory.create<SourcesApi>(profile)
+                            .searchAllSources(GlobalSearchRequest(sourceIds = ids.toList(), query = query, page = 1))
+                            .await()
+                        _state.value = _state.value.copy(
+                            searching = false,
+                            sections = response.sources.map { it.toSection(names[it.sourceId] ?: "图源 ${it.sourceId}") },
+                        )
+                        return@launch
+                    } catch (e2: Exception) {
+                        if (e2 is kotlinx.coroutines.CancellationException) throw e2
+                    }
+                }
                 _state.value = _state.value.copy(searching = false, error = e.message ?: e.toString())
             }
         }
