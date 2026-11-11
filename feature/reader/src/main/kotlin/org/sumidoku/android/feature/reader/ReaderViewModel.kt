@@ -32,6 +32,12 @@ data class ReaderUiState(
     val index: Int = 0,
     val webtoon: Boolean = false,
     val overlay: Boolean = false,
+    /** Reading direction: "ltr" | "rtl" — mirrors tap zones and the
+     *  pager layout direction (design §12). */
+    val dir: String = "ltr",
+    /** Paged mode only: split landscape pages into halves read in
+     *  direction order; progress stays in real page units. */
+    val splitWide: Boolean = false,
     val error: String? = null,
 ) {
     val currentChapter: ChapterWithDownload? get() = chapters.firstOrNull { it.id == chapterId }
@@ -157,6 +163,14 @@ class ReaderViewModel @Inject constructor(
 
     fun setWebtoon(webtoon: Boolean) {
         _state.value = _state.value.copy(webtoon = webtoon)
+    }
+
+    fun setDir(dir: String) {
+        _state.value = _state.value.copy(dir = dir)
+    }
+
+    fun setSplitWide(splitWide: Boolean) {
+        _state.value = _state.value.copy(splitWide = splitWide)
     }
 
     fun toggleOverlay() {

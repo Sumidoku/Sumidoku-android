@@ -22,17 +22,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.NavigateBefore
 import androidx.compose.material.icons.automirrored.outlined.NavigateNext
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewCarousel
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,12 +53,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
@@ -93,37 +106,83 @@ fun ReaderScreen(
     }
 }
 
+/** One display slot in paged mode: a whole page, or the left/right
+ *  half of a wide page when split-wide is on (design §12: ltr reads
+ *  left half first, rtl reads right half first; progress and the
+ *  slider stay in real page units). */
+private data class DisplayPage(val page: Page, val crop: Int) // 0 whole, 1 left, 2 right
+
 @Composable
 private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
+    val rtl = state.dir == "rtl"
+    val displayPages = remember(state.pages, state.splitWide, rtl) {
+        buildList {
+            state.pages.forEach { page ->
+                val wide = state.splitWide && !page.hasDescription &&
+                    (page.width ?: 0) > 0 && (page.height ?: 0) > 0 && page.width!! > page.height!!
+                if (wide) {
+                    val first = if (rtl) 2 else 1
+                    val second = if (rtl) 1 else 2
+                    add(DisplayPage(page, first))
+                    add(DisplayPage(page, second))
+                } else {
+                    add(DisplayPage(page, 0))
+                }
+            }
+        }
+    }
+    val initialDisplay = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+        .coerceAtLeast(0)
     val pagerState = rememberPagerState(
-        initialPage = state.index,
-        pageCount = { state.pages.size },
+        initialPage = initialDisplay,
+        pageCount = { displayPages.size },
     )
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { viewModel.setIndex(it) }
+    LaunchedEffect(pagerState, displayPages) {
+        snapshotFlow { pagerState.settledPage }.collect { slot ->
+            displayPages.getOrNull(slot)?.let { viewModel.setIndex(it.page.index.toInt()) }
+        }
     }
     LaunchedEffect(state.chapterId) {
-        if (state.index > 0 && pagerState.currentPage != state.index) {
-            pagerState.scrollToPage(state.index)
+        if (state.index > 0) {
+            val target = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+            if (target > 0 && pagerState.currentPage != target) {
+                pagerState.scrollToPage(target)
+            }
         }
     }
 
     var zoomed by remember { mutableStateOf(false) }
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier.fillMaxSize(),
-        userScrollEnabled = !zoomed,
-        beyondViewportPageCount = 1,
-    ) { pageIndex ->
-        ReaderPage(
-            page = state.pages[pageIndex],
-            url = viewModel.pageImageUrl(state.pages[pageIndex]),
-            apiKey = state.profile?.apiKey,
-            onZoomChange = { zoomed = it },
-            onTapLeft = { if (pagerState.currentPage > 0) viewModel.setIndex(pagerState.currentPage - 1) },
-            onTapCenter = { viewModel.toggleOverlay() },
-            onTapRight = { viewModel.setIndex(pagerState.currentPage + 1) },
-        )
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = !zoomed,
+            beyondViewportPageCount = 1,
+        ) { slot ->
+            val display = displayPages[slot]
+            ReaderPage(
+                page = display.page,
+                crop = display.crop,
+                url = viewModel.pageImageUrl(display.page),
+                apiKey = state.profile?.apiKey,
+                onZoomChange = { zoomed = it },
+                onTapLeft = {
+                    if (pagerState.currentPage > 0) {
+                        displayPages.getOrNull(pagerState.currentPage - 1)?.let {
+                            viewModel.setIndex(it.page.index.toInt())
+                        }
+                    }
+                },
+                onTapCenter = { viewModel.toggleOverlay() },
+                onTapRight = {
+                    displayPages.getOrNull(pagerState.currentPage + 1)?.let {
+                        viewModel.setIndex(it.page.index.toInt())
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -155,6 +214,7 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
 @Composable
 private fun ReaderPage(
     page: Page,
+    crop: Int,
     url: String,
     apiKey: String?,
     onZoomChange: (Boolean) -> Unit,
@@ -166,10 +226,8 @@ private fun ReaderPage(
     var offset by remember(page.index) { mutableStateOf(Offset.Zero) }
 
     Box(Modifier.fillMaxSize()) {
-        ReaderImage(
-            url = url,
-            apiKey = apiKey,
-            modifier = Modifier
+        val imageModifier = if (crop == 0) {
+            Modifier
                 .fillMaxSize()
                 .pointerInput(page.index) {
                     detectTransformGestures { _, pan, zoom, _ ->
@@ -184,7 +242,25 @@ private fun ReaderPage(
                     scaleY = scale
                     translationX = offset.x
                     translationY = offset.y
-                },
+                }
+        } else {
+            // Split-wide half: draw the page scaled 2x horizontally and
+            // translated so the requested half fills the slot (the
+            // container clips the rest). Zoom stays available per slot.
+            Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .graphicsLayer {
+                    scaleX = 2f * scale
+                    scaleY = scale
+                    translationX = if (crop == 1) -size.width / 2f else size.width / 2f
+                    translationY = 0f
+                }
+        }
+        ReaderImage(
+            url = url,
+            apiKey = apiKey,
+            modifier = imageModifier,
             contentScale = ContentScale.Fit,
         )
         if (scale <= 1.01f) {
@@ -275,6 +351,13 @@ private fun ReaderOverlay(state: ReaderUiState, viewModel: ReaderViewModel, onBa
                             tint = Color.White,
                         )
                     }
+                    var showSettings by remember { mutableStateOf(false) }
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Outlined.Tune, contentDescription = "阅读设置", tint = Color.White)
+                    }
+                    if (showSettings) {
+                        ReaderSettingsSheet(state, viewModel) { showSettings = false }
+                    }
                     IconButton(
                         onClick = { state.nextChapter?.let { viewModel.openChapter(it.id) } },
                         enabled = state.nextChapter != null,
@@ -282,6 +365,72 @@ private fun ReaderOverlay(state: ReaderUiState, viewModel: ReaderViewModel, onBa
                         Icon(Icons.AutoMirrored.Outlined.NavigateNext, contentDescription = "下一章", tint = Color.White)
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Reader settings sheet (design §12): reading mode, direction
+ *  (mirrors tap zones and the pager), and split-wide-page in paged
+ *  mode. Preview 24-reader-settings. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReaderSettingsSheet(
+    state: ReaderUiState,
+    viewModel: ReaderViewModel,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("阅读设置", style = MaterialTheme.typography.titleMedium)
+
+            Text("阅读模式", style = MaterialTheme.typography.titleSmall)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = !state.webtoon,
+                    onClick = { viewModel.setWebtoon(false) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text("分页") }
+                SegmentedButton(
+                    selected = state.webtoon,
+                    onClick = { viewModel.setWebtoon(true) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text("条漫（连续）") }
+            }
+
+            HorizontalDivider()
+            Text("阅读方向", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("default" to "跟随漫画", "ltr" to "从左到右", "rtl" to "从右到左").forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.dir == value || (value == "default" && state.dir !in listOf("ltr", "rtl")),
+                        onClick = { viewModel.setDir(if (value == "default") "ltr" else value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("拆分宽页", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "横页按阅读方向拆成两半（仅分页模式；进度仍按真实页码记录）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.splitWide,
+                    onCheckedChange = { viewModel.setSplitWide(it) },
+                    enabled = !state.webtoon,
+                )
             }
         }
     }
