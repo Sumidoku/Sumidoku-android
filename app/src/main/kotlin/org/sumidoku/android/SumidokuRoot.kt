@@ -1,5 +1,6 @@
 package org.sumidoku.android
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -10,13 +11,19 @@ import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,7 +36,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.window.core.layout.WindowSizeClass
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -154,13 +163,14 @@ private fun MainTabs(
             startDestination = "library",
         ) {
             composable("library") {
-                LibraryScreen(onOpenManga = { innerNav.navigate("manga/$it") })
+                LibraryTab(onOpenReader = onOpenReader, onOpenManga = { innerNav.navigate("manga/$it") })
             }
             composable(
                 route = "manga/{mangaId}",
                 arguments = listOf(navArgument("mangaId") { type = NavType.LongType }),
-            ) {
+            ) { entry ->
                 MangaScreen(
+                    mangaId = entry.arguments?.getLong("mangaId") ?: -1L,
                     onBack = { innerNav.popBackStack() },
                     onOpenChapter = onOpenReader,
                 )
@@ -241,4 +251,54 @@ private fun PlaceholderTab(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/** Library tab host — design §17: on compact widths the grid pushes
+ *  the detail route; on expanded widths (tablets/foldables) grid and
+ *  detail sit side by side in a ListDetailPaneScaffold, so selecting a
+ *  manga swaps the detail pane instead of navigating. */
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+private fun LibraryTab(
+    onOpenReader: (Long, Long) -> Unit,
+    onOpenManga: (Long) -> Unit,
+) {
+    val isExpanded = currentWindowAdaptiveInfo().windowSizeClass
+        .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    if (!isExpanded) {
+        LibraryScreen(onOpenManga = onOpenManga)
+        return
+    }
+    val navigator = rememberListDetailPaneScaffoldNavigator<Long>()
+    val scope = rememberCoroutineScope()
+    BackHandler(enabled = navigator.canNavigateBack()) {
+        scope.launch { navigator.navigateBack() }
+    }
+    ListDetailPaneScaffold(
+        directive = navigator.scaffoldDirective,
+        value = navigator.scaffoldValue,
+        listPane = {
+            AnimatedPane {
+                LibraryScreen(onOpenManga = { id ->
+                    scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, id) }
+                })
+            }
+        },
+        detailPane = {
+            AnimatedPane {
+                val mangaId = navigator.currentDestination?.contentKey
+                if (mangaId != null) {
+                    MangaScreen(
+                        mangaId = mangaId,
+                        onBack = { scope.launch { navigator.navigateBack() } },
+                        onOpenChapter = onOpenReader,
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("选择一部漫画", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        },
+    )
 }

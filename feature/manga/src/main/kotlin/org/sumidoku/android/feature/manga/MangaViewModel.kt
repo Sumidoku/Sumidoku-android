@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.manga
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,6 @@ import org.sumidoku.android.core.download.LocalDownloadEngine
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
-import javax.inject.Inject
 
 data class MangaUiState(
     val loading: Boolean = true,
@@ -53,15 +54,20 @@ data class MangaUiState(
         get() = chapters.firstOrNull { !it.isRead } ?: chapters.lastOrNull()
 }
 
-@HiltViewModel
-class MangaViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+@HiltViewModel(assistedFactory = MangaViewModel.Factory::class)
+class MangaViewModel @AssistedInject constructor(
+    @Assisted val mangaId: Long,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val localDownloads: LocalDownloadEngine,
 ) : ViewModel() {
 
-    val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
+    /** Assisted factory so the screen works both inside a nav route and
+     *  inside the expanded-width list-detail pane (design §17). */
+    @AssistedFactory
+    interface Factory {
+        fun create(mangaId: Long): MangaViewModel
+    }
 
     private val _state = MutableStateFlow(MangaUiState())
     val state: StateFlow<MangaUiState> = _state

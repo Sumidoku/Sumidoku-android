@@ -65,13 +65,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Manga detail: header, metadata, chapter list — preview 06-manga.html. */
+/** Manga detail: header, metadata, chapter list — preview 06-manga.html.
+ *  Takes the id explicitly and builds the view model through its
+ *  assisted factory so the screen can live inside a nav route or the
+ *  expanded-width detail pane (design §17). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MangaScreen(
+    mangaId: Long,
     onBack: () -> Unit,
     onOpenChapter: (mangaId: Long, chapterId: Long) -> Unit,
-    viewModel: MangaViewModel = hiltViewModel(),
+    viewModel: MangaViewModel = hiltViewModel<MangaViewModel, MangaViewModel.Factory>(
+        key = "manga-$mangaId",
+    ) { factory -> factory.create(mangaId) },
 ) {
     val state by viewModel.state.collectAsState()
     val meta by viewModel.meta.collectAsState()
