@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>浏览 · sumidoku-android 设计稿</title>
 <link rel="stylesheet" href="assets/mock.css">
+<style>
+  .src-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; color: rgba(255,255,255,.9);
+  }
+  .pinrow { display: flex; gap: 16px; margin-bottom: 4px; overflow: hidden; }
+  .pinrow .p { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 62px; }
+  .pinrow .p .src-icon { width: 52px; height: 52px; border-radius: 14px; font-size: 18px; }
+  .pinrow .p span { font-size: 11px; color: var(--muted); text-align: center; }
+  .row-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+</style>
 </head>
 <body>
 <h1 class="page-title">浏览 · 图源</h1>
-<p class="page-sub">置顶排序 / 启用开关 / 图源仓库管理</p>
+<p class="page-sub">聚合搜索入口 / 置顶快启 / 已安装（行内动作）/ 内部源 / 仓库 —— 四分区结构</p>
 <div class="phone">
   <div class="statusbar"><span>21:31</span><span class="icons">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
@@ -16,48 +28,73 @@
 
   <div class="appbar">
     <span class="title">浏览</span>
-    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
+    <span class="iconbtn" title="仓库管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg></span>
   </div>
 
   <div class="content">
-    <div class="chips">
-      <span class="chip active">已置顶</span>
-      <span class="chip">全部</span>
-      <span class="chip">中文</span>
-      <span class="chip">英文</span>
-      <span class="chip">仓库</span>
+    <div class="searchbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      跨图源搜索…
     </div>
 
-    <div class="listitem">
-      <span class="cover g1" style="width:38px;aspect-ratio:1;border-radius:9px"></span>
-      <div class="grow"><div class="name">拷贝漫画</div><div class="sub">zh · WASM 源 · 📌</div></div>
-      <span class="sw on"></span>
-    </div>
-    <div class="listitem">
-      <span class="cover g3" style="width:38px;aspect-ratio:1;border-radius:9px"></span>
-      <div class="grow"><div class="name">本地漫画</div><div class="sub">内置 local 源 · 3 个实例</div></div>
-      <span class="iconbtn" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
-    </div>
-    <div class="listitem">
-      <span class="cover g5" style="width:38px;aspect-ratio:1;border-radius:9px"></span>
-      <div class="grow"><div class="name">MangaDex</div><div class="sub">en · WASM 源 · 📌</div></div>
-      <span class="sw on"></span>
-    </div>
-    <div class="listitem">
-      <span class="cover g4" style="width:38px;aspect-ratio:1;border-radius:9px"></span>
-      <div class="grow"><div class="name">Komga（书源）</div><div class="sub">内置 OPDS 源 · 需登录 <span class="tag warn">未登录</span></div></div>
-      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
-    </div>
-    <div class="listitem">
-      <span class="cover g2" style="width:38px;aspect-ratio:1;border-radius:9px"></span>
-      <div class="grow"><div class="name">禁漫天堂</div><div class="sub">zh · WASM 源 · 已停用</div></div>
-      <span class="sw"></span>
+    <div class="sech" style="margin-top:4px"><b>置顶</b><span>拖拽排序 ›</span></div>
+    <div class="pinrow">
+      <div class="p"><span class="src-icon" style="background:linear-gradient(150deg,#4A5B8C,#2A2F45)">拷</span><span>拷贝漫画</span></div>
+      <div class="p"><span class="src-icon" style="background:linear-gradient(150deg,#8C7A4A,#453B22)">M</span><span>MangaDex</span></div>
+      <div class="p"><span class="src-icon" style="background:linear-gradient(150deg,#4A8C6E,#24402F)">本</span><span>本地漫画</span></div>
+      <div class="p"><span class="src-icon" style="background:linear-gradient(150deg,#8C4A6B,#452A38)">K</span><span>Komga</span></div>
     </div>
 
-    <div class="sech"><b>图源仓库</b><span>管理</span></div>
+    <div class="sech"><b>已安装 · 6</b><span>全部 ›</span></div>
     <div class="listitem">
-      <div class="grow"><div class="name" style="font-size:13.5px">community-sources</div><div class="sub">https://…/index.min.json · 87 个源 · 2 个可更新</div></div>
-      <span class="tag acc">2 更新</span>
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A5B8C,#2A2F45)">拷</span>
+      <div class="grow"><div class="name">拷贝漫画</div><div class="sub">zh · WASM · v1.4.2</div></div>
+      <span class="row-actions">
+        <span class="iconbtn" title="主页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="iconbtn" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
+      </span>
+    </div>
+    <div class="listitem">
+      <span class="src-icon" style="background:linear-gradient(150deg,#8C4A6B,#452A38)">禁</span>
+      <div class="grow"><div class="name">禁漫天堂</div><div class="sub">zh · WASM · v1.2.0 → <span style="color:var(--accent)">v1.3.0 可更新</span></div></div>
+      <span class="tag acc">更新</span>
+    </div>
+    <div class="listitem">
+      <span class="src-icon" style="background:linear-gradient(150deg,#8C7A4A,#453B22)">M</span>
+      <div class="grow"><div class="name">MangaDex</div><div class="sub">en · WASM · v2.1.0</div></div>
+      <span class="row-actions">
+        <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
+      </span>
+    </div>
+    <div class="listitem">
+      <span class="src-icon" style="background:linear-gradient(150deg,#6B4A8C,#352444)">B</span>
+      <div class="grow"><div class="name">Bato</div><div class="sub">en · WASM · 需登录 <span class="tag warn">未登录</span></div></div>
+      <span class="iconbtn" title="登录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
+    </div>
+
+    <div class="sech"><b>内部源</b><span>新建 ›</span></div>
+    <div class="listitem">
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A8C6E,#24402F)">本</span>
+      <div class="grow"><div class="name">本地漫画</div><div class="sub">local · 3 个实例 · 回收站 2 项</div></div>
+      <span class="row-actions">
+        <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
+      </span>
+    </div>
+    <div class="listitem">
+      <span class="src-icon" style="background:linear-gradient(150deg,#4A7A8C,#23404A)">O</span>
+      <div class="grow"><div class="name">Komga（OPDS）</div><div class="sub">opds · https://komga.home.lan</div></div>
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    </div>
+
+    <div class="sech"><b>图源仓库</b><span>管理 ›</span></div>
+    <div class="listitem">
+      <div class="grow"><div class="name" style="font-size:13.5px">community-sources</div><div class="sub">87 个源 · <span style="color:var(--accent)">2 个可更新</span> · 6 小时前刷新</div></div>
+      <span class="tag acc">浏览 ›</span>
+    </div>
+    <div class="listitem" style="border-bottom:0">
+      <div class="grow"><div class="name" style="font-size:13.5px;color:var(--accent)">＋ 添加仓库</div><div class="sub">粘贴 index.json 地址</div></div>
     </div>
   </div>
 
