@@ -13,11 +13,17 @@
   .field2 .fl { font-size: 11px; color: var(--faint); }
   .field2 .fv { font-size: 14px; margin-top: 3px; }
   .field2 .fv.ph { color: var(--faint); }
+  .dirrow { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 12px; padding: 11px 14px; margin-bottom: 8px; }
+  .dirrow .p { flex: 1; font-size: 13.5px; font-family: ui-monospace, monospace; }
+  .dirrow .p.ph { color: var(--faint); }
+  .dirrow .x { color: var(--faint); font-size: 15px; }
+  .addrow { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--border); border-radius: 12px; padding: 9px; font-size: 12.5px; color: var(--accent); margin-bottom: 12px; }
+  .flabel { font-size: 11.5px; color: var(--muted); margin: 14px 0 7px; }
 </style>
 </head>
 <body>
 <h1 class="page-title">添加内部源</h1>
-<p class="page-sub">InternalSourceModal · POST /sources/internal · local 多实例（服务器路径）/ OPDS（URL+可选认证）</p>
+<p class="page-sub">InternalSourceModal 全字段 · POST /sources/internal · local：多目录 + 单话目录 + 排除子串 + 三个扫描开关（留空项沿用服务端配置默认）/ OPDS：URL + 可选 Basic 认证</p>
 <div class="phone">
   <div class="statusbar"><span>21:45</span><span class="icons">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
@@ -28,21 +34,34 @@
     <span class="title" style="font-size:18px">添加内部源</span>
   </div>
 
-  <div class="content">
+  <div class="content" style="padding-bottom:12px">
     <div class="seg"><span class="on">本地文件夹</span><span>OPDS 目录</span></div>
 
     <div class="field2"><div class="fl">名称</div><div class="fv">本地漫画</div></div>
-    <div class="field2"><div class="fl">服务器上的文件夹路径</div><div class="fv ph">/data/manga/local</div></div>
 
-    <div style="background:var(--surface);border-radius:var(--radius);padding:12px 14px;font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:4px">
-      路径是<b>服务器</b>文件系统路径（客户端不读本地文件）。创建后服务端扫描索引，浏览走索引不走文件系统；ComicInfo.xml → series.json → EPUB OPF 元数据链。删除的条目进入回收站（见 26 屏）。
+    <div class="flabel">漫画目录（服务器路径，可多个）</div>
+    <div class="dirrow"><span class="p">/data/manga/local</span><span class="x">✕</span></div>
+    <div class="dirrow"><span class="p">/mnt/nas/comics</span><span class="x">✕</span></div>
+    <div class="dirrow"><span class="p ph">再添加一个路径…</span><span class="x">✕</span></div>
+    <div class="addrow">＋ 添加目录</div>
+
+    <div class="field2"><div class="fl">单话目录（oneshots，可选）</div><div class="fv ph">/data/manga/oneshots</div></div>
+    <div style="font-size:11px;color:var(--faint);line-height:1.6;margin:-2px 0 4px">该目录下每个文件即一话单发作品，不并入系列。</div>
+
+    <div class="flabel">排除子串（路径含任一即跳过）</div>
+    <div class="dirrow"><span class="p">@eaDir</span><span class="x">✕</span></div>
+    <div class="dirrow"><span class="p">#recycle</span><span class="x">✕</span></div>
+    <div class="addrow">＋ 添加排除项</div>
+
+    <div class="setitem" style="border-radius:12px;margin-bottom:8px"><div class="grow"><div class="t">强制按修改时间扫描</div><div class="s">forceModifiedTime · 默认关</div></div><span class="sw"></span></div>
+    <div class="setitem" style="border-radius:12px;margin-bottom:8px"><div class="grow"><div class="t">分析页面尺寸</div><div class="s">analyzePages · 默认开</div></div><span class="sw on"></span></div>
+    <div class="setitem" style="border-radius:12px"><div class="grow"><div class="t">分析元数据</div><div class="s">analyzeMetadata · 默认开</div></div><span class="sw on"></span></div>
+
+    <div style="background:var(--surface);border-radius:var(--radius);padding:12px 14px;font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:12px">
+      路径是<b>服务器</b>文件系统路径（客户端不读本地文件）。创建后服务端扫描索引；ComicInfo.xml → series.json → EPUB OPF 元数据链。删除的条目进入回收站（见 26 屏）。未改动的开关不随请求发送，由服务端配置层继续兜底。
     </div>
 
-    <div style="margin-top:14px;font-size:11.5px;color:var(--faint);line-height:1.6">
-      OPDS 形态：名称 + 目录 URL + 可选 Basic 认证；支持 OPDS 1.2 Atom / 2.0 JSON、OpenSearch、PSE 页流、CBZ acquisition。
-    </div>
-
-    <div class="btnrow" style="margin-top:18px">
+    <div class="btnrow" style="margin-top:14px">
       <span class="btn ghost" style="flex:1">取消</span>
       <span class="btn" style="flex:1">创建</span>
     </div>
