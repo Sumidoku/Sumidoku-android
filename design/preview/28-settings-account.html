@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 · 账户与同步 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<h1 class="page-title">设置 · 账户与同步</h1>
+<p class="page-sub">API keys（明文只显示一次）· 实例间同步 peer（sync/changes CRDT 游标）· 无痕阅读（全局 + 每漫画覆盖）</p>
+<div class="phone">
+  <div class="statusbar"><span>21:44</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <span class="title" style="font-size:18px">账户与同步</span>
+  </div>
+
+  <div class="content">
+    <div class="setgroup">
+      <div class="gh">API keys <span class="tag" style="margin-left:4px">SHA-256 指纹存服务端</span></div>
+      <div class="setitem"><div class="grow"><div class="t">本机 · sumidoku-android</div><div class="s">创建于 11-01 · 最后使用 2 分钟前</div></div><span class="val" style="color:var(--error)">撤销</span></div>
+      <div class="setitem"><div class="grow"><div class="t">cli-backup</div><div class="s">创建于 10-12 · 最后使用 3 天前</div></div><span class="val" style="color:var(--error)">撤销</span></div>
+      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><div class="grow"><div class="t">新建 API key</div><div class="s">明文仅在创建时显示一次，用于移动端/CLI bearer</div></div></div>
+    </div>
+
+    <div class="setgroup">
+      <div class="gh">实例间同步 <span class="tag" style="margin-left:4px">服务器对服务器</span></div>
+      <div class="setitem"><div class="grow"><div class="t">nas.local:4567</div><div class="s">sequence 1284 → 1291 · 上次同步 10 分钟前</div></div><span class="val"> ›</span></div>
+      <div class="setitem"><div class="grow"><div class="t">vps.example.com</div><div class="s tag-warn-text" style="color:var(--warning)">409 resync_required · 需重建基线</div></div><span class="val" style="color:var(--warning)">重新同步</span></div>
+      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><div class="grow"><div class="t">添加同步实例</div><div class="s">书库/进度/分类 CRDT 增量复制</div></div></div>
+    </div>
+
+    <div class="setgroup">
+      <div class="gh">无痕阅读</div>
+      <div class="setitem"><div class="grow"><div class="t">全局无痕</div><div class="s">暂停写 last_read_at 历史戳</div></div><span class="sw"></span></div>
+      <div class="setitem"><div class="grow"><div class="t">按漫画覆盖</div><div class="s">3 部作品已单独开启 · 在详情页 ⋯ 管理</div></div><span class="val">›</span></div>
+    </div>
+
+    <div style="background:var(--surface);border-radius:var(--radius);padding:12px 14px;font-size:11.5px;color:var(--muted);line-height:1.7">
+      单 admin 部署：本页管理的是「凭证与实例」，不是多用户。tracker 账号在 Tracker 页单独管理。
+    </div>
+  </div>
+</div>
+</body>
+</html>
