@@ -44,6 +44,8 @@ dependencies {
     implementation(project(":feature:servers"))
     implementation(project(":feature:library"))
     implementation(project(":feature:browse"))
+    implementation(project(":feature:reader"))
+    implementation(project(":feature:manga"))
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))

@@ -24,10 +24,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +40,8 @@ import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.feature.browse.AddSourceScreen
 import org.sumidoku.android.feature.browse.BrowseScreen
 import org.sumidoku.android.feature.library.LibraryScreen
+import org.sumidoku.android.feature.manga.MangaScreen
+import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.ui.theme.SumidokuTheme
 import javax.inject.Inject
@@ -82,7 +86,19 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
                         })
                     }
                     composable("main") {
-                        MainTabs()
+                        MainTabs(onOpenReader = { mangaId, chapterId ->
+                            nav.navigate("reader/$mangaId/$chapterId")
+                        })
+                    }
+                    composable(
+                        route = "reader/{mangaId}/{chapterId}",
+                        arguments = listOf(
+                            navArgument("mangaId") { type = NavType.LongType },
+                            navArgument("chapterId") { type = NavType.LongType },
+                        ),
+                    ) {
+                        // 阅读器刻意是外层真路由：全屏沉浸，退出落回双栏/标签壳。
+                        ReaderScreen(onBack = { nav.popBackStack() })
                     }
                 }
             }
@@ -91,7 +107,7 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun MainTabs() {
+private fun MainTabs(onOpenReader: (mangaId: Long, chapterId: Long) -> Unit) {
     val innerNav = rememberNavController()
     val backStack by innerNav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
@@ -121,7 +137,18 @@ private fun MainTabs() {
             startDestination = "library",
             modifier = Modifier.padding(padding),
         ) {
-            composable("library") { LibraryScreen() }
+            composable("library") {
+                LibraryScreen(onOpenManga = { innerNav.navigate("manga/$it") })
+            }
+            composable(
+                route = "manga/{mangaId}",
+                arguments = listOf(navArgument("mangaId") { type = NavType.LongType }),
+            ) {
+                MangaScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenChapter = onOpenReader,
+                )
+            }
             composable("browse") {
                 BrowseScreen(onAddSource = { innerNav.navigate("add-source") })
             }

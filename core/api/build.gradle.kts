@@ -75,6 +75,19 @@ tasks.register("patchGeneratedSources") {
             }
             if (changed) source.writeText(patched.joinToString(System.lineSeparator()))
         }
+        // PageContent is an externally-tagged union emitted as a data class
+        // whose variant fields are all *required*; the wire only carries the
+        // active variant, so any decode fails with MissingFieldException.
+        // Make every variant field nullable with a null default.
+        val pageContent = File(modelDir, "PageContent.kt")
+        if (pageContent.exists()) {
+            val original = pageContent.readText()
+            val patched = original.replace(
+                Regex("""^(\s*val \w+: [^=\n]+),$""", RegexOption.MULTILINE),
+                "$1? = null,",
+            )
+            if (patched != original) pageContent.writeText(patched)
+        }
     }
 }
 
