@@ -52,6 +52,7 @@ dependencies {
     implementation(project(":feature:source"))
     implementation(project(":feature:repos"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:trackers"))
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))

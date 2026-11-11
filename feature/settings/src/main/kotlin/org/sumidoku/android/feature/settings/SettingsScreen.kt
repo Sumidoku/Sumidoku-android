@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     onOpenRepos: () -> Unit,
     onManageServers: () -> Unit,
+    onOpenTrackers: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -61,6 +63,15 @@ fun SettingsScreen(
                     subtitle = "多实例 peer 同步，即将支持",
                     enabled = false,
                     onClick = {},
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Public,
+                    title = "追踪器账号",
+                    subtitle = "AniList / MAL / Bangumi / MangaBaka 绑定与默认提供方",
+                    enabled = true,
+                    onClick = onOpenTrackers,
                 )
             }
             item {

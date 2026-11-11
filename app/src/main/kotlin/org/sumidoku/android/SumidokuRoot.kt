@@ -49,6 +49,7 @@ import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.source.SourceHomeScreen
 import org.sumidoku.android.feature.source.SourceSettingsScreen
+import org.sumidoku.android.feature.trackers.TrackersScreen
 import org.sumidoku.android.feature.updates.UpdatesScreen
 import org.sumidoku.android.ui.theme.SumidokuTheme
 import javax.inject.Inject
@@ -208,7 +209,11 @@ private fun MainTabs(
                 SettingsScreen(
                     onOpenRepos = { innerNav.navigate("repos") },
                     onManageServers = onManageServers,
+                    onOpenTrackers = { innerNav.navigate("trackers") },
                 )
+            }
+            composable("trackers") {
+                TrackersScreen(onBack = { innerNav.popBackStack() })
             }
         }
     }
