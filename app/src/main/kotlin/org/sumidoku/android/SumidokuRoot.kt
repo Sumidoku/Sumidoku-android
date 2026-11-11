@@ -57,7 +57,10 @@ import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.repos.ReposScreen
 import org.sumidoku.android.feature.search.SearchScreen
 import org.sumidoku.android.feature.servers.ServersScreen
+import org.sumidoku.android.feature.settings.ApiKeysScreen
+import org.sumidoku.android.feature.settings.CacheScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
+import org.sumidoku.android.feature.settings.TasksScreen
 import org.sumidoku.android.feature.source.SourceHomeScreen
 import org.sumidoku.android.feature.source.SourceSettingsScreen
 import org.sumidoku.android.feature.trackers.TrackersScreen
@@ -231,7 +234,19 @@ private fun MainTabs(
                     onManageServers = onManageServers,
                     onOpenTrackers = { innerNav.navigate("trackers") },
                     onOpenBackups = { innerNav.navigate("backups") },
+                    onOpenApiKeys = { innerNav.navigate("api-keys") },
+                    onOpenCache = { innerNav.navigate("cache") },
+                    onOpenTasks = { innerNav.navigate("tasks") },
                 )
+            }
+            composable("api-keys") {
+                ApiKeysScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("cache") {
+                CacheScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("tasks") {
+                TasksScreen(onBack = { innerNav.popBackStack() })
             }
             composable("backups") {
                 BackupsScreen(onBack = { innerNav.popBackStack() })

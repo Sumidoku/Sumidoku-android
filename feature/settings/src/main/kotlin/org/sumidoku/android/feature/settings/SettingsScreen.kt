@@ -9,7 +9,10 @@ import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +37,9 @@ fun SettingsScreen(
     onManageServers: () -> Unit,
     onOpenTrackers: () -> Unit = {},
     onOpenBackups: () -> Unit = {},
+    onOpenApiKeys: () -> Unit = {},
+    onOpenCache: () -> Unit = {},
+    onOpenTasks: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -82,6 +88,33 @@ fun SettingsScreen(
                     subtitle = "导出完整备份、从文件恢复、服务器定时备份、Aidoku .aib 导入",
                     enabled = true,
                     onClick = onOpenBackups,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Key,
+                    title = "API 密钥与密码",
+                    subtitle = "管理访问密钥（新建/吊销）、修改密码",
+                    enabled = true,
+                    onClick = onOpenApiKeys,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Storage,
+                    title = "缓存管理",
+                    subtitle = "章节页缓存与封面缓存的占用与清理",
+                    enabled = true,
+                    onClick = onOpenCache,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.PlaylistPlay,
+                    title = "任务队列",
+                    subtitle = "服务器后台任务（扫描/分析/清空回收站）",
+                    enabled = true,
+                    onClick = onOpenTasks,
                 )
             }
             item { SectionHeader("关于") }
