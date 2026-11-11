@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阅读器设置 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .seg { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg span { flex: 1; text-align: center; font-size: 12px; padding: 6px 0; border-radius: 8px; color: var(--muted); }
+  .seg span.on { background: var(--surface3); color: var(--text); font-weight: 600; }
+  .tz { display: grid; grid-template-columns: repeat(3, 26px); gap: 3px; }
+  .tz i { width: 26px; height: 20px; border-radius: 4px; background: var(--surface3); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--muted); font-style: normal; }
+  .tz i.a { background: var(--accent-soft); color: var(--accent); }
+</style>
+</head>
+<body>
+<h1 class="page-title">阅读器 · 设置面板</h1>
+<p class="page-sub">ReaderSettings · 与 webui 同款键位（sumidoku.reader.* + manga.viewer 每漫画覆盖）· 面板内实时预览</p>
+<div class="phone">
+  <div class="reader-canvas">
+    <div class="reader-page"><div class="cover g3" style="width:56%;aspect-ratio:2/3;border-radius:0;opacity:.6"><span class="ct">第 131 话 · 12/18</span></div></div>
+  </div>
+
+  <div class="sheet" style="max-height:600px;overflow:hidden">
+    <div class="grab"></div>
+    <div style="display:flex;align-items:center;margin-bottom:8px">
+      <b style="font-size:15px">阅读设置</b>
+      <span class="tag" style="margin-left:8px">本漫画覆盖</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--accent)">恢复默认</span>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:5px">模式</div>
+      <div class="seg"><span class="on">分页</span><span>条漫</span><span>滚动</span></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex:1">
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:5px">方向</div>
+        <div class="seg"><span>左→右</span><span class="on">右→左</span><span>垂直</span></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:5px">双页</div>
+        <div class="seg"><span>关</span><span class="on">双页</span><span>无封面</span></div>
+      </div>
+    </div>
+
+    <div class="setitem" style="border-radius:0"><div class="grow"><div class="t">章节过渡页</div><div class="s">同向再翻确认 · 反向取消</div></div><span class="sw on"></span></div>
+    <div class="setitem"><div class="grow"><div class="t">拉动进入下一章</div><div class="s">橡皮筋 160px 阈值</div></div><span class="sw on"></span></div>
+    <div class="setitem"><div class="grow"><div class="t">点按区域</div><div class="s">lr / rl / edge / kindle / off</div></div><div class="tz"><i class="a">菜单</i><i class="a">菜单</i><i class="a">菜单</i><i>上一页</i><i class="a">菜单</i><i>下一页</i><i>上一页</i><i class="a">菜单</i><i>下一页</i></div></div>
+    <div class="setitem"><div class="grow"><div class="t">页面缩放</div><div class="s">screen / width / widthShrink / height / original</div></div><span class="val">适应屏幕 ▾</span></div>
+    <div class="setitem"><div class="grow"><div class="t">拆分宽页</div><div class="s">宽幅页自动拆两页</div></div><span class="sw"></span></div>
+    <div class="setitem"><div class="grow"><div class="t">自定义滤镜</div><div class="s">亮度 / 对比度 / 色调（feBlend）</div></div><span class="val">›</span></div>
+    <div class="setitem"><div class="grow"><div class="t">背景</div><div class="s">dark / gray / light / auto</div></div><span class="val">深色 ▾</span></div>
+    <div class="setitem"><div class="grow"><div class="t">滑动静画</div><div class="s">300ms · 跟随系统减少动态</div></div><span class="sw on"></span></div>
+    <div style="text-align:center;font-size:11px;color:var(--faint);padding:8px 0 0">下滑查看：排版（文本页）· 章内导航 …</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阅读器 · 章节列表与失败重试 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<h1 class="page-title">阅读器 · 章节列表 + 失败页重试</h1>
+<p class="page-sub">底栏章节图标唤出抽屉 · cacheRevision 版本化刷新 · 失败页状态机（重试 / 换源加载）</p>
+<div class="phone">
+  <div class="reader-canvas">
+    <div class="reader-page"><div class="cover g3" style="width:56%;aspect-ratio:2/3;border-radius:0;opacity:.5"><span class="ct">第 131 话 · 12/18</span></div></div>
+  </div>
+
+  <div class="reader-overlay-top" style="display:flex;align-items:center;gap:10px">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:600">葬送的芙莉莲</div>
+      <div style="font-size:11px;color:var(--muted)">第 131 话</div>
+    </div>
+  </div>
+
+  <div class="sheet" style="max-height:470px;overflow:hidden">
+    <div class="grab"></div>
+    <div style="display:flex;align-items:center;margin-bottom:8px">
+      <b style="font-size:15px">章节</b>
+      <span style="margin-left:auto;font-size:12px;color:var(--faint)">132 章 · 44 未读</span>
+      <span class="iconbtn" title="刷新章节"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg></span>
+    </div>
+
+    <div class="chapter"><div class="grow"><div class="t">第 132 话</div><div class="s">11-08 · 已下载</div></div><span class="tag ok">已下载</span></div>
+    <div class="chapter"><div class="grow"><div class="t">第 131 话 <span class="cur">当前</span></div><div class="s">11-01 · 读到 12/18</div></div></div>
+    <div class="chapter read"><div class="grow"><div class="t">第 130 话</div><div class="s">10-25</div></div></div>
+    <div class="chapter read"><div class="grow"><div class="t">第 129 话</div><div class="s">10-18</div></div></div>
+    <div class="chapter">
+      <div class="grow">
+        <div class="t" style="color:var(--error)">第 128 话 · 加载失败</div>
+        <div class="s">网络错误 · 已重试 2 次（指数退避）</div>
+      </div>
+      <span class="chip" style="font-size:12px">重试</span>
+      <span class="chip" style="font-size:12px">换源</span>
+    </div>
+    <div class="chapter read" style="border-bottom:0"><div class="grow"><div class="t">第 127 话</div><div class="s">10-11</div></div></div>
+  </div>
+</div>
+</body>
+</html>
