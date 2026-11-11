@@ -14,6 +14,7 @@ import org.sumidoku.android.core.api.LibraryApi
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.DownloadsApi
 import org.sumidoku.android.core.api.MetadataApi
+import org.sumidoku.android.core.api.MigrationApi
 import org.sumidoku.android.core.api.TrackersApi
 import org.sumidoku.android.core.api.model.AddToLibraryRequest
 import org.sumidoku.android.core.api.model.ChapterSort
@@ -22,10 +23,15 @@ import org.sumidoku.android.core.api.model.ContentRating
 import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.Manga
 import org.sumidoku.android.core.api.model.MangaStatus
+import org.sumidoku.android.core.api.model.MigrateEntry
+import org.sumidoku.android.core.api.model.MigrateMode
+import org.sumidoku.android.core.api.model.MigrateRequest
+import org.sumidoku.android.core.api.model.MigrationSource
 import org.sumidoku.android.core.api.model.MetadataApplyRequest
 import org.sumidoku.android.core.api.model.MetadataField
 import org.sumidoku.android.core.api.model.MetadataPreview
 import org.sumidoku.android.core.api.model.MetadataRestoreRequest
+import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.SelectCoverRequest
 import org.sumidoku.android.core.api.model.SortOrder
 import org.sumidoku.android.core.api.model.TrackSearchItem
@@ -480,6 +486,102 @@ class MangaViewModel @AssistedInject constructor(
             } catch (e: Exception) { fail(e) }
         }
     }
+
+    // ---- M7: single-manga migration ----
+
+    /** Load installed sources other than the manga's own that can
+     *  host the migrated entry. */
+    fun startMigration() {
+        val manga = _state.value.manga ?: return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            _meta.value = _meta.value.copy(
+                migrationSources = null,
+                migrationTargetId = null,
+                migrationCandidates = null,
+                migrationSelected = null,
+            )
+            try {
+                val sources = clientFactory.create<MigrationApi>(profile)
+                    .getMigrationSources()
+                    .await()
+                    .filter { it.id != manga.sourceId }
+                _meta.value = _meta.value.copy(migrationSources = sources)
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Look up matches for this manga in the chosen target source. */
+    fun selectMigrationTarget(targetSourceId: Long) {
+        val manga = _state.value.manga ?: return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            _meta.value = _meta.value.copy(
+                migrationTargetId = targetSourceId,
+                migrationCandidates = null,
+                migrationSelected = null,
+                migrationBusy = true,
+            )
+            try {
+                val lookup = clientFactory.create<MigrationApi>(profile)
+                    .lookupMigrationCandidates(manga.id, targetSourceId)
+                    .await()
+                _meta.value = _meta.value.copy(
+                    migrationBusy = false,
+                    migrationCandidates = lookup.candidates,
+                    migrationSelected = lookup.candidates.firstOrNull(),
+                )
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _meta.value = _meta.value.copy(migrationBusy = false, error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    fun selectMigrationCandidate(candidate: SearchManga?) {
+        _meta.value = _meta.value.copy(migrationSelected = candidate)
+    }
+
+    /** Execute the migration and refresh (the entry may have been
+     *  re-homed to the target source). */
+    fun runMigration(mode: MigrateMode) {
+        val manga = _state.value.manga ?: return
+        val targetId = _meta.value.migrationTargetId ?: return
+        val candidate = _meta.value.migrationSelected ?: return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            _meta.value = _meta.value.copy(migrationBusy = true)
+            try {
+                val response = clientFactory.create<MigrationApi>(profile)
+                    .migrateManga(
+                        MigrateRequest(
+                            mode = mode,
+                            propertyEntries = listOf(
+                                MigrateEntry(
+                                    fromMangaId = manga.id,
+                                    toSourceId = targetId,
+                                    toMangaKey = candidate.key,
+                                ),
+                            ),
+                        ),
+                    )
+                    .await()
+                val result = response.results.firstOrNull()
+                if (result?.ok == true) {
+                    _meta.value = _meta.value.copy(migrationBusy = false, message = "迁移完成")
+                    refresh()
+                } else {
+                    _meta.value = _meta.value.copy(
+                        migrationBusy = false,
+                        error = result?.message ?: result?.reason?.toString() ?: "迁移失败",
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _meta.value = _meta.value.copy(migrationBusy = false, error = e.message ?: e.toString())
+            }
+        }
+    }
 }
 
 /** Sub-state for the metadata/tracker sheets (M6). */
@@ -498,6 +600,12 @@ data class MetaUiState(
     val linkBusy: Boolean = false,
     /** Server categories for the categories editor sheet (M2/M7). */
     val categories: List<org.sumidoku.android.core.api.model.Category>? = null,
+    // M7 single-manga migration sheet state.
+    val migrationSources: List<MigrationSource>? = null,
+    val migrationTargetId: Long? = null,
+    val migrationCandidates: List<SearchManga>? = null,
+    val migrationSelected: SearchManga? = null,
+    val migrationBusy: Boolean = false,
     val message: String? = null,
     val error: String? = null,
 )

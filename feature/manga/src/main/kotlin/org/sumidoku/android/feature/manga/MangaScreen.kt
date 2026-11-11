@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,12 +32,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,6 +73,8 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.ChapterWithDownload
+import org.sumidoku.android.core.api.model.MigrateMode
+import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.model.ServerProfile
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -154,6 +163,10 @@ fun MangaScreen(
                                     showMenu = false
                                     viewModel.loadCategories()
                                     activeSheet = MangaSheet.Categories
+                                })
+                                DropdownMenuItem(text = { Text("迁移到其他图源…") }, onClick = {
+                                    showMenu = false
+                                    activeSheet = MangaSheet.Migrate
                                 })
                                 DropdownMenuItem(text = { Text("全部标为已读") }, onClick = {
                                     showMenu = false
@@ -305,12 +318,145 @@ fun MangaScreen(
                 onDismiss = { activeSheet = null },
             )
         }
+        MangaSheet.Migrate -> if (mangaForSheets != null) {
+            MigrateSheet(
+                meta = meta,
+                sources = meta.migrationSources,
+                onDismiss = { activeSheet = null },
+                onStart = { viewModel.startMigration() },
+                onSelectTarget = { viewModel.selectMigrationTarget(it) },
+                onSelectCandidate = { viewModel.selectMigrationCandidate(it) },
+                onRun = { mode ->
+                    viewModel.runMigration(mode)
+                    activeSheet = null
+                },
+            )
+        }
         null -> Unit
     }
 }
 
 /** M6 sheet targets on the manga detail screen. */
-private enum class MangaSheet { Edit, Cover, Match, Links, Categories }
+private enum class MangaSheet { Edit, Cover, Match, Links, Categories, Migrate }
+
+/** Single-manga migration sheet (design §14 M7): pick a target
+ *  source, auto-lookup matches (manual pick from candidates), choose
+ *  copy/migrate/migrateWithHistory, execute. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MigrateSheet(
+    meta: MetaUiState,
+    sources: List<org.sumidoku.android.core.api.model.MigrationSource>?,
+    onDismiss: () -> Unit,
+    onStart: () -> Unit,
+    onSelectTarget: (Long) -> Unit,
+    onSelectCandidate: (SearchManga?) -> Unit,
+    onRun: (MigrateMode) -> Unit,
+) {
+    var mode by remember { mutableStateOf(MigrateMode.MIGRATE) }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("迁移到其他图源", style = MaterialTheme.typography.titleMedium)
+            if (sources == null) {
+                LaunchedEffect(Unit) { onStart() }
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Text("目标图源", style = MaterialTheme.typography.titleSmall)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(sources.size) { i ->
+                        val source = sources[i]
+                        FilterChip(
+                            selected = meta.migrationTargetId == source.id,
+                            onClick = { onSelectTarget(source.id) },
+                            label = { Text(source.name ?: "图源 ${source.id}", maxLines = 1) },
+                        )
+                    }
+                }
+
+                when {
+                    meta.migrationBusy -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    meta.migrationCandidates != null -> {
+                        HorizontalDivider()
+                        Text("匹配结果", style = MaterialTheme.typography.titleSmall)
+                        if (meta.migrationCandidates.isEmpty()) {
+                            Text(
+                                "没有匹配到同名漫画",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else {
+                            meta.migrationCandidates.take(6).forEach { candidate ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onSelectCandidate(
+                                                if (meta.migrationSelected?.key == candidate.key) null else candidate,
+                                            )
+                                        },
+                                ) {
+                                    RadioButton(
+                                        selected = meta.migrationSelected?.key == candidate.key,
+                                        onClick = {
+                                            onSelectCandidate(
+                                                if (meta.migrationSelected?.key == candidate.key) null else candidate,
+                                            )
+                                        },
+                                    )
+                                    Column(Modifier.weight(1f)) {
+                                        Text(candidate.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        candidate.authors?.takeIf { it.isNotEmpty() }?.let {
+                                            Text(
+                                                it.joinToString("、"),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider()
+                        Text("迁移模式", style = MaterialTheme.typography.titleSmall)
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                            listOf(
+                                MigrateMode.COPY to "复制",
+                                MigrateMode.MIGRATE to "迁移",
+                                MigrateMode.MIGRATE_WITH_HISTORY to "带历史",
+                            ).forEachIndexed { index, (value, label) ->
+                                SegmentedButton(
+                                    selected = mode == value,
+                                    onClick = { mode = value },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                                ) { Text(label) }
+                            }
+                        }
+                        Button(
+                            onClick = { onRun(mode) },
+                            enabled = meta.migrationSelected != null && !meta.migrationBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("开始迁移") }
+                    }
+                    else -> Text(
+                        "选择一个目标图源以查找匹配",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun MangaHeader(
