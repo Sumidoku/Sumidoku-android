@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图源 · listing 浏览 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .ftab { display: flex; gap: 16px; padding: 2px 16px 10px; border-bottom: 1px solid var(--border); }
+  .ftab span { font-size: 14px; color: var(--muted); padding-bottom: 6px; }
+  .ftab span.on { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
+  .loadmore { text-align: center; padding: 14px 0 4px; font-size: 12.5px; color: var(--accent); }
+  .frow { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .frow .fl { font-size: 13.5px; }
+  .frow .fv { margin-left: auto; font-size: 12px; color: var(--faint); }
+</style>
+</head>
+<body>
+<h1 class="page-title">图源 · listing 分页浏览</h1>
+<p class="page-sub">SourceBrowsePage · /sources/{id}/listings + /search?filters · hasNextPage 分页 · ?q= 深链（查看全部/标签跳转）</p>
+<div class="phone">
+  <div class="statusbar"><span>21:45</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar" style="gap:8px">
+    <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <span class="title" style="font-size:18px">拷贝漫画</span>
+    <span class="iconbtn" title="搜索本源"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
+    <span class="iconbtn" title="筛选" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
+  </div>
+
+  <div class="ftab"><span>主页</span><span class="on">热门</span><span>最新</span><span>分类</span><span>排行榜</span></div>
+
+  <div class="content">
+    <div class="grid" style="margin-top:12px">
+      <div><div class="cover g1"><span class="ct">我推的孩子</span></div><div class="name">我推的孩子</div></div>
+      <div><div class="cover g4"><span class="ct">咒术回战</span></div><div class="name">咒术回战</div></div>
+      <div><div class="cover g6"><span class="ct">胆大党</span></div><div class="name">胆大党</div></div>
+      <div><div class="cover g3"><span class="ct">坂本日常</span></div><div class="name">坂本日常</div></div>
+      <div><div class="cover g5"><span class="ct">废渊战鬼</span></div><div class="name">废渊战鬼</div></div>
+      <div><div class="cover g2"><span class="ct">瑠璃龙龙</span></div><div class="name">瑠璃龙龙</div></div>
+    </div>
+    <div class="loadmore">第 1 页 · 加载更多（hasNextPage）</div>
+  </div>
+
+  <div class="sheet" style="max-height:300px;overflow:hidden">
+    <div class="grab"></div>
+    <div style="display:flex;align-items:center;margin-bottom:6px">
+      <b style="font-size:15px">筛选</b>
+      <span class="tag" style="margin-left:8px">源 filters schema 驱动</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--faint)">重置</span>
+    </div>
+    <div class="frow"><span class="fl">排序</span><span class="fv">热度 ▾</span></div>
+    <div class="frow"><span class="fl">题材</span><span class="fv">热血 ✓ · 恋爱 ✕ · 其余不限 ▾</span></div>
+    <div class="frow" style="border-bottom:0"><span class="fl">连载状态</span><span class="fv">不限 ▾</span></div>
+  </div>
+</div>
+</body>
+</html>

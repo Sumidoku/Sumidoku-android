@@ -510,6 +510,35 @@ reading, M3+ reach full web-UI parity.
 - This document lives in the server repo because it designs against
   the server's API contract; the client repo links to it.
 
+## 16. Optional Aidoku-parity enhancements
+
+Features Aidoku has that neither the server nor the webui provides.
+None is required for the webui-parity red line; each needs an explicit
+product decision and, for the server-backed ones, a server change
+first. Listed here so the milestone plan can pick them up deliberately
+instead of by accident.
+
+- **Pinned manga in the library.** Aidoku keeps a pinned set at the top
+  of the library (`LibraryViewModel` pinnedManga). The server has no
+  pinned field; options are a device-local pin list (lost on reinstall,
+  not synced) or abusing a reserved category (visible in webui). Decide
+  before M4 polish.
+- **Crop borders.** `CropBordersProcessor` trims scan margins at render
+  time. Pure client-side image pipeline work (Coil transformation or a
+  custom decoder step); no server involvement. Reader milestone M9
+  candidate.
+- **Upscaling.** `UpscaleProcessor` (waifu2x-family) enhances pages in
+  the reader. The server only has a waifu2x spike under `spike/`; doing
+  this on-device means bundling an NCNN/TFLite model with real battery
+  and size costs. Defer; revisit after M9.
+- **OCR dictionary.** Aidoku's `Features/Dictionary` runs OCR on a page
+  region for lookup/translation. Large standalone feature; Android has
+  ML Kit text recognition as a cheap first step. Out of scope until the
+  reader is stable.
+- **GIF pages.** Aidoku renders animated pages (`GIFImageNode`).
+  Trivial on Android — Coil already decodes GIF; just do not strip
+  animation in the reader image pipeline.
+
 ## Appendix A — Aidoku references
 
 All paths under the Aidoku checkout root, `Aidoku/` subdirectory:
