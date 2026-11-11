@@ -33,6 +33,7 @@ fun SettingsScreen(
     onOpenRepos: () -> Unit,
     onManageServers: () -> Unit,
     onOpenTrackers: () -> Unit = {},
+    onOpenBackups: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -77,10 +78,10 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.CloudQueue,
-                    title = "备份与恢复（M8）",
-                    subtitle = "文档备份、Aidoku .aib / Mihon .tachibk 导入，即将支持",
-                    enabled = false,
-                    onClick = {},
+                    title = "备份与恢复",
+                    subtitle = "导出完整备份、从文件恢复、服务器定时备份、Aidoku .aib 导入",
+                    enabled = true,
+                    onClick = onOpenBackups,
                 )
             }
             item { SectionHeader("关于") }

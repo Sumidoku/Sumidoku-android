@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import androidx.lifecycle.viewModelScope
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.feature.browse.AddSourceScreen
+import org.sumidoku.android.feature.backups.BackupsScreen
 import org.sumidoku.android.feature.browse.BrowseScreen
 import org.sumidoku.android.feature.downloads.DownloadsScreen
 import org.sumidoku.android.feature.history.HistoryScreen
@@ -212,7 +213,11 @@ private fun MainTabs(
                     onOpenRepos = { innerNav.navigate("repos") },
                     onManageServers = onManageServers,
                     onOpenTrackers = { innerNav.navigate("trackers") },
+                    onOpenBackups = { innerNav.navigate("backups") },
                 )
+            }
+            composable("backups") {
+                BackupsScreen(onBack = { innerNav.popBackStack() })
             }
             composable("trackers") {
                 TrackersScreen(onBack = { innerNav.popBackStack() })
