@@ -120,6 +120,21 @@ tasks.register("patchGeneratedSources") {
             )
             if (patched != original) sourcesApi.writeText(patched)
         }
+        // MetadataFieldValue is a free-form object in the spec and generates
+        // as an empty class, which silently drops the preview diff values.
+        // The wire is arbitrary JSON (strings, lists, objects), so expose the
+        // raw element for display.
+        listOf("MetadataPreviewField.kt", "MetadataFieldAlternative.kt").forEach { name ->
+            val target = File(modelDir, name)
+            if (target.exists()) {
+                val original = target.readText()
+                val patched = original.replace(
+                    "MetadataFieldValue?",
+                    "kotlinx.serialization.json.JsonElement?",
+                )
+                if (patched != original) target.writeText(patched)
+            }
+        }
     }
 }
 

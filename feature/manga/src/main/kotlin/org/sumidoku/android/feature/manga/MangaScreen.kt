@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,8 +33,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,8 +73,21 @@ fun MangaScreen(
     viewModel: MangaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val meta by viewModel.meta.collectAsState()
+    var activeSheet by remember { mutableStateOf<MangaSheet?>(null) }
+    var showMenu by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(meta.message, meta.error) {
+        val text = meta.message ?: meta.error
+        if (text != null) {
+            snackbar.showSnackbar(text)
+            viewModel.consumeMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {},
@@ -90,6 +109,35 @@ fun MangaScreen(
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                             )
+                        }
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(text = { Text("编辑元数据") }, onClick = {
+                                    showMenu = false
+                                    activeSheet = MangaSheet.Edit
+                                })
+                                DropdownMenuItem(text = { Text("匹配元数据") }, onClick = {
+                                    showMenu = false
+                                    activeSheet = MangaSheet.Match
+                                })
+                                DropdownMenuItem(text = { Text("更换封面") }, onClick = {
+                                    showMenu = false
+                                    viewModel.loadAlternates()
+                                    activeSheet = MangaSheet.Cover
+                                })
+                                DropdownMenuItem(text = { Text("恢复图源元数据") }, onClick = {
+                                    showMenu = false
+                                    viewModel.restoreMetadata()
+                                })
+                                DropdownMenuItem(text = { Text("追踪链接") }, onClick = {
+                                    showMenu = false
+                                    viewModel.loadLinks()
+                                    activeSheet = MangaSheet.Links
+                                })
+                            }
                         }
                     }
                 },
@@ -139,7 +187,71 @@ fun MangaScreen(
             }
         }
     }
+
+    // M6 sheets
+    val mangaForSheets = state.manga
+    val profileForSheets = state.profile
+    when (activeSheet) {
+        MangaSheet.Edit -> if (mangaForSheets != null) {
+            EditMetadataSheet(
+                manga = mangaForSheets,
+                busy = meta.editBusy,
+                onDismiss = { activeSheet = null },
+                onSave = { title, authors, artists, description, tags, status, contentRating, unlock ->
+                    viewModel.saveMetadata(title, authors, artists, description, tags, status, contentRating, unlock)
+                    activeSheet = null
+                },
+            )
+        }
+        MangaSheet.Cover -> if (mangaForSheets != null && profileForSheets != null) {
+            CoverPickerSheet(
+                profile = profileForSheets,
+                sourceId = mangaForSheets.sourceId,
+                alternates = meta.alternates,
+                busy = meta.coverBusy,
+                onDismiss = { activeSheet = null },
+                onSelect = { url ->
+                    viewModel.selectCover(url)
+                    activeSheet = null
+                },
+            )
+        }
+        MangaSheet.Match -> if (mangaForSheets != null) {
+            MatchMetadataSheet(
+                meta = meta,
+                defaultQuery = mangaForSheets.title,
+                onProvider = { viewModel.setMatchProvider(it) },
+                onQuery = { viewModel.setMatchQuery(it) },
+                onSearch = { viewModel.matchSearch() },
+                onPick = { viewModel.loadPreview(it) },
+                onToggleField = { viewModel.togglePreviewField(it) },
+                onBack = { viewModel.backToMatchResults() },
+                onApply = { bind ->
+                    viewModel.applyMatch(bind)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+        }
+        MangaSheet.Links -> if (mangaForSheets != null) {
+            TrackerLinksSheet(
+                meta = meta,
+                defaultQuery = mangaForSheets.title,
+                onProvider = { viewModel.setMatchProvider(it) },
+                onQuery = { viewModel.setMatchQuery(it) },
+                onSearch = { viewModel.matchSearch() },
+                onAdd = { provider, item -> viewModel.addLink(provider, item) },
+                onRemove = { viewModel.removeLink(it) },
+                onSync = { viewModel.syncLink(it) },
+                onDismiss = { activeSheet = null },
+            )
+        }
+        null -> Unit
+    }
 }
+
+/** M6 sheet targets on the manga detail screen. */
+private enum class MangaSheet { Edit, Cover, Match, Links }
 
 @Composable
 private fun MangaHeader(

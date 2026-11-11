@@ -11,12 +11,26 @@ import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.LibraryApi
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.DownloadsApi
+import org.sumidoku.android.core.api.MetadataApi
+import org.sumidoku.android.core.api.TrackersApi
 import org.sumidoku.android.core.api.model.AddToLibraryRequest
 import org.sumidoku.android.core.api.model.ChapterSort
 import org.sumidoku.android.core.api.model.ChapterWithDownload
+import org.sumidoku.android.core.api.model.ContentRating
 import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.Manga
+import org.sumidoku.android.core.api.model.MangaStatus
+import org.sumidoku.android.core.api.model.MetadataApplyRequest
+import org.sumidoku.android.core.api.model.MetadataField
+import org.sumidoku.android.core.api.model.MetadataPreview
+import org.sumidoku.android.core.api.model.MetadataRestoreRequest
+import org.sumidoku.android.core.api.model.SelectCoverRequest
 import org.sumidoku.android.core.api.model.SortOrder
+import org.sumidoku.android.core.api.model.TrackSearchItem
+import org.sumidoku.android.core.api.model.TrackerLink
+import org.sumidoku.android.core.api.model.TrackerLinkUpsert
+import org.sumidoku.android.core.api.model.TrackerProvider
+import org.sumidoku.android.core.api.model.TrackerSyncRequest
 import org.sumidoku.android.core.api.model.UpdateMangaRequest
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
@@ -123,4 +137,264 @@ class MangaViewModel @Inject constructor(
             }
         }
     }
+
+    // --- M6: metadata editing / matching / cover / tracker links ---
+
+    private val _meta = MutableStateFlow(MetaUiState())
+    val meta: StateFlow<MetaUiState> = _meta
+
+    fun consumeMessage() {
+        _meta.value = _meta.value.copy(message = null, error = null)
+    }
+
+    private fun fail(e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        _meta.value = _meta.value.copy(
+            matchLoading = false, applyBusy = false, coverBusy = false,
+            editBusy = false, linkBusy = false,
+            error = e.message ?: e.toString(),
+        )
+    }
+
+    /** Manual metadata edit; every touched field becomes a manual lock
+     *  (server-side semantics), unlock carries fields the user released. */
+    fun saveMetadata(
+        title: String?, authors: List<String>?, artists: List<String>?,
+        description: String?, tags: List<String>?,
+        status: MangaStatus?, contentRating: ContentRating?,
+        unlock: List<MetadataField>,
+    ) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(editBusy = true)
+            try {
+                val api = clientFactory.create<MangaApi>(profile)
+                val updated = api.updateManga(
+                    mangaId,
+                    UpdateMangaRequest(
+                        title = title, authors = authors, artists = artists,
+                        description = description, tags = tags,
+                        status = status, contentRating = contentRating,
+                        metadataUnlock = unlock.ifEmpty { null },
+                    ),
+                ).await()
+                _state.value = _state.value.copy(manga = updated)
+                _meta.value = _meta.value.copy(editBusy = false, message = "已保存")
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Restore source metadata and drop locks (webui "恢复图源元数据"). */
+    fun restoreMetadata() {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(editBusy = true)
+            try {
+                val result = clientFactory.create<MetadataApi>(profile)
+                    .restoreMangaMetadata(mangaId, MetadataRestoreRequest(fields = null, refresh = null))
+                    .await()
+                _state.value = _state.value.copy(manga = result.manga)
+                _meta.value = _meta.value.copy(
+                    editBusy = false,
+                    message = "已恢复图源元数据，解锁 ${result.unlockedFields.size} 个字段",
+                )
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    fun loadAlternates() {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(coverBusy = true)
+            try {
+                val urls = clientFactory.create<MangaApi>(profile)
+                    .getAlternateCovers(mangaId).await()
+                    .map { it.toString() }
+                _meta.value = _meta.value.copy(coverBusy = false, alternates = urls)
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    fun selectCover(url: String) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(coverBusy = true)
+            try {
+                val updated = clientFactory.create<MangaApi>(profile)
+                    .selectMangaCover(mangaId, SelectCoverRequest(url = java.net.URI(url)))
+                    .await()
+                _state.value = _state.value.copy(manga = updated)
+                _meta.value = _meta.value.copy(coverBusy = false, message = "已更换封面")
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    // --- metadata match (preview → apply) ---
+
+    fun setMatchProvider(provider: TrackerProvider) {
+        _meta.value = _meta.value.copy(
+            matchProvider = provider, matchResults = null, preview = null,
+        )
+    }
+
+    fun setMatchQuery(query: String) {
+        _meta.value = _meta.value.copy(matchQuery = query)
+    }
+
+    fun matchSearch() {
+        val profile = _state.value.profile ?: return
+        val meta = _meta.value
+        val query = meta.matchQuery.ifBlank { _state.value.manga?.title ?: return }
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(matchLoading = true, preview = null)
+            try {
+                val results = clientFactory.create<TrackersApi>(profile)
+                    .trackerSearch(meta.matchProvider, query)
+                    .await()
+                _meta.value = _meta.value.copy(matchLoading = false, matchResults = results)
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    fun loadPreview(item: TrackSearchItem) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(matchLoading = true)
+            try {
+                val preview = clientFactory.create<MetadataApi>(profile)
+                    .previewMangaMetadata(mangaId, _meta.value.matchProvider.value, item.id)
+                    .await()
+                val selected = preview.fields
+                    .filter { it.selectable && it.incoming != null }
+                    .map { it.`field` }
+                    .toSet()
+                _meta.value = _meta.value.copy(
+                    matchLoading = false, preview = preview, previewSelected = selected,
+                )
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    fun togglePreviewField(field: MetadataField) {
+        val current = _meta.value.previewSelected
+        _meta.value = _meta.value.copy(
+            previewSelected = if (field in current) current - field else current + field,
+        )
+    }
+
+    fun backToMatchResults() {
+        _meta.value = _meta.value.copy(preview = null)
+    }
+
+    /** Apply selected fields; bind also creates/updates the tracker link
+     *  (server-side upsert semantics from the webui match dialog). */
+    fun applyMatch(bind: Boolean) {
+        val profile = _state.value.profile ?: return
+        val meta = _meta.value
+        val preview = meta.preview ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(applyBusy = true)
+            try {
+                val result = clientFactory.create<MetadataApi>(profile)
+                    .applyMangaMetadata(
+                        mangaId,
+                        MetadataApplyRequest(
+                            provider = meta.matchProvider.value,
+                            remoteId = preview.candidate.remoteId,
+                            fields = meta.previewSelected.toList(),
+                            propertyValues = null,
+                            bind = bind,
+                        ),
+                    )
+                    .await()
+                _state.value = _state.value.copy(manga = result.manga)
+                _meta.value = _meta.value.copy(
+                    applyBusy = false, preview = null, matchResults = null,
+                    message = "已应用 ${result.appliedFields.size} 个字段",
+                )
+                loadLinks()
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    // --- tracker links ---
+
+    fun loadLinks() {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true)
+            try {
+                val links = clientFactory.create<TrackersApi>(profile)
+                    .listTrackerLinks(mangaId)
+                    .await()
+                _meta.value = _meta.value.copy(linkBusy = false, links = links)
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Bind the manga to a tracker entry (PUT upsert semantics). */
+    fun addLink(provider: TrackerProvider, item: TrackSearchItem) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true)
+            try {
+                clientFactory.create<TrackersApi>(profile)
+                    .putTrackerLink(
+                        mangaId,
+                        TrackerLinkUpsert(provider = provider, trackId = item.id, title = item.title),
+                    )
+                    .await()
+                _meta.value = _meta.value.copy(message = "已绑定 ${item.title}")
+                loadLinks()
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    fun removeLink(provider: TrackerProvider) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true)
+            try {
+                clientFactory.create<TrackersApi>(profile)
+                    .deleteTrackerLink(mangaId, provider)
+                    .await()
+                _meta.value = _meta.value.copy(message = "已解绑")
+                loadLinks()
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Pull remote progress into local chapters (webui "从追踪器同步进度"). */
+    fun syncLink(provider: TrackerProvider) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true)
+            try {
+                val result = clientFactory.create<TrackersApi>(profile)
+                    .syncTrackerLink(mangaId, provider, TrackerSyncRequest(preview = false))
+                    .await()
+                _meta.value = _meta.value.copy(message = "已按远端进度标记 ${result.marked} 章")
+                refresh()
+                loadLinks()
+            } catch (e: Exception) { fail(e) }
+        }
+    }
 }
+
+/** Sub-state for the metadata/tracker sheets (M6). */
+data class MetaUiState(
+    val alternates: List<String>? = null,
+    val coverBusy: Boolean = false,
+    val editBusy: Boolean = false,
+    val matchProvider: TrackerProvider = TrackerProvider.ANILIST,
+    val matchQuery: String = "",
+    val matchResults: List<TrackSearchItem>? = null,
+    val matchLoading: Boolean = false,
+    val preview: MetadataPreview? = null,
+    val previewSelected: Set<MetadataField> = emptySet(),
+    val applyBusy: Boolean = false,
+    val links: List<TrackerLink>? = null,
+    val linkBusy: Boolean = false,
+    val message: String? = null,
+    val error: String? = null,
+)
