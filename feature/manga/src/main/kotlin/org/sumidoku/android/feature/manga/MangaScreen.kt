@@ -2,6 +2,8 @@ package org.sumidoku.android.feature.manga
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +26,13 @@ import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
@@ -144,6 +148,19 @@ fun MangaScreen(
                                     viewModel.loadLinks()
                                     activeSheet = MangaSheet.Links
                                 })
+                                DropdownMenuItem(text = { Text("分类…") }, onClick = {
+                                    showMenu = false
+                                    viewModel.loadCategories()
+                                    activeSheet = MangaSheet.Categories
+                                })
+                                DropdownMenuItem(text = { Text("全部标为已读") }, onClick = {
+                                    showMenu = false
+                                    viewModel.markAllChapters(true)
+                                })
+                                DropdownMenuItem(text = { Text("全部标为未读") }, onClick = {
+                                    showMenu = false
+                                    viewModel.markAllChapters(false)
+                                })
                             }
                         }
                     }
@@ -255,12 +272,23 @@ fun MangaScreen(
                 onDismiss = { activeSheet = null },
             )
         }
+        MangaSheet.Categories -> if (mangaForSheets != null) {
+            CategoriesSheet(
+                categories = meta.categories,
+                selectedIds = mangaForSheets.categoryIds.toSet(),
+                onSave = { ids ->
+                    viewModel.saveCategories(ids)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+        }
         null -> Unit
     }
 }
 
 /** M6 sheet targets on the manga detail screen. */
-private enum class MangaSheet { Edit, Cover, Match, Links }
+private enum class MangaSheet { Edit, Cover, Match, Links, Categories }
 
 @Composable
 private fun MangaHeader(
@@ -281,11 +309,22 @@ private fun MangaHeader(
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    "${manga.status.value} · ${manga.chapterCount} 话",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${manga.status.value} · ${manga.chapterCount} 话",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (manga.incognito) {
+                        Spacer(Modifier.width(8.dp))
+                        SuggestionChip(
+                            onClick = {},
+                            label = {
+                                Text("无痕中", style = MaterialTheme.typography.labelSmall)
+                            },
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -433,9 +472,60 @@ private fun ChapterRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CoverImage(cover: String?, profile: ServerProfile?, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
+private fun CategoriesSheet(
+    categories: List<org.sumidoku.android.core.api.model.Category>?,
+    selectedIds: Set<Long>,
+    onSave: (Set<Long>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember(selectedIds) { mutableStateOf(selectedIds) }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("分类", style = MaterialTheme.typography.titleMedium)
+            when {
+                categories == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                categories.isEmpty() -> Text(
+                    "还没有分类（在设置里创建）",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 16.dp),
+                )
+                else -> categories.forEach { category ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            selected = if (category.id in selected) selected - category.id else selected + category.id
+                        },
+                    ) {
+                        Checkbox(
+                            checked = category.id in selected,
+                            onCheckedChange = {
+                                selected = if (category.id in selected) selected - category.id else selected + category.id
+                            },
+                        )
+                        Text(category.name, modifier = Modifier.weight(1f))
+                        Text(
+                            "${category.mangaCount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { onSave(selected) }, modifier = Modifier.fillMaxWidth()) { Text("保存") }
+        }
+    }
+}
+
+@Composable
+internal fun CoverImage(cover: String?, profile: ServerProfile?, modifier: Modifier = Modifier) {    val context = LocalContext.current
     val model = cover?.let { c ->
         val url = if (c.startsWith("http")) c else profile?.baseUrl?.trimEnd('/') + c
         ImageRequest.Builder(context).data(url).apply {

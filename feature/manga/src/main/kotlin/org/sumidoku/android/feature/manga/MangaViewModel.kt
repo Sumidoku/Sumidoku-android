@@ -157,6 +157,54 @@ class MangaViewModel @AssistedInject constructor(
         }
     }
 
+    /** M2: whole-manga read/unread via the batch progress endpoint. */
+    fun markAllChapters(read: Boolean) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val api = clientFactory.create<MangaApi>(profile)
+                api.batchUpdateChapters(
+                    org.sumidoku.android.core.api.model.BatchProgressRequest(
+                        isRead = read,
+                        mangaIds = listOf(mangaId),
+                    ),
+                ).await()
+                refresh()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** M2/M7: categories editor data and save. */
+    fun loadCategories() {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val categories = clientFactory.create<org.sumidoku.android.core.api.CategoriesApi>(profile)
+                    .listCategories()
+                    .await()
+                _meta.value = _meta.value.copy(categories = categories)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun saveCategories(ids: Set<Long>) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val updated = clientFactory.create<org.sumidoku.android.core.api.CategoriesApi>(profile)
+                    .setMangaCategories(
+                        mangaId,
+                        org.sumidoku.android.core.api.model.SetCategoriesRequest(categoryIds = ids.toList()),
+                    )
+                    .await()
+                _state.value = _state.value.copy(manga = updated)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /** Tier A enqueue: server downloads the chapter — POST /downloads.
      *  The row's cloud icon flips to the downloaded state on next refresh. */
     fun enqueueChapter(chapterId: Long) {
@@ -427,6 +475,8 @@ data class MetaUiState(
     val applyBusy: Boolean = false,
     val links: List<TrackerLink>? = null,
     val linkBusy: Boolean = false,
+    /** Server categories for the categories editor sheet (M2/M7). */
+    val categories: List<org.sumidoku.android.core.api.model.Category>? = null,
     val message: String? = null,
     val error: String? = null,
 )

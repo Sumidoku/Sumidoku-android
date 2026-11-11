@@ -65,10 +65,12 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.Page
+import org.sumidoku.android.core.api.model.TextPage
 
 /** Reader MVP: paged (HorizontalPager + pinch zoom + tap zones) and webtoon
  *  (continuous LazyColumn) modes; debounced progress PATCH on settle.
@@ -148,6 +150,28 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             if (target > 0 && pagerState.currentPage != target) {
                 pagerState.scrollToPage(target)
             }
+        }
+    }
+
+    // M2: prefetch the next two display slots so swipes hit the disk
+    // cache instead of the network (design §12).
+    val prefetchContext = LocalContext.current
+    LaunchedEffect(state.index, displayPages.size) {
+        val currentSlot = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+            .takeIf { it >= 0 } ?: 0
+        for (i in (currentSlot + 1) until (currentSlot + 3).coerceAtMost(displayPages.size)) {
+            val page = displayPages[i].page
+            if (page.content.text != null) continue
+            prefetchContext.imageLoader.enqueue(
+                ImageRequest.Builder(prefetchContext)
+                    .data(viewModel.pageImageUrl(page))
+                    .apply {
+                        state.profile?.apiKey?.let {
+                            httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
+                        }
+                    }
+                    .build(),
+            )
         }
     }
 
