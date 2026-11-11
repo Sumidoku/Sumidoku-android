@@ -10,9 +10,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.LibraryApi
 import org.sumidoku.android.core.api.MangaApi
+import org.sumidoku.android.core.api.DownloadsApi
 import org.sumidoku.android.core.api.model.AddToLibraryRequest
 import org.sumidoku.android.core.api.model.ChapterSort
 import org.sumidoku.android.core.api.model.ChapterWithDownload
+import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.Manga
 import org.sumidoku.android.core.api.model.SortOrder
 import org.sumidoku.android.core.api.model.UpdateMangaRequest
@@ -104,6 +106,19 @@ class MangaViewModel @Inject constructor(
                 val api = clientFactory.create<MangaApi>(profile)
                 val updated = api.updateManga(mangaId, UpdateMangaRequest(incognito = !manga.incognito)).await()
                 _state.value = _state.value.copy(manga = updated)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** Tier A enqueue: server downloads the chapter — POST /downloads.
+     *  The row's cloud icon flips to the downloaded state on next refresh. */
+    fun enqueueChapter(chapterId: Long) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val api = clientFactory.create<DownloadsApi>(profile)
+                api.enqueueDownloads(EnqueueDownloadsRequest(chapterIds = listOf(chapterId))).await()
             } catch (_: Exception) {
             }
         }

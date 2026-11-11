@@ -129,7 +129,11 @@ fun MangaScreen(
                         )
                     }
                     items(state.chapters, key = { it.id }) { chapter ->
-                        ChapterRow(chapter = chapter, onClick = { onOpenChapter(manga.id, chapter.id) })
+                        ChapterRow(
+							chapter = chapter,
+							onClick = { onOpenChapter(manga.id, chapter.id) },
+							onEnqueue = { viewModel.enqueueChapter(chapter.id) },
+						)
                     }
                 }
             }
@@ -204,7 +208,7 @@ private fun MangaHeader(
 }
 
 @Composable
-private fun ChapterRow(chapter: ChapterWithDownload, onClick: () -> Unit) {
+private fun ChapterRow(chapter: ChapterWithDownload, onClick: () -> Unit, onEnqueue: () -> Unit) {
     val dimmed = chapter.isRead
     Row(
         modifier = Modifier
@@ -252,6 +256,15 @@ private fun ChapterRow(chapter: ChapterWithDownload, onClick: () -> Unit) {
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(8.dp))
+        } else {
+            IconButton(onClick = onEnqueue, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Outlined.CloudDownload,
+                    contentDescription = "下载本章",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         if (chapter.isRead) {
             Icon(

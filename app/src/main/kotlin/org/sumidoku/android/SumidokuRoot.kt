@@ -39,10 +39,13 @@ import androidx.lifecycle.viewModelScope
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.feature.browse.AddSourceScreen
 import org.sumidoku.android.feature.browse.BrowseScreen
+import org.sumidoku.android.feature.downloads.DownloadsScreen
+import org.sumidoku.android.feature.history.HistoryScreen
 import org.sumidoku.android.feature.library.LibraryScreen
 import org.sumidoku.android.feature.manga.MangaScreen
 import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.servers.ServersScreen
+import org.sumidoku.android.feature.updates.UpdatesScreen
 import org.sumidoku.android.ui.theme.SumidokuTheme
 import javax.inject.Inject
 
@@ -155,8 +158,18 @@ private fun MainTabs(onOpenReader: (mangaId: Long, chapterId: Long) -> Unit) {
             composable("add-source") {
                 AddSourceScreen(onBack = { innerNav.popBackStack() })
             }
-            composable("updates") { PlaceholderTab("更新 · M3") }
-            composable("history") { PlaceholderTab("历史 · M3") }
+            composable("updates") {
+                UpdatesScreen(
+                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenDownloads = { innerNav.navigate("downloads") },
+                )
+            }
+            composable("downloads") {
+                DownloadsScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("history") {
+                HistoryScreen(onOpenManga = { innerNav.navigate("manga/$it") })
+            }
             composable("settings") { PlaceholderTab("设置 · M5+") }
         }
     }
