@@ -1,61 +1,62 @@
-> Task :feature:manga:preBuild UP-TO-DATE
+> Task :core:download:preBuild UP-TO-DATE
+> Task :core:stream:preBuild UP-TO-DATE
+> Task :core:network:preBuild UP-TO-DATE
 > Task :core:data:preBuild UP-TO-DATE
-> Task :feature:backups:preBuild UP-TO-DATE
-> Task :feature:history:preBuild UP-TO-DATE
+> Task :core:source:preBuild UP-TO-DATE
 > Task :feature:migrate:preBuild UP-TO-DATE
 > Task :app:preBuild UP-TO-DATE
-> Task :feature:browse:preBuild UP-TO-DATE
-> Task :core:source:preBuild UP-TO-DATE
-> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core:network:preBuild UP-TO-DATE
-> Task :core:download:preBuild UP-TO-DATE
+> Task :feature:history:preBuild UP-TO-DATE
 > Task :feature:downloads:preBuild UP-TO-DATE
-> Task :core:stream:preBuild UP-TO-DATE
+> Task :feature:manga:preBuild UP-TO-DATE
+> Task :feature:backups:preBuild UP-TO-DATE
 > Task :feature:library:preBuild UP-TO-DATE
 > Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :feature:migrate:preDebugBuild UP-TO-DATE
 > Task :core:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :feature:browse:preDebugBuild UP-TO-DATE
-> Task :core:data:preDebugBuild UP-TO-DATE
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core:source:preDebugBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
+> Task :feature:migrate:preDebugBuild UP-TO-DATE
+> Task :feature:browse:preBuild UP-TO-DATE
 > Task :feature:library:preDebugBuild UP-TO-DATE
 > Task :core:download:preDebugBuild UP-TO-DATE
-> Task :core:stream:preDebugBuild UP-TO-DATE
-> Task :core:network:preDebugBuild UP-TO-DATE
-> Task :feature:history:preDebugBuild UP-TO-DATE
+> Task :core:data:preDebugBuild UP-TO-DATE
+> Task :feature:browse:preDebugBuild UP-TO-DATE
 > Task :feature:backups:preDebugBuild UP-TO-DATE
-> Task :feature:manga:preDebugBuild UP-TO-DATE
+> Task :feature:history:preDebugBuild UP-TO-DATE
 > Task :feature:downloads:preDebugBuild UP-TO-DATE
+> Task :core:network:preDebugBuild UP-TO-DATE
+> Task :core:stream:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :feature:manga:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :core:network:processDebugNavigationResources
+> Task :core:source:processDebugNavigationResources
 > Task :feature:reader:preBuild UP-TO-DATE
 > Task :feature:reader:preDebugBuild UP-TO-DATE
-> Task :feature:library:processDebugNavigationResources
+> Task :core:data:processDebugNavigationResources
 > Task :feature:repos:preBuild UP-TO-DATE
 > Task :feature:repos:preDebugBuild UP-TO-DATE
-> Task :feature:backups:processDebugNavigationResources
+> Task :feature:manga:processDebugNavigationResources
 > Task :feature:search:preBuild UP-TO-DATE
 > Task :feature:search:preDebugBuild UP-TO-DATE
-> Task :feature:manga:processDebugNavigationResources
+> Task :feature:history:processDebugNavigationResources
 > Task :feature:servers:preBuild UP-TO-DATE
 > Task :feature:servers:preDebugBuild UP-TO-DATE
-> Task :core:download:processDebugNavigationResources
+> Task :feature:backups:processDebugNavigationResources
 > Task :feature:settings:preBuild UP-TO-DATE
 > Task :feature:settings:preDebugBuild UP-TO-DATE
-> Task :feature:history:processDebugNavigationResources
+> Task :core:network:processDebugNavigationResources
 > Task :feature:source:preBuild UP-TO-DATE
 > Task :feature:source:preDebugBuild UP-TO-DATE
-> Task :feature:downloads:processDebugNavigationResources
+> Task :feature:browse:processDebugNavigationResources
 > Task :feature:trackers:preBuild UP-TO-DATE
 > Task :feature:trackers:preDebugBuild UP-TO-DATE
-> Task :feature:browse:processDebugNavigationResources
+> Task :core:stream:processDebugNavigationResources
 > Task :feature:updates:preBuild UP-TO-DATE
 > Task :feature:updates:preDebugBuild UP-TO-DATE
+> Task :core:api:patchGeneratedSources
+> Task :feature:downloads:processDebugNavigationResources
+> Task :core:download:processDebugNavigationResources
 > Task :feature:migrate:processDebugNavigationResources
-> Task :core:data:processDebugNavigationResources
-> Task :core:stream:processDebugNavigationResources
-> Task :core:source:processDebugNavigationResources
+> Task :feature:library:processDebugNavigationResources
 > Task :app:generateDebugResources
 > Task :feature:reader:processDebugNavigationResources
 > Task :feature:repos:processDebugNavigationResources
@@ -65,8 +66,8 @@
 > Task :feature:source:processDebugNavigationResources
 > Task :feature:trackers:processDebugNavigationResources
 > Task :feature:updates:processDebugNavigationResources
-> Task :core:network:generateDebugResources
 > Task :core:data:generateDebugResources
+> Task :core:network:generateDebugResources
 > Task :feature:backups:generateDebugResources
 > Task :feature:browse:generateDebugResources
 > Task :feature:downloads:generateDebugResources
@@ -78,304 +79,304 @@
 > Task :feature:manga:generateDebugResources
 > Task :feature:migrate:generateDebugResources
 > Task :core:data:packageDebugResources
-> Task :core:common:processResources NO-SOURCE
+> Task :core:stream:javaPreCompileDebug
 > Task :core:network:packageDebugResources
-> Task :feature:downloads:packageDebugResources
+> Task :feature:backups:packageDebugResources
 > Task :feature:browse:packageDebugResources
 > Task :core:source:packageDebugResources
-> Task :feature:backups:packageDebugResources
-> Task :core:download:packageDebugResources
-> Task :core:stream:javaPreCompileDebug
+> Task :feature:downloads:packageDebugResources
 > Task :app:packageDebugResources
-> Task :core:network:javaPreCompileDebug
-> Task :core:network:parseDebugLocalResources
-> Task :core:model:processResources NO-SOURCE
-> Task :core:api:patchGeneratedSources
-> Task :feature:downloads:parseDebugLocalResources
-> Task :core:data:parseDebugLocalResources
-> Task :feature:browse:parseDebugLocalResources
-> Task :core:download:parseDebugLocalResources
-> Task :core:network:generateDebugRFile
-> Task :feature:library:javaPreCompileDebug
+> Task :core:stream:packageDebugResources
 > Task :feature:migrate:javaPreCompileDebug
+> Task :feature:library:javaPreCompileDebug
+> Task :core:model:processResources NO-SOURCE
 > Task :feature:history:javaPreCompileDebug
 > Task :feature:manga:javaPreCompileDebug
-> Task :core:source:parseDebugLocalResources
-> Task :feature:backups:javaPreCompileDebug
-> Task :feature:browse:javaPreCompileDebug
-> Task :feature:downloads:generateDebugRFile
-> Task :core:source:javaPreCompileDebug
-> Task :feature:browse:generateDebugRFile
-> Task :core:download:generateDebugRFile
-> Task :feature:reader:generateDebugResources
-> Task :core:source:generateDebugRFile
 > Task :feature:library:packageDebugResources
-> Task :feature:downloads:javaPreCompileDebug
-> Task :feature:migrate:packageDebugResources
-> Task :core:stream:packageDebugResources
-> Task :feature:manga:packageDebugResources
-> Task :core:data:generateDebugRFile
-> Task :feature:repos:generateDebugResources
-> Task :feature:reader:packageDebugResources
 > Task :feature:history:packageDebugResources
-> Task :feature:search:generateDebugResources
-> Task :core:data:javaPreCompileDebug
-> Task :feature:manga:parseDebugLocalResources
-> Task :feature:migrate:parseDebugLocalResources
-> Task :feature:reader:parseDebugLocalResources
-> Task :core:download:javaPreCompileDebug
+> Task :feature:manga:packageDebugResources
+> Task :core:common:processResources NO-SOURCE
+> Task :core:download:packageDebugResources
+> Task :feature:migrate:packageDebugResources
+> Task :core:network:parseDebugLocalResources
+> Task :core:source:parseDebugLocalResources
+> Task :feature:browse:parseDebugLocalResources
 > Task :feature:library:parseDebugLocalResources
+> Task :feature:downloads:parseDebugLocalResources
+> Task :core:data:parseDebugLocalResources
+> Task :feature:manga:parseDebugLocalResources
 > Task :core:stream:parseDebugLocalResources
-> Task :feature:servers:generateDebugResources
-> Task :feature:repos:packageDebugResources
 > Task :feature:history:parseDebugLocalResources
-> Task :feature:reader:javaPreCompileDebug
-> Task :feature:search:packageDebugResources
-> Task :feature:manga:generateDebugRFile
-> Task :feature:reader:generateDebugRFile
-> Task :feature:migrate:generateDebugRFile
-> Task :feature:library:generateDebugRFile
-> Task :feature:settings:generateDebugResources
+> Task :core:network:javaPreCompileDebug
+> Task :feature:backups:parseDebugLocalResources
+> Task :core:source:javaPreCompileDebug
+> Task :core:network:generateDebugRFile
+> Task :feature:browse:generateDebugRFile
+> Task :feature:downloads:generateDebugRFile
+> Task :core:source:generateDebugRFile
+> Task :feature:backups:generateDebugRFile
+> Task :core:download:parseDebugLocalResources
+> Task :feature:backups:javaPreCompileDebug
 > Task :core:stream:generateDebugRFile
-> Task :core:data:generateDebugAssets UP-TO-DATE
-> Task :feature:repos:parseDebugLocalResources
-> Task :feature:source:generateDebugResources
+> Task :feature:browse:javaPreCompileDebug
+> Task :feature:manga:generateDebugRFile
+> Task :feature:migrate:parseDebugLocalResources
+> Task :feature:downloads:javaPreCompileDebug
+> Task :feature:library:generateDebugRFile
+> Task :feature:repos:generateDebugResources
 > Task :feature:history:generateDebugRFile
-> Task :core:download:generateDebugAssets UP-TO-DATE
-> Task :feature:updates:generateDebugResources
-> Task :core:data:mergeDebugAssets
 > Task :core:network:generateDebugAssets UP-TO-DATE
+> Task :feature:search:generateDebugResources
+> Task :feature:reader:generateDebugResources
+> Task :feature:settings:generateDebugResources
+> Task :feature:servers:generateDebugResources
+> Task :feature:source:generateDebugResources
 > Task :feature:trackers:generateDebugResources
-> Task :feature:servers:packageDebugResources
-> Task :feature:search:parseDebugLocalResources
-> Task :core:download:mergeDebugAssets
-> Task :core:source:generateDebugAssets UP-TO-DATE
 > Task :core:network:mergeDebugAssets
-> Task :core:stream:generateDebugAssets UP-TO-DATE
-> Task :feature:repos:generateDebugRFile
-> Task :core:source:mergeDebugAssets
-> Task :feature:backups:generateDebugAssets UP-TO-DATE
-> Task :feature:repos:javaPreCompileDebug
-> Task :feature:browse:generateDebugAssets UP-TO-DATE
-> Task :feature:search:javaPreCompileDebug
-> Task :feature:downloads:generateDebugAssets UP-TO-DATE
-> Task :core:stream:mergeDebugAssets
-> Task :feature:history:generateDebugAssets UP-TO-DATE
+> Task :feature:updates:generateDebugResources
+> Task :feature:migrate:generateDebugRFile
+> Task :feature:repos:packageDebugResources
+> Task :feature:reader:packageDebugResources
+> Task :core:data:generateDebugRFile
+> Task :core:download:generateDebugRFile
+> Task :feature:settings:packageDebugResources
+> Task :feature:servers:packageDebugResources
+> Task :feature:search:packageDebugResources
 > Task :feature:updates:packageDebugResources
-> Task :feature:source:packageDebugResources
-> Task :feature:browse:mergeDebugAssets
-> Task :feature:downloads:mergeDebugAssets
-> Task :feature:library:generateDebugAssets UP-TO-DATE
 > Task :feature:trackers:packageDebugResources
+> Task :feature:source:packageDebugResources
+> Task :feature:reader:parseDebugLocalResources
+> Task :core:data:javaPreCompileDebug
+> Task :feature:repos:parseDebugLocalResources
+> Task :feature:servers:parseDebugLocalResources
+> Task :core:download:javaPreCompileDebug
+> Task :feature:reader:javaPreCompileDebug
+> Task :feature:repos:javaPreCompileDebug
+> Task :feature:settings:parseDebugLocalResources
+> Task :feature:search:parseDebugLocalResources
+> Task :feature:settings:javaPreCompileDebug
+> Task :feature:search:javaPreCompileDebug
+> Task :feature:source:parseDebugLocalResources
+> Task :feature:servers:javaPreCompileDebug
+> Task :feature:servers:generateDebugRFile
+> Task :core:download:generateDebugAssets UP-TO-DATE
+> Task :feature:repos:generateDebugRFile
+> Task :core:source:generateDebugAssets UP-TO-DATE
+> Task :core:data:generateDebugAssets UP-TO-DATE
+> Task :feature:reader:generateDebugRFile
+> Task :core:stream:generateDebugAssets UP-TO-DATE
+> Task :core:download:mergeDebugAssets
+> Task :feature:backups:generateDebugAssets UP-TO-DATE
+> Task :core:data:mergeDebugAssets
+> Task :feature:browse:generateDebugAssets UP-TO-DATE
+> Task :core:stream:mergeDebugAssets
+> Task :feature:downloads:generateDebugAssets UP-TO-DATE
+> Task :feature:settings:generateDebugRFile
+> Task :feature:history:generateDebugAssets UP-TO-DATE
+> Task :core:source:mergeDebugAssets
+> Task :feature:library:generateDebugAssets UP-TO-DATE
+> Task :feature:source:javaPreCompileDebug
+> Task :feature:manga:generateDebugAssets UP-TO-DATE
+> Task :feature:backups:mergeDebugAssets
+> Task :feature:migrate:generateDebugAssets UP-TO-DATE
+> Task :feature:browse:mergeDebugAssets
 > Task :feature:search:generateDebugRFile
+> Task :feature:repos:generateDebugAssets UP-TO-DATE
+> Task :feature:reader:generateDebugAssets UP-TO-DATE
+> Task :feature:downloads:mergeDebugAssets
+> Task :feature:search:generateDebugAssets UP-TO-DATE
+> Task :feature:trackers:parseDebugLocalResources
 > Task :feature:history:mergeDebugAssets
 > Task :feature:library:mergeDebugAssets
-> Task :feature:backups:mergeDebugAssets
-> Task :feature:manga:generateDebugAssets UP-TO-DATE
-> Task :feature:migrate:generateDebugAssets UP-TO-DATE
-> Task :feature:servers:parseDebugLocalResources
-> Task :feature:migrate:mergeDebugAssets
-> Task :feature:reader:generateDebugAssets UP-TO-DATE
-> Task :feature:settings:packageDebugResources
-> Task :feature:updates:parseDebugLocalResources
-> Task :feature:servers:javaPreCompileDebug
-> Task :feature:repos:generateDebugAssets UP-TO-DATE
-> Task :feature:reader:mergeDebugAssets
-> Task :feature:trackers:parseDebugLocalResources
-> Task :feature:manga:mergeDebugAssets
-> Task :feature:source:parseDebugLocalResources
-> Task :feature:search:generateDebugAssets UP-TO-DATE
-> Task :feature:repos:mergeDebugAssets
 > Task :feature:servers:generateDebugAssets UP-TO-DATE
-> Task :feature:search:mergeDebugAssets
-> Task :feature:source:generateDebugAssets UP-TO-DATE
-> Task :feature:updates:javaPreCompileDebug
 > Task :feature:settings:generateDebugAssets UP-TO-DATE
-> Task :feature:updates:generateDebugRFile
-> Task :feature:trackers:generateDebugAssets UP-TO-DATE
-> Task :feature:settings:parseDebugLocalResources
+> Task :feature:migrate:mergeDebugAssets
+> Task :feature:source:generateDebugAssets UP-TO-DATE
+> Task :feature:manga:mergeDebugAssets
 > Task :feature:updates:generateDebugAssets UP-TO-DATE
-> Task :feature:source:mergeDebugAssets
+> Task :feature:repos:mergeDebugAssets
+> Task :feature:reader:mergeDebugAssets
+> Task :feature:trackers:generateDebugAssets UP-TO-DATE
 > Task :feature:settings:mergeDebugAssets
-> Task :feature:servers:generateDebugRFile
 > Task :feature:trackers:javaPreCompileDebug
+> Task :feature:servers:mergeDebugAssets
+> Task :feature:updates:parseDebugLocalResources
+> Task :feature:source:mergeDebugAssets
 > Task :feature:updates:mergeDebugAssets
-> Task :feature:trackers:mergeDebugAssets
 > Task :core:data:writeDebugAarMetadata
-> Task :feature:source:generateDebugRFile
-> Task :core:download:writeDebugAarMetadata
+> Task :feature:search:mergeDebugAssets
 > Task :core:network:writeDebugAarMetadata
-> Task :feature:trackers:generateDebugRFile
-> Task :core:source:writeDebugAarMetadata
-> Task :feature:source:javaPreCompileDebug
-> Task :feature:backups:writeDebugAarMetadata
+> Task :feature:source:generateDebugRFile
 > Task :core:stream:writeDebugAarMetadata
+> Task :core:source:writeDebugAarMetadata
+> Task :feature:backups:writeDebugAarMetadata
+> Task :core:download:writeDebugAarMetadata
 > Task :feature:browse:writeDebugAarMetadata
+> Task :feature:trackers:mergeDebugAssets
 > Task :feature:downloads:writeDebugAarMetadata
+> Task :feature:library:writeDebugAarMetadata
+> Task :feature:reader:writeDebugAarMetadata
+> Task :feature:migrate:writeDebugAarMetadata
 > Task :feature:history:writeDebugAarMetadata
 > Task :feature:manga:writeDebugAarMetadata
-> Task :feature:library:writeDebugAarMetadata
 > Task :feature:search:writeDebugAarMetadata
-> Task :feature:migrate:writeDebugAarMetadata
-> Task :feature:reader:writeDebugAarMetadata
-> Task :feature:repos:writeDebugAarMetadata
 > Task :feature:source:writeDebugAarMetadata
-> Task :feature:settings:writeDebugAarMetadata
 > Task :feature:trackers:writeDebugAarMetadata
+> Task :feature:repos:writeDebugAarMetadata
+> Task :feature:servers:writeDebugAarMetadata
 > Task :feature:updates:writeDebugAarMetadata
-> Task :feature:settings:javaPreCompileDebug
-> Task :feature:settings:generateDebugRFile
-> Task :core:source:extractDeepLinksDebug
+> Task :feature:settings:writeDebugAarMetadata
+> Task :feature:updates:javaPreCompileDebug
+> Task :feature:trackers:generateDebugRFile
 > Task :core:data:extractDeepLinksDebug
 > Task :core:download:extractDeepLinksDebug
-> Task :core:network:extractDeepLinksDebug
 > Task :core:stream:extractDeepLinksDebug
-> Task :feature:library:extractDeepLinksDebug
-> Task :feature:browse:extractDeepLinksDebug
-> Task :feature:backups:extractDeepLinksDebug
+> Task :core:source:extractDeepLinksDebug
 > Task :feature:downloads:extractDeepLinksDebug
-> Task :core:data:processDebugManifest
-> Task :core:download:processDebugManifest
-> Task :core:source:processDebugManifest
-> Task :core:network:processDebugManifest
-> Task :feature:library:processDebugManifest
-> Task :feature:downloads:processDebugManifest
+> Task :feature:backups:extractDeepLinksDebug
+> Task :core:network:extractDeepLinksDebug
+> Task :feature:history:extractDeepLinksDebug
+> Task :feature:updates:generateDebugRFile
+> Task :feature:browse:extractDeepLinksDebug
 > Task :feature:manga:extractDeepLinksDebug
+> Task :feature:library:extractDeepLinksDebug
 > Task :feature:migrate:extractDeepLinksDebug
+> Task :core:download:processDebugManifest
+> Task :core:stream:processDebugManifest
+> Task :core:data:processDebugManifest
 > Task :feature:reader:extractDeepLinksDebug
 > Task :feature:repos:extractDeepLinksDebug
+> Task :core:source:processDebugManifest
+> Task :feature:history:processDebugManifest
+> Task :feature:downloads:processDebugManifest
+> Task :core:network:processDebugManifest
 > Task :feature:search:extractDeepLinksDebug
-> Task :feature:settings:extractDeepLinksDebug
 > Task :feature:manga:processDebugManifest
-> Task :feature:reader:processDebugManifest
-> Task :feature:repos:processDebugManifest
-> Task :feature:search:processDebugManifest
+> Task :feature:library:processDebugManifest
+> Task :feature:backups:processDebugManifest
+> Task :core:data:mapDebugSourceSetPaths
+> Task :feature:settings:extractDeepLinksDebug
+> Task :feature:browse:processDebugManifest
+> Task :feature:servers:extractDeepLinksDebug
+> Task :core:download:mapDebugSourceSetPaths
 > Task :feature:migrate:processDebugManifest
 > Task :feature:source:extractDeepLinksDebug
-> Task :core:data:mapDebugSourceSetPaths
-> Task :core:download:mapDebugSourceSetPaths
 > Task :feature:trackers:extractDeepLinksDebug
-> Task :feature:updates:extractDeepLinksDebug
-> Task :core:data:compileDebugLibraryResources
-> Task :core:download:compileDebugLibraryResources
 > Task :core:network:mapDebugSourceSetPaths
+> Task :feature:updates:extractDeepLinksDebug
+> Task :feature:reader:processDebugManifest
 > Task :core:source:mapDebugSourceSetPaths
-> Task :feature:updates:processDebugManifest
+> Task :feature:repos:processDebugManifest
+> Task :core:stream:mapDebugSourceSetPaths
+> Task :feature:backups:mapDebugSourceSetPaths
+> Task :core:download:compileDebugLibraryResources
+> Task :core:data:compileDebugLibraryResources
 > Task :core:source:compileDebugLibraryResources
+> Task :feature:search:processDebugManifest
+> Task :feature:browse:mapDebugSourceSetPaths
 > Task :core:network:compileDebugLibraryResources
-> Task :feature:trackers:processDebugManifest
+> Task :feature:settings:processDebugManifest
 > Task :feature:downloads:mapDebugSourceSetPaths
+> Task :feature:servers:processDebugManifest
+> Task :core:stream:compileDebugLibraryResources
+> Task :feature:history:mapDebugSourceSetPaths
+> Task :feature:backups:compileDebugLibraryResources
+> Task :feature:updates:processDebugManifest
+> Task :feature:migrate:mapDebugSourceSetPaths
 > Task :feature:library:mapDebugSourceSetPaths
 > Task :feature:manga:mapDebugSourceSetPaths
-> Task :feature:source:processDebugManifest
-> Task :feature:migrate:mapDebugSourceSetPaths
 > Task :feature:reader:mapDebugSourceSetPaths
-> Task :feature:library:compileDebugLibraryResources
-> Task :feature:manga:compileDebugLibraryResources
-> Task :feature:downloads:compileDebugLibraryResources
-> Task :feature:migrate:compileDebugLibraryResources
 > Task :feature:repos:mapDebugSourceSetPaths
-> Task :feature:reader:compileDebugLibraryResources
 > Task :feature:search:mapDebugSourceSetPaths
+> Task :feature:servers:mapDebugSourceSetPaths
+> Task :feature:browse:compileDebugLibraryResources
+> Task :feature:settings:mapDebugSourceSetPaths
+> Task :feature:source:processDebugManifest
+> Task :feature:trackers:processDebugManifest
 > Task :feature:source:mapDebugSourceSetPaths
+> Task :feature:migrate:compileDebugLibraryResources
 > Task :feature:trackers:mapDebugSourceSetPaths
+> Task :feature:history:compileDebugLibraryResources
+> Task :feature:downloads:compileDebugLibraryResources
 > Task :feature:updates:mapDebugSourceSetPaths
 > Task :feature:repos:compileDebugLibraryResources
-> Task :feature:search:compileDebugLibraryResources
-> Task :feature:source:compileDebugLibraryResources
-> Task :feature:trackers:compileDebugLibraryResources
-> Task :feature:updates:compileDebugLibraryResources
+> Task :feature:reader:compileDebugLibraryResources
+> Task :feature:library:compileDebugLibraryResources
 > Task :core:data:mergeDebugJniLibFolders
+> Task :core:network:mergeDebugJniLibFolders
+> Task :feature:search:compileDebugLibraryResources
 > Task :core:download:mergeDebugJniLibFolders
 > Task :core:data:mergeDebugNativeLibs NO-SOURCE
-> Task :core:download:mergeDebugNativeLibs NO-SOURCE
-> Task :core:network:mergeDebugJniLibFolders
+> Task :feature:manga:compileDebugLibraryResources
 > Task :core:network:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:servers:compileDebugLibraryResources
+> Task :core:download:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:settings:compileDebugLibraryResources
 > Task :core:source:mergeDebugJniLibFolders
-> Task :core:source:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:downloads:mergeDebugJniLibFolders
 > Task :core:data:copyDebugJniLibsProjectOnly
+> Task :core:source:mergeDebugNativeLibs NO-SOURCE
 > Task :core:download:copyDebugJniLibsProjectOnly
-> Task :feature:downloads:mergeDebugNativeLibs NO-SOURCE
 > Task :core:network:copyDebugJniLibsProjectOnly
-> Task :core:source:copyDebugJniLibsProjectOnly
-> Task :feature:downloads:copyDebugJniLibsProjectOnly
-> Task :feature:migrate:mergeDebugJniLibFolders
-> Task :feature:library:mergeDebugJniLibFolders
-> Task :feature:manga:mergeDebugJniLibFolders
-> Task :feature:reader:mergeDebugJniLibFolders
-> Task :feature:manga:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:reader:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:migrate:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:library:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:repos:mergeDebugJniLibFolders
-> Task :feature:reader:copyDebugJniLibsProjectOnly
-> Task :feature:library:copyDebugJniLibsProjectOnly
-> Task :feature:migrate:copyDebugJniLibsProjectOnly
-> Task :feature:manga:copyDebugJniLibsProjectOnly
-> Task :feature:repos:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:repos:copyDebugJniLibsProjectOnly
-> Task :feature:updates:mergeDebugJniLibFolders
-> Task :feature:source:mergeDebugJniLibFolders
-> Task :feature:trackers:mergeDebugJniLibFolders
-> Task :feature:search:mergeDebugJniLibFolders
-> Task :feature:search:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:updates:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:source:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:trackers:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:search:copyDebugJniLibsProjectOnly
-> Task :feature:updates:copyDebugJniLibsProjectOnly
-> Task :feature:trackers:copyDebugJniLibsProjectOnly
-> Task :feature:source:copyDebugJniLibsProjectOnly
-> Task :feature:servers:mergeDebugAssets
-> Task :feature:backups:parseDebugLocalResources
-> Task :feature:servers:writeDebugAarMetadata
-> Task :feature:history:extractDeepLinksDebug
-> Task :feature:settings:mapDebugSourceSetPaths
-> Task :feature:browse:mapDebugSourceSetPaths
-> Task :core:stream:mapDebugSourceSetPaths
-> Task :feature:servers:extractDeepLinksDebug
 > Task :feature:browse:mergeDebugJniLibFolders
 > Task :core:stream:mergeDebugJniLibFolders
+> Task :feature:library:mergeDebugJniLibFolders
+> Task :feature:downloads:mergeDebugJniLibFolders
+> Task :feature:history:mergeDebugJniLibFolders
+> Task :feature:backups:mergeDebugJniLibFolders
+> Task :feature:library:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:downloads:mergeDebugNativeLibs NO-SOURCE
 > Task :core:stream:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:browse:mergeDebugNativeLibs NO-SOURCE
-> Task :core:stream:copyDebugJniLibsProjectOnly
-> Task :feature:browse:copyDebugJniLibsProjectOnly
-> Task :feature:browse:compileDebugLibraryResources
-> Task :feature:settings:compileDebugLibraryResources
-> Task :core:stream:compileDebugLibraryResources
-> Task :feature:servers:mapDebugSourceSetPaths
-> Task :feature:settings:processDebugManifest
-> Task :feature:backups:processDebugManifest
-> Task :feature:browse:processDebugManifest
-> Task :core:stream:processDebugManifest
-> Task :feature:servers:mergeDebugJniLibFolders
-> Task :feature:servers:compileDebugLibraryResources
-> Task :feature:servers:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:servers:processDebugManifest
-> Task :feature:servers:copyDebugJniLibsProjectOnly
-> Task :feature:settings:mergeDebugJniLibFolders
-> Task :feature:settings:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:backups:mapDebugSourceSetPaths
-> Task :feature:settings:copyDebugJniLibsProjectOnly
-> Task :feature:history:mapDebugSourceSetPaths
-> Task :feature:backups:mergeDebugJniLibFolders
-> Task :feature:backups:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:backups:generateDebugRFile
-> Task :feature:history:mergeDebugJniLibFolders
-> Task :feature:backups:copyDebugJniLibsProjectOnly
+> Task :core:source:copyDebugJniLibsProjectOnly
 > Task :feature:history:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:backups:compileDebugLibraryResources
+> Task :feature:trackers:compileDebugLibraryResources
+> Task :feature:migrate:mergeDebugJniLibFolders
+> Task :feature:backups:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:library:copyDebugJniLibsProjectOnly
 > Task :feature:history:copyDebugJniLibsProjectOnly
+> Task :feature:manga:mergeDebugJniLibFolders
+> Task :feature:browse:copyDebugJniLibsProjectOnly
+> Task :feature:manga:mergeDebugNativeLibs NO-SOURCE
+> Task :core:stream:copyDebugJniLibsProjectOnly
+> Task :feature:downloads:copyDebugJniLibsProjectOnly
+> Task :feature:updates:compileDebugLibraryResources
+> Task :feature:backups:copyDebugJniLibsProjectOnly
+> Task :feature:source:compileDebugLibraryResources
+> Task :feature:migrate:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:search:mergeDebugJniLibFolders
+> Task :feature:repos:mergeDebugJniLibFolders
+> Task :feature:repos:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:search:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:source:mergeDebugJniLibFolders
+> Task :feature:manga:copyDebugJniLibsProjectOnly
+> Task :feature:source:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:search:copyDebugJniLibsProjectOnly
+> Task :feature:repos:copyDebugJniLibsProjectOnly
+> Task :feature:servers:mergeDebugJniLibFolders
+> Task :feature:migrate:copyDebugJniLibsProjectOnly
+> Task :feature:servers:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:reader:mergeDebugJniLibFolders
+> Task :feature:settings:mergeDebugJniLibFolders
+> Task :feature:source:copyDebugJniLibsProjectOnly
+> Task :feature:settings:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:updates:mergeDebugJniLibFolders
+> Task :feature:reader:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:servers:copyDebugJniLibsProjectOnly
+> Task :feature:trackers:mergeDebugJniLibFolders
+> Task :feature:settings:copyDebugJniLibsProjectOnly
+> Task :feature:updates:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:reader:copyDebugJniLibsProjectOnly
+> Task :feature:trackers:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:trackers:copyDebugJniLibsProjectOnly
+> Task :feature:updates:copyDebugJniLibsProjectOnly
 > Task :app:processDebugNavigationResources
-> Task :feature:history:compileDebugLibraryResources
-> Task :feature:history:processDebugManifest
+> Task :core:api:processResources NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
-> Task :app:parseDebugLocalResources
 > Task :app:javaPreCompileDebug
+> Task :app:parseDebugLocalResources
 > Task :app:mergeDebugAssets
-> Task :app:generateDebugRFile
 > Task :app:compressDebugAssets
+> Task :app:generateDebugRFile
 > Task :core:common:compileKotlin
 > Task :core:common:compileJava NO-SOURCE
 > Task :core:common:classes UP-TO-DATE
@@ -384,7 +385,6 @@
 > Task :core:model:compileJava NO-SOURCE
 > Task :core:model:classes UP-TO-DATE
 > Task :core:model:jar
-> Task :core:api:processResources NO-SOURCE
 > Task :app:generateDebugGlobalSynthetics
 > Task :app:desugarDebugFileDependencies
 > Task :app:mapDebugSourceSetPaths
@@ -407,8 +407,8 @@
 > Task :core:data:compileDebugJavaWithJavac
 > Task :core:data:compressDebugJavaRes
 > Task :core:data:transformDebugClassesWithAsm
-> Task :core:data:bundleLibRuntimeToJarDebug
 > Task :core:data:bundleLibCompileToJarDebug
+> Task :core:data:bundleLibRuntimeToJarDebug
 > Task :core:data:bundleLibRuntimeToDirDebug
 > Task :core:api:compileKotlin
 > Task :core:api:compileJava NO-SOURCE
@@ -437,52 +437,55 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core:stream:bundleLibRuntimeToJarDebug
 > Task :core:stream:compressDebugJavaRes
 > Task :core:stream:bundleLibRuntimeToDirDebug
-> Task :app:mergeExtDexDebug
 > Task :feature:backups:kspDebugKotlin
-> Task :feature:servers:kspDebugKotlin
 > Task :feature:library:kspDebugKotlin
-> Task :feature:history:kspDebugKotlin
-> Task :feature:trackers:kspDebugKotlin
-> Task :feature:migrate:kspDebugKotlin
-> Task :feature:search:kspDebugKotlin
-> Task :feature:browse:kspDebugKotlin
+> Task :feature:servers:kspDebugKotlin
 > Task :feature:repos:kspDebugKotlin
+> Task :feature:search:kspDebugKotlin
+> Task :feature:trackers:kspDebugKotlin
+> Task :feature:history:kspDebugKotlin
+> Task :feature:browse:kspDebugKotlin
+> Task :feature:migrate:kspDebugKotlin
 > Task :feature:source:kspDebugKotlin
 > Task :feature:updates:kspDebugKotlin
-> Task :core:download:kspDebugKotlin
+> Task :app:mergeExtDexDebug
 > Task :feature:settings:kspDebugKotlin
+> Task :core:download:kspDebugKotlin
 
 > Task :core:download:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/core/download/src/main/kotlin/org/sumidoku/android/core/download/LocalDownloadEngine.kt:154:42 Elvis operator (?:) always returns the left operand of non-nullable type 'ResponseBody'.
 
-> Task :feature:servers:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/servers/src/main/kotlin/org/sumidoku/android/feature/servers/ServersScreen.kt:56:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-
-> Task :core:download:compileDebugJavaWithJavac
+> Task :feature:repos:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/repos/src/main/kotlin/org/sumidoku/android/feature/repos/ReposScreen.kt:53:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
 > Task :feature:backups:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/backups/src/main/kotlin/org/sumidoku/android/feature/backups/BackupsScreen.kt:56:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
-> Task :core:download:compressDebugJavaRes
+> Task :feature:trackers:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/trackers/src/main/kotlin/org/sumidoku/android/feature/trackers/TrackersScreen.kt:67:36 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+
+> Task :feature:history:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/history/src/main/kotlin/org/sumidoku/android/feature/history/HistoryScreen.kt:55:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+
+> Task :feature:updates:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/updates/src/main/kotlin/org/sumidoku/android/feature/updates/UpdatesScreen.kt:51:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
 > Task :feature:library:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/library/src/main/kotlin/org/sumidoku/android/feature/library/LibraryScreen.kt:73:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 w: file:///G:/Github/Sumidoku-android/feature/library/src/main/kotlin/org/sumidoku/android/feature/library/LibraryScreen.kt:100:49 'val Icons.Outlined.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.Sort.
 
-> Task :core:download:transformDebugClassesWithAsm
-> Task :core:download:bundleLibCompileToJarDebug
-> Task :core:download:bundleLibRuntimeToJarDebug
+> Task :feature:search:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:66:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:117:44 Elvis operator (?:) always returns the left operand of non-nullable type 'Long'.
+w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:121:56 Elvis operator (?:) always returns the left operand of non-nullable type 'String'.
+w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchViewModel.kt:103:76 Elvis operator (?:) always returns the left operand of non-nullable type 'String'.
 
-> Task :feature:history:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/history/src/main/kotlin/org/sumidoku/android/feature/history/HistoryScreen.kt:55:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+> Task :feature:servers:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/servers/src/main/kotlin/org/sumidoku/android/feature/servers/ServersScreen.kt:56:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
-> Task :core:download:bundleLibRuntimeToDirDebug
-
-> Task :feature:trackers:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/trackers/src/main/kotlin/org/sumidoku/android/feature/trackers/TrackersScreen.kt:67:36 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-
-> Task :feature:repos:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/repos/src/main/kotlin/org/sumidoku/android/feature/repos/ReposScreen.kt:53:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+> Task :feature:browse:compileDebugKotlin
+w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:80:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:373:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
 > Task :feature:migrate:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/migrate/src/main/kotlin/org/sumidoku/android/feature/migrate/MigrateScreen.kt:60:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
@@ -492,19 +495,6 @@ w: file:///G:/Github/Sumidoku-android/feature/migrate/src/main/kotlin/org/sumido
 w: file:///G:/Github/Sumidoku-android/feature/migrate/src/main/kotlin/org/sumidoku/android/feature/migrate/MigrateScreen.kt:171:47 Unnecessary safe call on a non-null receiver of type 'Long'.
 w: file:///G:/Github/Sumidoku-android/feature/migrate/src/main/kotlin/org/sumidoku/android/feature/migrate/MigrateScreen.kt:176:29 Condition is always 'true'.
 w: file:///G:/Github/Sumidoku-android/feature/migrate/src/main/kotlin/org/sumidoku/android/feature/migrate/MigrateViewModel.kt:136:52 Elvis operator (?:) always returns the left operand of non-nullable type 'Boolean'.
-
-> Task :feature:updates:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/updates/src/main/kotlin/org/sumidoku/android/feature/updates/UpdatesScreen.kt:51:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-
-> Task :feature:search:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:66:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:117:44 Elvis operator (?:) always returns the left operand of non-nullable type 'Long'.
-w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchScreen.kt:121:56 Elvis operator (?:) always returns the left operand of non-nullable type 'String'.
-w: file:///G:/Github/Sumidoku-android/feature/search/src/main/kotlin/org/sumidoku/android/feature/search/SearchViewModel.kt:103:76 Elvis operator (?:) always returns the left operand of non-nullable type 'String'.
-
-> Task :feature:browse:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:80:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:373:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
 > Task :feature:source:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceHomeScreen.kt:85:38 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
@@ -533,6 +523,9 @@ w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidok
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:400:45 'val Icons.Outlined.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.OpenInNew.
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:407:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
 
+> Task :core:download:compileDebugJavaWithJavac
+> Task :core:download:compressDebugJavaRes
+
 > Task :feature:settings:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/settings/src/main/kotlin/org/sumidoku/android/feature/settings/ApiKeysScreen.kt:164:35 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 w: file:///G:/Github/Sumidoku-android/feature/settings/src/main/kotlin/org/sumidoku/android/feature/settings/CacheScreen.kt:133:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
@@ -546,94 +539,91 @@ w: file:///G:/Github/Sumidoku-android/feature/settings/src/main/kotlin/org/sumid
 w: file:///G:/Github/Sumidoku-android/feature/settings/src/main/kotlin/org/sumidoku/android/feature/settings/TrashScreen.kt:121:78 Redundant call of conversion method.
 w: file:///G:/Github/Sumidoku-android/feature/settings/src/main/kotlin/org/sumidoku/android/feature/settings/TrashScreen.kt:156:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
+> Task :core:download:transformDebugClassesWithAsm
+> Task :core:download:bundleLibRuntimeToJarDebug
+> Task :feature:trackers:compileDebugJavaWithJavac
+> Task :core:download:bundleLibCompileToJarDebug
+> Task :feature:history:compileDebugJavaWithJavac
+> Task :core:download:bundleLibRuntimeToDirDebug
 > Task :feature:repos:compileDebugJavaWithJavac
+> Task :feature:trackers:compressDebugJavaRes
+> Task :feature:servers:compileDebugJavaWithJavac
+> Task :feature:search:compileDebugJavaWithJavac
 > Task :feature:repos:compressDebugJavaRes
 > Task :feature:updates:compileDebugJavaWithJavac
-> Task :feature:trackers:compileDebugJavaWithJavac
+> Task :feature:history:compressDebugJavaRes
+> Task :feature:servers:compressDebugJavaRes
+> Task :feature:migrate:compileDebugJavaWithJavac
+> Task :feature:backups:compileDebugJavaWithJavac
+> Task :feature:search:compressDebugJavaRes
 > Task :feature:library:compileDebugJavaWithJavac
 > Task :feature:updates:compressDebugJavaRes
-> Task :feature:trackers:compressDebugJavaRes
-> Task :feature:library:compressDebugJavaRes
-> Task :feature:servers:compileDebugJavaWithJavac
-> Task :feature:history:compileDebugJavaWithJavac
-> Task :feature:backups:compileDebugJavaWithJavac
-> Task :feature:migrate:compileDebugJavaWithJavac
 > Task :feature:browse:compileDebugJavaWithJavac
-> Task :feature:servers:compressDebugJavaRes
-> Task :feature:repos:transformDebugClassesWithAsm
-> Task :feature:repos:bundleLibCompileToJarDebug
-> Task :feature:history:compressDebugJavaRes
 > Task :feature:backups:compressDebugJavaRes
-> Task :feature:search:compileDebugJavaWithJavac
 > Task :feature:migrate:compressDebugJavaRes
-> Task :feature:repos:bundleLibRuntimeToJarDebug
-> Task :feature:browse:compressDebugJavaRes
-> Task :feature:search:compressDebugJavaRes
-> Task :feature:library:transformDebugClassesWithAsm
-> Task :feature:repos:bundleLibRuntimeToDirDebug
-> Task :feature:library:bundleLibCompileToJarDebug
-> Task :feature:reader:kspDebugKotlin
-> Task :feature:library:bundleLibRuntimeToJarDebug
-> Task :feature:library:bundleLibRuntimeToDirDebug
-> Task :feature:downloads:kspDebugKotlin
+> Task :feature:library:compressDebugJavaRes
 > Task :feature:trackers:transformDebugClassesWithAsm
-> Task :feature:manga:kspDebugKotlin
 > Task :feature:trackers:bundleLibCompileToJarDebug
+> Task :feature:browse:compressDebugJavaRes
 > Task :feature:trackers:bundleLibRuntimeToJarDebug
 > Task :feature:trackers:bundleLibRuntimeToDirDebug
-> Task :feature:source:compileDebugJavaWithJavac
 > Task :feature:updates:transformDebugClassesWithAsm
 > Task :feature:updates:bundleLibCompileToJarDebug
 > Task :feature:updates:bundleLibRuntimeToJarDebug
-> Task :feature:source:compressDebugJavaRes
 > Task :feature:updates:bundleLibRuntimeToDirDebug
 > Task :feature:search:transformDebugClassesWithAsm
 > Task :feature:search:bundleLibCompileToJarDebug
 > Task :feature:search:bundleLibRuntimeToJarDebug
 > Task :feature:search:bundleLibRuntimeToDirDebug
-> Task :feature:browse:transformDebugClassesWithAsm
-> Task :feature:browse:bundleLibCompileToJarDebug
-> Task :feature:backups:transformDebugClassesWithAsm
-> Task :feature:backups:bundleLibCompileToJarDebug
-> Task :feature:backups:bundleLibRuntimeToJarDebug
-> Task :feature:browse:bundleLibRuntimeToJarDebug
-> Task :feature:backups:bundleLibRuntimeToDirDebug
-> Task :feature:migrate:transformDebugClassesWithAsm
-> Task :feature:browse:bundleLibRuntimeToDirDebug
-> Task :feature:migrate:bundleLibCompileToJarDebug
-> Task :feature:migrate:bundleLibRuntimeToJarDebug
-> Task :feature:migrate:bundleLibRuntimeToDirDebug
-> Task :feature:settings:compileDebugJavaWithJavac
+> Task :feature:servers:transformDebugClassesWithAsm
+> Task :feature:servers:bundleLibCompileToJarDebug
+> Task :feature:servers:bundleLibRuntimeToJarDebug
+> Task :feature:source:compileDebugJavaWithJavac
+> Task :feature:servers:bundleLibRuntimeToDirDebug
+> Task :feature:source:compressDebugJavaRes
 > Task :feature:history:transformDebugClassesWithAsm
 > Task :feature:history:bundleLibCompileToJarDebug
 > Task :feature:history:bundleLibRuntimeToJarDebug
 > Task :feature:history:bundleLibRuntimeToDirDebug
-> Task :feature:settings:compressDebugJavaRes
-> Task :feature:servers:transformDebugClassesWithAsm
-> Task :feature:servers:bundleLibCompileToJarDebug
-> Task :feature:servers:bundleLibRuntimeToJarDebug
-> Task :feature:servers:bundleLibRuntimeToDirDebug
+> Task :feature:repos:transformDebugClassesWithAsm
+> Task :feature:repos:bundleLibCompileToJarDebug
+> Task :feature:repos:bundleLibRuntimeToJarDebug
+> Task :feature:repos:bundleLibRuntimeToDirDebug
 > Task :feature:source:transformDebugClassesWithAsm
 > Task :feature:source:bundleLibCompileToJarDebug
+> Task :feature:settings:compileDebugJavaWithJavac
+> Task :feature:library:transformDebugClassesWithAsm
+> Task :feature:library:bundleLibCompileToJarDebug
+> Task :feature:library:bundleLibRuntimeToJarDebug
 > Task :feature:source:bundleLibRuntimeToJarDebug
+> Task :feature:backups:transformDebugClassesWithAsm
+> Task :feature:migrate:transformDebugClassesWithAsm
+> Task :feature:browse:transformDebugClassesWithAsm
+> Task :feature:library:bundleLibRuntimeToDirDebug
+> Task :feature:migrate:bundleLibCompileToJarDebug
+> Task :feature:backups:bundleLibCompileToJarDebug
+> Task :feature:browse:bundleLibCompileToJarDebug
+> Task :feature:backups:bundleLibRuntimeToJarDebug
+> Task :feature:migrate:bundleLibRuntimeToJarDebug
+> Task :feature:settings:compressDebugJavaRes
+> Task :feature:backups:bundleLibRuntimeToDirDebug
+> Task :feature:migrate:bundleLibRuntimeToDirDebug
+> Task :feature:browse:bundleLibRuntimeToJarDebug
 > Task :feature:source:bundleLibRuntimeToDirDebug
+> Task :feature:browse:bundleLibRuntimeToDirDebug
+> Task :feature:downloads:kspDebugKotlin
+> Task :feature:manga:kspDebugKotlin
+> Task :feature:reader:kspDebugKotlin
 > Task :feature:settings:transformDebugClassesWithAsm
 > Task :feature:settings:bundleLibCompileToJarDebug
 > Task :feature:settings:bundleLibRuntimeToJarDebug
+> Task :feature:settings:bundleLibRuntimeToDirDebug
 
 > Task :feature:downloads:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/downloads/src/main/kotlin/org/sumidoku/android/feature/downloads/DownloadsScreen.kt:58:37 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
 
-> Task :feature:settings:bundleLibRuntimeToDirDebug
-
 > Task :feature:reader:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/reader/src/main/kotlin/org/sumidoku/android/feature/reader/ReaderScreen.kt:83:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-
-> Task :feature:downloads:compileDebugJavaWithJavac
-> Task :feature:reader:compileDebugJavaWithJavac
-> Task :feature:downloads:compressDebugJavaRes
-> Task :feature:reader:compressDebugJavaRes
-> Task :feature:downloads:transformDebugClassesWithAsm
 
 > Task :feature:manga:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/manga/src/main/kotlin/org/sumidoku/android/feature/manga/MangaScreen.kt:94:33 'fun <reified VM : ViewModel, reified VMF> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ..., noinline creationCallback: (VMF) -> VM): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
@@ -642,11 +632,16 @@ w: file:///G:/Github/Sumidoku-android/feature/manga/src/main/kotlin/org/sumidoku
 w: file:///G:/Github/Sumidoku-android/feature/manga/src/main/kotlin/org/sumidoku/android/feature/manga/MetadataSheets.kt:88:5 'when' is exhaustive so 'else' is redundant here.
 w: file:///G:/Github/Sumidoku-android/feature/manga/src/main/kotlin/org/sumidoku/android/feature/manga/MetadataSheets.kt:195:33 'fun Modifier.menuAnchor(): Modifier' is deprecated. Use overload that takes ExposedDropdownMenuAnchorType and enabled parameters.
 
+> Task :feature:downloads:compileDebugJavaWithJavac
+> Task :feature:downloads:compressDebugJavaRes
+> Task :feature:downloads:transformDebugClassesWithAsm
 > Task :feature:downloads:bundleLibCompileToJarDebug
 > Task :feature:downloads:bundleLibRuntimeToJarDebug
+> Task :feature:reader:compileDebugJavaWithJavac
+> Task :feature:downloads:bundleLibRuntimeToDirDebug
+> Task :feature:reader:compressDebugJavaRes
 > Task :feature:reader:transformDebugClassesWithAsm
 > Task :feature:reader:bundleLibCompileToJarDebug
-> Task :feature:downloads:bundleLibRuntimeToDirDebug
 > Task :feature:reader:bundleLibRuntimeToJarDebug
 > Task :feature:reader:bundleLibRuntimeToDirDebug
 > Task :feature:manga:compileDebugJavaWithJavac
@@ -678,5 +673,5 @@ w: file:///G:/Github/Sumidoku-android/app/src/main/kotlin/org/sumidoku/android/S
 
 [Incubating] Problems report is available at: file:///G:/Github/Sumidoku-android/build/reports/problems/problems-report.html
 
-BUILD SUCCESSFUL in 49s
+BUILD SUCCESSFUL in 47s
 477 actionable tasks: 477 executed

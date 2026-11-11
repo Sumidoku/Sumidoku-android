@@ -110,32 +110,71 @@ fun ReaderScreen(
     }
 }
 
-/** One display slot in paged mode: a whole page, or the left/right
- *  half of a wide page when split-wide is on (design §12: ltr reads
- *  left half first, rtl reads right half first; progress and the
- *  slider stay in real page units). */
-private data class DisplayPage(val page: Page, val crop: Int) // 0 whole, 1 left, 2 right
+/** One display slot in paged mode: a whole page, the left/right half
+ *  of a wide page when split-wide is on, or a spread of one or two
+ *  pages when double-page is on (design §12: ltr reads left first,
+ *  rtl reads right first; landscape pages always get their own
+ *  spread; progress and the slider stay in real page units). */
+private data class DisplayPage(val pages: List<Page>, val crop: Int) // 0 whole, 1 left, 2 right
+{
+    constructor(page: Page, crop: Int) : this(listOf(page), crop)
+    val page: Page get() = pages.first()
+}
 
 @Composable
 private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     val rtl = state.dir == "rtl"
-    val displayPages = remember(state.pages, state.splitWide, rtl) {
-        buildList {
-            state.pages.forEach { page ->
-                val wide = state.splitWide && !page.hasDescription &&
-                    (page.width ?: 0) > 0 && (page.height ?: 0) > 0 && page.width!! > page.height!!
-                if (wide) {
-                    val first = if (rtl) 2 else 1
-                    val second = if (rtl) 1 else 2
-                    add(DisplayPage(page, first))
-                    add(DisplayPage(page, second))
+    val double = state.doublePage > 0 && !state.splitWide
+    val displayPages = remember(state.pages, state.splitWide, state.doublePage, rtl) {
+        if (double) {
+            // Double-page spreads (design §12): consecutive portrait
+            // pages pair up in reading order; landscape pages stand
+            // alone; doubleNoCover singles out the cover page first.
+            val spreads = mutableListOf<DisplayPage>()
+            var i = 0
+            val pages = state.pages
+            var coverSingled = false
+            while (i < pages.size) {
+                val p = pages[i]
+                val wide = (p.width ?: 0) > 0 && (p.height ?: 0) > 0 && p.width!! > p.height!!
+                if (wide || (state.doublePage == 2 && !coverSingled)) {
+                    spreads.add(DisplayPage(p, 0))
+                    if (!wide) coverSingled = true
+                    i++
+                } else if (i + 1 < pages.size) {
+                    val q = pages[i + 1]
+                    val qWide = (q.width ?: 0) > 0 && (q.height ?: 0) > 0 && q.width!! > q.height!!
+                    if (qWide) {
+                        spreads.add(DisplayPage(p, 0))
+                        i++
+                    } else {
+                        spreads.add(DisplayPage(if (rtl) listOf(q, p) else listOf(p, q), 0))
+                        i += 2
+                    }
                 } else {
-                    add(DisplayPage(page, 0))
+                    spreads.add(DisplayPage(p, 0))
+                    i++
+                }
+            }
+            spreads
+        } else {
+            buildList {
+                state.pages.forEach { page ->
+                    val wide = state.splitWide && !page.hasDescription &&
+                        (page.width ?: 0) > 0 && (page.height ?: 0) > 0 && page.width!! > page.height!!
+                    if (wide) {
+                        val first = if (rtl) 2 else 1
+                        val second = if (rtl) 1 else 2
+                        add(DisplayPage(page, first))
+                        add(DisplayPage(page, second))
+                    } else {
+                        add(DisplayPage(page, 0))
+                    }
                 }
             }
         }
     }
-    val initialDisplay = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+    val initialDisplay = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
         .coerceAtLeast(0)
     val pagerState = rememberPagerState(
         initialPage = initialDisplay,
@@ -143,12 +182,12 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     )
     LaunchedEffect(pagerState, displayPages) {
         snapshotFlow { pagerState.settledPage }.collect { slot ->
-            displayPages.getOrNull(slot)?.let { viewModel.setIndex(it.page.index.toInt()) }
+            displayPages.getOrNull(slot)?.let { viewModel.setIndex(it.pages.last().index.toInt()) }
         }
     }
     LaunchedEffect(state.chapterId) {
         if (state.index > 0) {
-            val target = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+            val target = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
             if (target > 0 && pagerState.currentPage != target) {
                 pagerState.scrollToPage(target)
             }
@@ -159,21 +198,22 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     // cache instead of the network (design §12).
     val prefetchContext = LocalContext.current
     LaunchedEffect(state.index, displayPages.size) {
-        val currentSlot = displayPages.indexOfFirst { it.page.index.toInt() >= state.index }
+        val currentSlot = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
             .takeIf { it >= 0 } ?: 0
         for (i in (currentSlot + 1) until (currentSlot + 3).coerceAtMost(displayPages.size)) {
-            val page = displayPages[i].page
-            if (page.content.text != null) continue
-            prefetchContext.imageLoader.enqueue(
-                ImageRequest.Builder(prefetchContext)
-                    .data(viewModel.pageImageUrl(page))
-                    .apply {
-                        state.profile?.apiKey?.let {
-                            httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
+            for (page in displayPages[i].pages) {
+                if (page.content.text != null) continue
+                prefetchContext.imageLoader.enqueue(
+                    ImageRequest.Builder(prefetchContext)
+                        .data(viewModel.pageImageUrl(page))
+                        .apply {
+                            state.profile?.apiKey?.let {
+                                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
+                            }
                         }
-                    }
-                    .build(),
-            )
+                        .build(),
+                )
+            }
         }
     }
 
@@ -188,26 +228,50 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             beyondViewportPageCount = 1,
         ) { slot ->
             val display = displayPages[slot]
-            ReaderPage(
-                page = display.page,
-                crop = display.crop,
-                url = viewModel.pageImageUrl(display.page),
-                apiKey = state.profile?.apiKey,
-                onZoomChange = { zoomed = it },
-                onTapLeft = {
-                    if (pagerState.currentPage > 0) {
-                        displayPages.getOrNull(pagerState.currentPage - 1)?.let {
-                            viewModel.setIndex(it.page.index.toInt())
+            if (display.pages.size == 2) {
+                // Double-page spread: two fit-height pages side by
+                // side in reading order (design §12). Zoom stays off
+                // for spreads; tap zones still navigate.
+                SpreadPage(
+                    pages = display.pages,
+                    urlFor = { viewModel.pageImageUrl(it) },
+                    apiKey = state.profile?.apiKey,
+                    onTapLeft = {
+                        if (pagerState.currentPage > 0) {
+                            displayPages.getOrNull(pagerState.currentPage - 1)?.let {
+                                viewModel.setIndex(it.pages.last().index.toInt())
+                            }
                         }
-                    }
-                },
-                onTapCenter = { viewModel.toggleOverlay() },
-                onTapRight = {
-                    displayPages.getOrNull(pagerState.currentPage + 1)?.let {
-                        viewModel.setIndex(it.page.index.toInt())
-                    }
-                },
-            )
+                    },
+                    onTapCenter = { viewModel.toggleOverlay() },
+                    onTapRight = {
+                        displayPages.getOrNull(pagerState.currentPage + 1)?.let {
+                            viewModel.setIndex(it.pages.last().index.toInt())
+                        }
+                    },
+                )
+            } else {
+                ReaderPage(
+                    page = display.page,
+                    crop = display.crop,
+                    url = viewModel.pageImageUrl(display.page),
+                    apiKey = state.profile?.apiKey,
+                    onZoomChange = { zoomed = it },
+                    onTapLeft = {
+                        if (pagerState.currentPage > 0) {
+                            displayPages.getOrNull(pagerState.currentPage - 1)?.let {
+                                viewModel.setIndex(it.pages.last().index.toInt())
+                            }
+                        }
+                    },
+                    onTapCenter = { viewModel.toggleOverlay() },
+                    onTapRight = {
+                        displayPages.getOrNull(pagerState.currentPage + 1)?.let {
+                            viewModel.setIndex(it.pages.last().index.toInt())
+                        }
+                    },
+                )
+            }
         }
     }
 }
@@ -326,6 +390,44 @@ private fun ReaderPage(
                 Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onTapCenter))
                 Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapRight))
             }
+        }
+    }
+}
+
+/** Double-page spread: two pages side by side in reading order
+ *  (already ordered ltr/rtl by the spread builder). Zoom is disabled
+ *  for spreads; the prev/menu/next tap thirds still work. */
+@Composable
+private fun SpreadPage(
+    pages: List<Page>,
+    urlFor: (Page) -> String,
+    apiKey: String?,
+    onTapLeft: () -> Unit,
+    onTapCenter: () -> Unit,
+    onTapRight: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize()) {
+            pages.forEach { page ->
+                Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val textPage = page.content.text
+                    if (textPage != null) {
+                        TextPageContent(textPage, fillWidth = false)
+                    } else {
+                        ReaderImage(
+                            url = urlFor(page),
+                            apiKey = apiKey,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapLeft))
+            Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onTapCenter))
+            Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapRight))
         }
     }
 }
@@ -464,6 +566,24 @@ private fun ReaderSettingsSheet(
                     FilterChip(
                         selected = state.dir == value || (value == "default" && state.dir !in listOf("ltr", "rtl")),
                         onClick = { viewModel.setDir(if (value == "default") "ltr" else value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+            Text("双页布局", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "连续两页并排显示；横页始终独占整版（与拆分宽页互斥，仅分页模式）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(0 to "关", 1 to "双页", 2 to "双页（不含封面）").forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.doublePage == value,
+                        onClick = { viewModel.setDoublePage(value) },
+                        enabled = !state.webtoon,
                         label = { Text(label) },
                     )
                 }

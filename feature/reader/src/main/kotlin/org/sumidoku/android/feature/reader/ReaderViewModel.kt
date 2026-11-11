@@ -38,6 +38,10 @@ data class ReaderUiState(
     /** Paged mode only: split landscape pages into halves read in
      *  direction order; progress stays in real page units. */
     val splitWide: Boolean = false,
+    /** Paged mode only: 0 = off, 1 = double, 2 = double without cover
+     *  (design §12: landscape pages always get their own spread;
+     *  mutually exclusive with split-wide). */
+    val doublePage: Int = 0,
     val error: String? = null,
 ) {
     val currentChapter: ChapterWithDownload? get() = chapters.firstOrNull { it.id == chapterId }
@@ -171,6 +175,10 @@ class ReaderViewModel @Inject constructor(
 
     fun setSplitWide(splitWide: Boolean) {
         _state.value = _state.value.copy(splitWide = splitWide)
+    }
+
+    fun setDoublePage(doublePage: Int) {
+        _state.value = _state.value.copy(doublePage = doublePage)
     }
 
     fun toggleOverlay() {
