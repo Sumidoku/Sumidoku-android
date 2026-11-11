@@ -9,7 +9,9 @@
   .ftab { display: flex; gap: 16px; padding: 2px 16px 10px; border-bottom: 1px solid var(--border); }
   .ftab span { font-size: 14px; color: var(--muted); padding-bottom: 6px; }
   .ftab span.on { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
-  .loadmore { text-align: center; padding: 14px 0 4px; font-size: 12.5px; color: var(--accent); }
+  .loadmore { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 0 4px; font-size: 12px; color: var(--faint); }
+  .loadmore svg { animation: lmspin .8s linear infinite; }
+  @keyframes lmspin { to { transform: rotate(360deg); } }
   .frow { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); }
   .frow .fl { font-size: 13.5px; }
   .frow .fv { margin-left: auto; font-size: 12px; color: var(--faint); }
@@ -17,7 +19,7 @@
 </head>
 <body>
 <h1 class="page-title">图源 · listing 分页浏览</h1>
-<p class="page-sub">SourceBrowsePage · /sources/{id}/listings + /search?filters · hasNextPage 分页 · ?q= 深链（查看全部/标签跳转）</p>
+<p class="page-sub">SourceBrowsePage · /sources/{id}/listings + /search?filters · InfiniteList 滚动到底自动取下一页（IntersectionObserver 哨兵，非手动按钮）· ?q= 深链</p>
 <div class="phone">
   <div class="statusbar"><span>21:45</span><span class="icons">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
@@ -41,7 +43,10 @@
       <div><div class="cover g5"><span class="ct">废渊战鬼</span></div><div class="name">废渊战鬼</div></div>
       <div><div class="cover g2"><span class="ct">瑠璃龙龙</span></div><div class="name">瑠璃龙龙</div></div>
     </div>
-    <div class="loadmore">第 1 页 · 加载更多（hasNextPage）</div>
+    <div class="loadmore">
+      <svg width="16" height="16" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="#A8B5FF" stroke-width="4" stroke-linecap="round" stroke-dasharray="56.5 18.9"/></svg>
+      滚动到底自动加载下一页 · hasNextPage（失败时此处变为重试按钮）
+    </div>
   </div>
 
   <div class="sheet" style="max-height:300px;overflow:hidden">
