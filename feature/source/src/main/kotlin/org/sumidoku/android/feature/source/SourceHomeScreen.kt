@@ -140,6 +140,7 @@ fun SourceHomeScreen(
                     SourceMode.Home -> 0
                     is SourceMode.ListingMode -> 1 + state.listings.indexOfFirst { it.id == m.listing.id }.coerceAtLeast(0)
                     is SourceMode.SearchMode -> -1
+                    is SourceMode.FilteredMode -> -1
                 }
                 ScrollableTabRow(selectedTabIndex = selected.coerceAtLeast(0), edgePadding = 12.dp) {
                     Tab(
@@ -180,6 +181,15 @@ fun SourceHomeScreen(
                         onLoadMore = { viewModel.loadMore() },
                     )
                     is SourceMode.SearchMode -> MangaGrid(
+                        entries = mode.entries?.propertyEntries ?: emptyList(),
+                        loading = mode.entries == null,
+                        loadingMore = state.loadingMore,
+                        apiKey = state.profile?.apiKey,
+                        proxied = { viewModel.proxiedImage(it) },
+                        onOpen = { viewModel.openMangaKey(it.key) },
+                        onLoadMore = { viewModel.loadMore() },
+                    )
+                    is SourceMode.FilteredMode -> MangaGrid(
                         entries = mode.entries?.propertyEntries ?: emptyList(),
                         loading = mode.entries == null,
                         loadingMore = state.loadingMore,

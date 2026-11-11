@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.SourcesApi
+import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.HomeLayout
 import org.sumidoku.android.core.api.model.Listing
 import org.sumidoku.android.core.api.model.MangaPage
 import org.sumidoku.android.core.api.model.RegisterMangaRequest
 import org.sumidoku.android.core.api.model.SearchRequest
 import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.api.model.SourceFilter
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -31,6 +33,14 @@ sealed interface SourceMode {
     data object Home : SourceMode
     data class ListingMode(val listing: Listing, val entries: MangaPage? = null, val page: Int = 1) : SourceMode
     data class SearchMode(val query: String, val entries: MangaPage? = null, val page: Int = 1) : SourceMode
+    /** Filter panel results (M1): a source search whose query is empty
+     *  and whose filters carry the chosen values — mirrors the webui
+     *  filters sheet on SourceBrowsePage. */
+    data class FilteredMode(
+        val filters: List<FilterValue>,
+        val entries: MangaPage? = null,
+        val page: Int = 1,
+    ) : SourceMode
 }
 
 data class SourceHomeUiState(
@@ -42,6 +52,11 @@ data class SourceHomeUiState(
     val home501: Boolean = false,
     val mode: SourceMode = SourceMode.Home,
     val loadingMore: Boolean = false,
+    /** Dynamic filter schema (GET /sources/{id}/filters); empty when
+     *  the source has none (501). */
+    val filters: List<SourceFilter> = emptyList(),
+    /** Edited filter values keyed by filter id; null value = unset. */
+    val activeFilters: Map<String, FilterValue> = emptyMap(),
     val error: String? = null,
 )
 
@@ -77,6 +92,7 @@ class SourceHomeViewModel @Inject constructor(
                 val source = api.listSources().await().firstOrNull { it.id == sourceId }
                 val listings = runCatching { api.getSourceListings(sourceId).await() }.getOrDefault(emptyList())
                 val home = runCatching { api.getSourceHome(sourceId).await() }.getOrNull()
+                val filters = runCatching { api.getSourceFilters(sourceId).await() }.getOrDefault(emptyList())
                 _state.value = _state.value.copy(
                     loading = false,
                     profile = profile,
@@ -85,6 +101,7 @@ class SourceHomeViewModel @Inject constructor(
                     home = home,
                     home501 = home == null,
                     mode = SourceMode.Home,
+                    filters = filters,
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
@@ -106,6 +123,28 @@ class SourceHomeViewModel @Inject constructor(
         _state.value = _state.value.copy(mode = SourceMode.Home)
     }
 
+    /** Edit one filter value; null removes it from the active set. */
+    fun setFilter(id: String, value: FilterValue?) {
+        val next = _state.value.activeFilters.toMutableMap()
+        if (value == null) next.remove(id) else next[id] = value
+        _state.value = _state.value.copy(activeFilters = next)
+    }
+
+    fun clearFilters() {
+        _state.value = _state.value.copy(activeFilters = emptyMap())
+    }
+
+    /** Run the source search with the edited filters (M1 filter panel). */
+    fun applyFilters() {
+        val values = _state.value.activeFilters.values.toList()
+        if (values.isEmpty()) {
+            backToHome()
+            return
+        }
+        _state.value = _state.value.copy(mode = SourceMode.FilteredMode(values))
+        loadMore()
+    }
+
     fun loadMore() {
         val current = _state.value
         if (current.loading || current.loadingMore) return
@@ -115,6 +154,7 @@ class SourceHomeViewModel @Inject constructor(
             is SourceMode.Home -> return
             is SourceMode.ListingMode -> if (mode.entries != null && !mode.entries.hasNextPage) return else mode.page + (if (mode.entries == null) 0 else 1)
             is SourceMode.SearchMode -> if (mode.entries != null && !mode.entries.hasNextPage) return else mode.page + (if (mode.entries == null) 0 else 1)
+            is SourceMode.FilteredMode -> if (mode.entries != null && !mode.entries.hasNextPage) return else mode.page + (if (mode.entries == null) 0 else 1)
         }
         viewModelScope.launch {
             _state.value = _state.value.copy(loadingMore = true)
@@ -123,6 +163,10 @@ class SourceHomeViewModel @Inject constructor(
                 val result = when (mode) {
                     is SourceMode.ListingMode -> api.getSourceListing(sourceId, mode.listing.id, page).await()
                     is SourceMode.SearchMode -> api.searchSource(sourceId, SearchRequest(query = mode.query, page = page)).await()
+                    is SourceMode.FilteredMode -> api.searchSource(
+                        sourceId,
+                        SearchRequest(query = "", page = page, filters = mode.filters),
+                    ).await()
                     SourceMode.Home -> return@launch
                 }
                 val merged = when (mode) {
@@ -133,6 +177,12 @@ class SourceHomeViewModel @Inject constructor(
                         page = page,
                     )
                     is SourceMode.SearchMode -> mode.copy(
+                        entries = result.copy(
+                            propertyEntries = (mode.entries?.propertyEntries ?: emptyList()) + result.propertyEntries,
+                        ),
+                        page = page,
+                    )
+                    is SourceMode.FilteredMode -> mode.copy(
                         entries = result.copy(
                             propertyEntries = (mode.entries?.propertyEntries ?: emptyList()) + result.propertyEntries,
                         ),

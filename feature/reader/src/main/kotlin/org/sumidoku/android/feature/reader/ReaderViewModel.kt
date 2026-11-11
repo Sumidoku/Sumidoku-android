@@ -42,6 +42,9 @@ data class ReaderUiState(
      *  (design §12: landscape pages always get their own spread;
      *  mutually exclusive with split-wide). */
     val doublePage: Int = 0,
+    /** Tap-zone layout: "lr" | "rl" | "edge" | "kindle" | "off"
+     *  (design §12, webui TapZoneLayout parity; mirrored by dir). */
+    val tapZones: String = "lr",
     val error: String? = null,
 ) {
     val currentChapter: ChapterWithDownload? get() = chapters.firstOrNull { it.id == chapterId }
@@ -179,6 +182,10 @@ class ReaderViewModel @Inject constructor(
 
     fun setDoublePage(doublePage: Int) {
         _state.value = _state.value.copy(doublePage = doublePage)
+    }
+
+    fun setTapZones(tapZones: String) {
+        _state.value = _state.value.copy(tapZones = tapZones)
     }
 
     fun toggleOverlay() {

@@ -46,6 +46,33 @@ class LocalDownloadEngine @Inject constructor(
         dao.requeueInterrupted()
     }
 
+    /** Requeue interrupted rows and pump until the queue drains —
+     *  the WorkManager continuation path (design §14 M3). */
+    suspend fun runUntilIdle(profile: ServerProfile) {
+        dao.requeueInterrupted()
+        pumpMutex.withLock {
+            if (pumpJob?.isActive != true) {
+                pumpJob = scope.launch { runQueue(profile) }
+            }
+            pumpJob?.join()
+        }
+    }
+
+    /** Bytes occupied by finished local downloads, plus the free space
+     *  on the downloads volume — storage management (design §14 M3). */
+    data class StorageInfo(val usedBytes: Long, val freeBytes: Long)
+
+    suspend fun storageInfo(): StorageInfo {
+        val stat = android.os.StatFs(context.filesDir.absolutePath)
+        return StorageInfo(usedBytes = dao.totalBytes(), freeBytes = stat.availableBytes)
+    }
+
+    /** Remove every local download: files, extracted pages and rows. */
+    suspend fun clearAll() {
+        File(context.filesDir, "downloads").deleteRecursively()
+        dao.deleteAll()
+    }
+
     suspend fun enqueue(profile: ServerProfile, chapterId: Long, mangaId: Long, mangaTitle: String, chapterLabel: String) {
         val existing = dao.get(chapterId)
         if (existing != null && existing.status != "error") {
@@ -65,6 +92,21 @@ class LocalDownloadEngine @Inject constructor(
             ),
         )
         pump(profile)
+        scheduleWork()
+    }
+
+    /** Schedule the WorkManager continuation so queued chapters keep
+     *  downloading after process death (design §14 M3). */
+    fun scheduleWork() {
+        val work = androidx.work.OneTimeWorkRequestBuilder<LocalDownloadWorker>()
+            .setConstraints(
+                androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .build(),
+            )
+            .build()
+        androidx.work.WorkManager.getInstance(context)
+            .enqueueUniqueWork("sumidoku-local-downloads", androidx.work.ExistingWorkPolicy.REPLACE, work)
     }
 
     suspend fun remove(chapterId: Long) {
@@ -115,6 +157,7 @@ class LocalDownloadEngine @Inject constructor(
     suspend fun retry(profile: ServerProfile, chapterId: Long) {
         dao.updateState(chapterId, "queued", null, 0L, "")
         pump(profile)
+        scheduleWork()
     }
 
     /** Kick the serial pump; re-entrant and idempotent. */
@@ -152,6 +195,15 @@ class LocalDownloadEngine @Inject constructor(
             client.okHttp(profile).newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code}")
                 val body = response.body ?: throw java.io.IOException("empty body")
+                // Storage management (design §14 M3): refuse to start a
+                // download that would not fit, before writing anything.
+                val needed = body.contentLength()
+                if (needed > 0) {
+                    val stat = android.os.StatFs(targetDir.absolutePath)
+                    if (stat.availableBytes < needed + (16L shl 20)) {
+                        throw java.io.IOException("存储空间不足（需要约 ${needed / 1048576} MB）")
+                    }
+                }
                 body.byteStream().use { input ->
                     tmp.outputStream().use { output -> input.copyTo(output) }
                 }

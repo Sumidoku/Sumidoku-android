@@ -34,6 +34,9 @@ data class DownloadsUiState(
     val downloads: List<Download> = emptyList(),
     /** Tier B rows: chapters saved on this device for offline reading. */
     val local: List<LocalDownloadEntity> = emptyList(),
+    /** Storage management (design §14 M3): local usage + free space. */
+    val storageUsedBytes: Long = 0,
+    val storageFreeBytes: Long = 0,
     val loading: Boolean = true,
     val error: String? = null,
     val message: String? = null,
@@ -59,7 +62,24 @@ class DownloadsViewModel @Inject constructor(
             localDownloads.init()
             localDownloads.observeAll().collect { rows ->
                 _state.value = _state.value.copy(local = rows)
+                refreshStorage()
             }
+        }
+    }
+
+    private suspend fun refreshStorage() {
+        val info = runCatching { localDownloads.storageInfo() }.getOrNull() ?: return
+        _state.value = _state.value.copy(
+            storageUsedBytes = info.usedBytes,
+            storageFreeBytes = info.freeBytes,
+        )
+    }
+
+    /** Storage management: wipe every local offline copy. */
+    fun clearAllLocal() {
+        viewModelScope.launch {
+            localDownloads.clearAll()
+            refreshStorage()
         }
     }
 

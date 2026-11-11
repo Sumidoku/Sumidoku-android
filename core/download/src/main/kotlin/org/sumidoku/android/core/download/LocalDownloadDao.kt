@@ -32,4 +32,10 @@ interface LocalDownloadDao {
 
     @Query("DELETE FROM local_downloads WHERE chapterId = :chapterId")
     suspend fun delete(chapterId: Long)
+
+    @Query("DELETE FROM local_downloads")
+    suspend fun deleteAll()
+
+    @Query("SELECT COALESCE(SUM(bytes), 0) FROM local_downloads WHERE status = 'done'")
+    suspend fun totalBytes(): Long
 }

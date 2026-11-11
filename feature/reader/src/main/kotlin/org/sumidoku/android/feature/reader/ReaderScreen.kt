@@ -1,12 +1,15 @@
 package org.sumidoku.android.feature.reader
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -236,6 +240,8 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     pages = display.pages,
                     urlFor = { viewModel.pageImageUrl(it) },
                     apiKey = state.profile?.apiKey,
+                    tapZones = state.tapZones,
+                    rtl = rtl,
                     onTapLeft = {
                         if (pagerState.currentPage > 0) {
                             displayPages.getOrNull(pagerState.currentPage - 1)?.let {
@@ -256,6 +262,8 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     crop = display.crop,
                     url = viewModel.pageImageUrl(display.page),
                     apiKey = state.profile?.apiKey,
+                    tapZones = state.tapZones,
+                    rtl = rtl,
                     onZoomChange = { zoomed = it },
                     onTapLeft = {
                         if (pagerState.currentPage > 0) {
@@ -332,6 +340,8 @@ private fun ReaderPage(
     crop: Int,
     url: String,
     apiKey: String?,
+    tapZones: String,
+    rtl: Boolean,
     onZoomChange: (Boolean) -> Unit,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
@@ -384,13 +394,114 @@ private fun ReaderPage(
             )
         }
         if (scale <= 1.01f) {
-            // Tap zones: prev / menu / next thirds — see preview 24 zone map.
-            Row(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapLeft))
-                Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onTapCenter))
-                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapRight))
+            TapZoneOverlay(
+                layout = tapZones,
+                rtl = rtl,
+                onPrev = onTapLeft,
+                onMenu = onTapCenter,
+                onNext = onTapRight,
+            )
+        }
+    }
+}
+
+/** Tap zones (design §12, webui TapZoneLayout parity): lr = prev/menu/
+ *  next thirds, rl mirrors, edge narrows the side zones to 15%, kindle
+ *  reserves the top quarter for the menu and splits the rest 75/25,
+ *  off disables zone taps. `rtl` mirrors left/right actions so prev
+ *  always means "previous in reading order". Preview 24 zone map. */
+@Composable
+private fun TapZoneOverlay(
+    layout: String,
+    rtl: Boolean,
+    onPrev: () -> Unit,
+    onMenu: () -> Unit,
+    onNext: () -> Unit,
+) {
+    if (layout == "off") return
+    when (layout) {
+        "kindle" -> Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(0.25f).fillMaxWidth().clickable(onClick = onMenu))
+            Row(Modifier.weight(0.75f).fillMaxSize()) {
+                val leftWeight = if (rtl) 0.25f else 0.75f
+                val rightWeight = if (rtl) 0.75f else 0.25f
+                Box(Modifier.weight(leftWeight).fillMaxSize().clickable(onClick = if (rtl) onNext else onPrev))
+                Box(Modifier.weight(rightWeight).fillMaxSize().clickable(onClick = if (rtl) onPrev else onNext))
             }
         }
+        "edge" -> {
+            val leftIsPrev = !rtl
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(0.15f).fillMaxSize().clickable(onClick = if (leftIsPrev) onPrev else onNext))
+                Box(Modifier.weight(0.7f).fillMaxSize().clickable(onClick = onMenu))
+                Box(Modifier.weight(0.15f).fillMaxSize().clickable(onClick = if (leftIsPrev) onNext else onPrev))
+            }
+        }
+        else -> {
+            // "lr": left prev, right next; "rl": mirrored before the
+            // reading-direction mirror applies.
+            val baseLeftIsPrev = layout != "rl"
+            val leftIsPrev = if (rtl) !baseLeftIsPrev else baseLeftIsPrev
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = if (leftIsPrev) onPrev else onNext))
+                Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onMenu))
+                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = if (leftIsPrev) onNext else onPrev))
+            }
+        }
+    }
+}
+
+/** Graphical tap-zone mini-map for the settings sheet (webui
+ *  TapZonePreview parity): prev = #A4706F, next = #6F9A80,
+ *  menu = #6F86A8, none = surfaceVariant. */
+@Composable
+private fun TapZonePreview(layout: String, rtl: Boolean) {
+    val prevColor = Color(0xFFA4706F)
+    val nextColor = Color(0xFF6F9A80)
+    val menuColor = Color(0xFF6F86A8)
+    val noneColor = MaterialTheme.colorScheme.surfaceVariant
+    Box(
+        Modifier
+            .size(width = 84.dp, height = 120.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp)),
+    ) {
+        when (layout) {
+            "kindle" -> Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(0.25f).fillMaxWidth().background(menuColor))
+                Row(Modifier.weight(0.75f).fillMaxSize()) {
+                    val lw = if (rtl) 0.25f else 0.75f
+                    val rw = if (rtl) 0.75f else 0.25f
+                    Box(Modifier.weight(lw).fillMaxSize().background(if (rtl) nextColor else prevColor))
+                    Box(Modifier.weight(rw).fillMaxSize().background(if (rtl) prevColor else nextColor))
+                }
+            }
+            "edge" -> {
+                val leftIsPrev = !rtl
+                Row(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(0.15f).fillMaxSize().background(if (leftIsPrev) prevColor else nextColor))
+                    Box(Modifier.weight(0.7f).fillMaxSize().background(menuColor))
+                    Box(Modifier.weight(0.15f).fillMaxSize().background(if (leftIsPrev) nextColor else prevColor))
+                }
+            }
+            else -> {
+                val baseLeftIsPrev = layout != "rl"
+                val leftIsPrev = if (rtl) !baseLeftIsPrev else baseLeftIsPrev
+                Row(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(0.3f).fillMaxSize().background(if (leftIsPrev) prevColor else nextColor))
+                    Box(Modifier.weight(0.4f).fillMaxSize().background(menuColor))
+                    Box(Modifier.weight(0.3f).fillMaxSize().background(if (leftIsPrev) nextColor else prevColor))
+                }
+            }
+        }
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(top = 4.dp),
+    ) {
+        Text("◼ 上一页", color = prevColor, style = MaterialTheme.typography.labelSmall)
+        Text("◼ 菜单", color = menuColor, style = MaterialTheme.typography.labelSmall)
+        Text("◼ 下一页", color = nextColor, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -402,6 +513,8 @@ private fun SpreadPage(
     pages: List<Page>,
     urlFor: (Page) -> String,
     apiKey: String?,
+    tapZones: String,
+    rtl: Boolean,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
@@ -424,11 +537,13 @@ private fun SpreadPage(
                 }
             }
         }
-        Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapLeft))
-            Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onTapCenter))
-            Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = onTapRight))
-        }
+        TapZoneOverlay(
+            layout = tapZones,
+            rtl = rtl,
+            onPrev = onTapLeft,
+            onMenu = onTapCenter,
+            onNext = onTapRight,
+        )
     }
 }
 
@@ -569,6 +684,23 @@ private fun ReaderSettingsSheet(
                         label = { Text(label) },
                     )
                 }
+            }
+
+            HorizontalDivider()
+            Text("点按区域", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("lr" to "左右", "rl" to "右左", "edge" to "边缘", "kindle" to "Kindle", "off" to "关").forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.tapZones == value,
+                        onClick = { viewModel.setTapZones(value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            // Graphical mini-map of the selected layout (webui
+            // TapZonePreview parity: prev/next/menu colours).
+            if (state.tapZones != "off") {
+                TapZonePreview(layout = state.tapZones, rtl = state.dir == "rtl")
             }
 
             HorizontalDivider()
