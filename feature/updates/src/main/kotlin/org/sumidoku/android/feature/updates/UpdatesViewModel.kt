@@ -15,11 +15,16 @@ import org.sumidoku.android.core.api.model.UpdateSummary
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
+import org.sumidoku.android.core.stream.EventsStream
+import org.sumidoku.android.core.stream.ServerEvent
 import retrofit2.await
 import javax.inject.Inject
 
 /** Updates tab: update-run summary + recent-chapters feed.
- *  GET /update/summary and /update/recent, POST /update/fetch — M4 scope. */
+ *  GET /update/summary and /update/recent, POST /update/fetch — M4 scope.
+ *  While a run is active the summary follows the SSE stream
+ *  (updateSummary events, snapshot on connect) instead of polling,
+ *  mirroring webui UpdatesPage. */
 data class UpdatesUiState(
     val profile: ServerProfile? = null,
     val summary: UpdateSummary? = null,
@@ -36,20 +41,23 @@ data class UpdatesUiState(
 class UpdatesViewModel @Inject constructor(
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val eventsStream: EventsStream,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UpdatesUiState())
     val state: StateFlow<UpdatesUiState> = _state
 
-    private var pollJob: Job? = null
+    private var refreshJob: Job? = null
+    private var streamJob: Job? = null
 
     init {
         refresh()
     }
 
     fun refresh() {
-        pollJob?.cancel()
-        pollJob = viewModelScope.launch {
+        refreshJob?.cancel()
+        streamJob?.cancel()
+        refreshJob = viewModelScope.launch {
             val profile = repository.activeProfile.first()
             if (profile == null) {
                 _state.value = UpdatesUiState(loading = false, error = "未选择服务器")
@@ -59,21 +67,46 @@ class UpdatesViewModel @Inject constructor(
             val api = clientFactory.create<UpdatesApi>(profile)
             try {
                 val recent = api.getRecentUpdates(page = 1).await()
+                val summary = api.getUpdateSummary().await()
                 _state.value = _state.value.copy(
                     loading = false,
                     entries = recent.propertyEntries,
                     page = 1,
                     hasNextPage = recent.hasNextPage,
+                    summary = summary,
+                    fetching = summary.running,
                 )
-                // Poll the summary while a run is active.
-                while (true) {
-                    val summary = api.getUpdateSummary().await()
-                    _state.value = _state.value.copy(summary = summary, fetching = summary.running)
-                    if (!summary.running) break
+                // Fallback polling only while a run is active and the
+                // stream is unavailable; SSE events usually preempt this.
+                while (_state.value.summary?.running == true && streamJob?.isActive != true) {
                     delay(3000)
+                    val next = api.getUpdateSummary().await()
+                    _state.value = _state.value.copy(summary = next, fetching = next.running)
+                    if (!next.running) break
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+            }
+        }
+        streamJob = viewModelScope.launch {
+            val profile = repository.activeProfile.first() ?: return@launch
+            eventsStream.events(profile).collect { event ->
+                when (event) {
+                    is ServerEvent.Snapshot -> event.updateSummary?.let { summary ->
+                        _state.value = _state.value.copy(summary = summary, fetching = summary.running)
+                    }
+                    is ServerEvent.SummaryChanged -> _state.value = _state.value.copy(
+                        summary = event.summary,
+                        fetching = event.summary.running,
+                    )
+                    is ServerEvent.UpdateComplete -> {
+                        _state.value = _state.value.copy(fetching = false)
+                        // New chapters may have landed: refresh the feed.
+                        refresh()
+                    }
+                    else -> Unit
+                }
             }
         }
     }
