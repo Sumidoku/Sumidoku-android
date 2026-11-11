@@ -14,9 +14,15 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.sumidoku.android.core.api.SourcesApi
+import org.sumidoku.android.core.api.model.BasicLoginRequest
+import org.sumidoku.android.core.api.model.NotifyRequest
+import org.sumidoku.android.core.api.model.OAuthCompleteRequest
+import org.sumidoku.android.core.api.model.OAuthStartRequest
 import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.api.model.SourceLogoutRequest
 import org.sumidoku.android.core.api.model.SourceSetting
 import org.sumidoku.android.core.api.model.SourceSettings
+import org.sumidoku.android.core.api.model.WebLoginRequest
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -36,6 +42,11 @@ data class SourceSettingsUiState(
     val dirty: Boolean = false,
     val saving: Boolean = false,
     val saved: Boolean = false,
+    /** Keys edited since load — only these are sent on save (webui parity). */
+    val editedKeys: Set<String> = emptySet(),
+    /** One-shot transient status for login/logout/button actions. */
+    val actionMessage: String? = null,
+    val actionError: String? = null,
     val error: String? = null,
 )
 
@@ -83,6 +94,7 @@ class SourceSettingsViewModel @Inject constructor(
     fun updateValue(key: String, value: JsonElement) {
         _state.value = _state.value.copy(
             values = _state.value.values + (key to value),
+            editedKeys = _state.value.editedKeys + key,
             dirty = true,
             saved = false,
         )
@@ -95,10 +107,18 @@ class SourceSettingsViewModel @Inject constructor(
             _state.value = current.copy(saving = true)
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
-                // Map<String, JsonElement> satisfies the Map<String, Any> body;
-                // the kotlinx converter writes raw JSON values.
-                api.putSourceSettings(sourceId, current.values.mapValues { it.value as Any }).await()
-                _state.value = _state.value.copy(saving = false, dirty = false, saved = true)
+                // Only the edited keys go back (webui parity); each changed
+                // setting's declared notification is forwarded via ?notify=.
+                val touched = flattenSettings(current.settings?.settings.orEmpty())
+                    .filter { it.key in current.editedKeys }
+                val edits = current.editedKeys
+                    .mapNotNull { k -> current.values[k]?.let { k to (it as Any) } }
+                    .toMap()
+                val notify = touched.mapNotNull { s -> s.notification?.takeIf { it.isNotEmpty() } }
+                api.putSourceSettings(sourceId, edits, notify.ifEmpty { null }).await()
+                _state.value = _state.value.copy(
+                    saving = false, dirty = false, saved = true, editedKeys = emptySet(),
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(saving = false, error = e.message)
             }
@@ -117,6 +137,111 @@ class SourceSettingsViewModel @Inject constructor(
             }
         }
     }
+
+    // --- login flows (Aidoku basic/web/oauth) ---
+
+    fun basicLogin(key: String, username: String, password: String) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .sourceBasicLogin(sourceId, BasicLoginRequest(key, username, password))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    fun webLogin(key: String, cookies: Map<String, String>, localStorage: Map<String, String>?) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .sourceWebLogin(sourceId, WebLoginRequest(key, cookies, localStorage))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Build the authorization URL; the UI opens it in a WebView. */
+    suspend fun startOauth(key: String): String? {
+        val profile = _state.value.profile ?: repository.activeProfile.first() ?: return null
+        return try {
+            clientFactory.create<SourcesApi>(profile)
+                .startSourceOauth(sourceId, OAuthStartRequest(key))
+                .await().url.toString()
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            null
+        }
+    }
+
+    fun completeOauth(key: String, callbackUrl: String) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .completeSourceOauth(sourceId, OAuthCompleteRequest(key, java.net.URI(callbackUrl)))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    fun logout(key: String, clearCookies: Boolean) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .sourceLogout(sourceId, SourceLogoutRequest(key, clearCookies))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Pressing a Button setting sends its notification to the source. */
+    fun pressButton(setting: SourceSetting) {
+        val notification = setting.notification?.takeIf { it.isNotEmpty() } ?: return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .notifySource(sourceId, NotifyRequest(notification))
+                    .await()
+                _state.value = _state.value.copy(actionMessage = "已通知图源")
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    fun consumeActionMessage() {
+        _state.value = _state.value.copy(actionMessage = null, actionError = null)
+    }
+}
+
+/** Flatten the declarative setting tree (groups and nested pages). */
+fun flattenSettings(settings: List<SourceSetting>): List<SourceSetting> {
+    val out = ArrayList<SourceSetting>()
+    fun walk(list: List<SourceSetting>) {
+        for (s in list) {
+            out += s
+            s.value.group?.items?.let(::walk)
+            s.value.page?.items?.let(::walk)
+        }
+    }
+    walk(settings)
+    return out
 }
 
 /** Visibility rule: `requires` must be truthy, `requires_false` falsy. */

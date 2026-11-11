@@ -1,244 +1,256 @@
-> Task :feature:source:preBuild UP-TO-DATE
 > Task :feature:servers:preBuild UP-TO-DATE
-> Task :feature:reader:preBuild UP-TO-DATE
 > Task :feature:manga:preBuild UP-TO-DATE
-> Task :feature:history:preBuild UP-TO-DATE
-> Task :core:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :feature:downloads:preBuild UP-TO-DATE
-> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app:preBuild UP-TO-DATE
-> Task :core:data:preBuild UP-TO-DATE
-> Task :feature:browse:preBuild UP-TO-DATE
 > Task :feature:library:preBuild UP-TO-DATE
-> Task :core:network:preBuild UP-TO-DATE
-> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :feature:repos:preBuild UP-TO-DATE
 > Task :feature:settings:preBuild UP-TO-DATE
-> Task :feature:manga:preDebugBuild UP-TO-DATE
-> Task :feature:library:preDebugBuild UP-TO-DATE
-> Task :feature:history:preDebugBuild UP-TO-DATE
-> Task :feature:downloads:preDebugBuild UP-TO-DATE
-> Task :feature:reader:preDebugBuild UP-TO-DATE
-> Task :feature:servers:preDebugBuild UP-TO-DATE
+> Task :feature:browse:preBuild UP-TO-DATE
+> Task :core:network:preBuild UP-TO-DATE
+> Task :core:data:preBuild UP-TO-DATE
+> Task :feature:source:preBuild UP-TO-DATE
+> Task :feature:history:preBuild UP-TO-DATE
+> Task :feature:reader:preBuild UP-TO-DATE
+> Task :feature:downloads:preBuild UP-TO-DATE
+> Task :feature:repos:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :core:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :feature:browse:preDebugBuild UP-TO-DATE
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:history:preDebugBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :core:data:preDebugBuild UP-TO-DATE
 > Task :core:network:preDebugBuild UP-TO-DATE
+> Task :feature:library:preDebugBuild UP-TO-DATE
+> Task :feature:manga:preDebugBuild UP-TO-DATE
+> Task :feature:reader:preDebugBuild UP-TO-DATE
+> Task :feature:downloads:preDebugBuild UP-TO-DATE
+> Task :feature:servers:preDebugBuild UP-TO-DATE
 > Task :feature:repos:preDebugBuild UP-TO-DATE
-> Task :feature:source:preDebugBuild UP-TO-DATE
-> Task :feature:downloads:processDebugNavigationResources UP-TO-DATE
-> Task :feature:servers:processDebugNavigationResources UP-TO-DATE
-> Task :feature:reader:processDebugNavigationResources UP-TO-DATE
-> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :feature:manga:processDebugNavigationResources UP-TO-DATE
-> Task :feature:history:processDebugNavigationResources UP-TO-DATE
-> Task :feature:settings:preDebugBuild UP-TO-DATE
 > Task :feature:browse:processDebugNavigationResources UP-TO-DATE
-> Task :core:api:openApiGenerate UP-TO-DATE
-> Task :core:network:processDebugNavigationResources UP-TO-DATE
-> Task :feature:repos:processDebugNavigationResources UP-TO-DATE
-> Task :feature:library:processDebugNavigationResources UP-TO-DATE
-> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :core:data:processDebugNavigationResources UP-TO-DATE
-> Task :feature:source:processDebugNavigationResources UP-TO-DATE
-> Task :feature:reader:generateDebugResources UP-TO-DATE
+> Task :feature:library:processDebugNavigationResources UP-TO-DATE
+> Task :feature:settings:preDebugBuild UP-TO-DATE
+> Task :core:network:processDebugNavigationResources UP-TO-DATE
+> Task :feature:history:processDebugNavigationResources UP-TO-DATE
+> Task :feature:reader:processDebugNavigationResources UP-TO-DATE
+> Task :feature:manga:processDebugNavigationResources UP-TO-DATE
+> Task :feature:source:preDebugBuild UP-TO-DATE
+> Task :feature:servers:processDebugNavigationResources UP-TO-DATE
 > Task :feature:updates:preBuild UP-TO-DATE
-> Task :feature:manga:generateDebugResources UP-TO-DATE
-> Task :feature:history:generateDebugResources UP-TO-DATE
-> Task :feature:downloads:generateDebugResources UP-TO-DATE
-> Task :feature:settings:processDebugNavigationResources UP-TO-DATE
-> Task :core:network:generateDebugResources UP-TO-DATE
-> Task :feature:library:generateDebugResources UP-TO-DATE
-> Task :feature:browse:generateDebugResources UP-TO-DATE
-> Task :app:packageDebugResources UP-TO-DATE
+> Task :core:api:openApiGenerate UP-TO-DATE
 > Task :feature:updates:preDebugBuild UP-TO-DATE
-> Task :feature:downloads:packageDebugResources UP-TO-DATE
-> Task :feature:repos:generateDebugResources UP-TO-DATE
+> Task :feature:settings:processDebugNavigationResources UP-TO-DATE
 > Task :core:data:generateDebugResources UP-TO-DATE
-> Task :feature:manga:packageDebugResources UP-TO-DATE
-> Task :feature:history:packageDebugResources UP-TO-DATE
-> Task :feature:servers:generateDebugResources UP-TO-DATE
-> Task :feature:reader:packageDebugResources UP-TO-DATE
-> Task :feature:settings:generateDebugResources UP-TO-DATE
-> Task :core:network:packageDebugResources UP-TO-DATE
+> Task :feature:downloads:processDebugNavigationResources UP-TO-DATE
+> Task :feature:repos:processDebugNavigationResources UP-TO-DATE
+> Task :feature:source:processDebugNavigationResources UP-TO-DATE
+> Task :core:network:generateDebugResources UP-TO-DATE
+> Task :feature:browse:generateDebugResources UP-TO-DATE
+> Task :feature:history:generateDebugResources UP-TO-DATE
 > Task :feature:updates:processDebugNavigationResources UP-TO-DATE
-> Task :feature:browse:packageDebugResources UP-TO-DATE
-> Task :feature:library:packageDebugResources UP-TO-DATE
-> Task :feature:source:generateDebugResources UP-TO-DATE
-> Task :feature:servers:packageDebugResources UP-TO-DATE
+> Task :feature:downloads:generateDebugResources UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :feature:library:generateDebugResources UP-TO-DATE
+> Task :feature:manga:generateDebugResources UP-TO-DATE
+> Task :feature:servers:generateDebugResources UP-TO-DATE
+> Task :feature:repos:generateDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
 > Task :core:data:packageDebugResources UP-TO-DATE
+> Task :core:network:packageDebugResources UP-TO-DATE
+> Task :feature:settings:generateDebugResources UP-TO-DATE
+> Task :feature:browse:packageDebugResources UP-TO-DATE
+> Task :feature:reader:generateDebugResources UP-TO-DATE
+> Task :feature:source:generateDebugResources UP-TO-DATE
+> Task :feature:library:packageDebugResources UP-TO-DATE
+> Task :feature:downloads:packageDebugResources UP-TO-DATE
+> Task :feature:history:packageDebugResources UP-TO-DATE
+> Task :feature:manga:packageDebugResources UP-TO-DATE
 > Task :feature:repos:packageDebugResources UP-TO-DATE
+> Task :feature:servers:packageDebugResources UP-TO-DATE
 > Task :feature:settings:packageDebugResources UP-TO-DATE
+> Task :feature:reader:packageDebugResources UP-TO-DATE
 > Task :feature:source:packageDebugResources UP-TO-DATE
-> Task :feature:browse:parseDebugLocalResources UP-TO-DATE
-> Task :feature:downloads:parseDebugLocalResources UP-TO-DATE
 > Task :feature:library:parseDebugLocalResources UP-TO-DATE
-> Task :feature:browse:generateDebugRFile UP-TO-DATE
-> Task :feature:downloads:generateDebugRFile UP-TO-DATE
+> Task :core:data:parseDebugLocalResources UP-TO-DATE
 > Task :feature:library:generateDebugRFile UP-TO-DATE
+> Task :core:data:generateDebugRFile UP-TO-DATE
+> Task :feature:browse:parseDebugLocalResources UP-TO-DATE
+> Task :feature:browse:generateDebugRFile UP-TO-DATE
 > Task :core:network:parseDebugLocalResources UP-TO-DATE
 > Task :core:network:generateDebugRFile UP-TO-DATE
 > Task :core:network:javaPreCompileDebug UP-TO-DATE
 > Task :feature:updates:generateDebugResources UP-TO-DATE
-> Task :feature:history:parseDebugLocalResources UP-TO-DATE
-> Task :feature:manga:parseDebugLocalResources UP-TO-DATE
-> Task :feature:history:generateDebugRFile UP-TO-DATE
 > Task :feature:updates:packageDebugResources UP-TO-DATE
 > Task :feature:reader:parseDebugLocalResources UP-TO-DATE
-> Task :feature:manga:generateDebugRFile UP-TO-DATE
 > Task :feature:reader:generateDebugRFile UP-TO-DATE
 > Task :feature:source:parseDebugLocalResources UP-TO-DATE
 > Task :feature:source:generateDebugRFile UP-TO-DATE
-> Task :feature:repos:parseDebugLocalResources UP-TO-DATE
-> Task :core:data:parseDebugLocalResources UP-TO-DATE
-> Task :feature:repos:generateDebugRFile UP-TO-DATE
-> Task :core:data:generateDebugRFile UP-TO-DATE
+> Task :feature:settings:parseDebugLocalResources UP-TO-DATE
+> Task :feature:settings:generateDebugRFile UP-TO-DATE
 > Task :feature:servers:parseDebugLocalResources UP-TO-DATE
 > Task :feature:servers:generateDebugRFile UP-TO-DATE
-> Task :feature:settings:parseDebugLocalResources UP-TO-DATE
+> Task :feature:manga:parseDebugLocalResources UP-TO-DATE
+> Task :feature:manga:generateDebugRFile UP-TO-DATE
+> Task :feature:repos:parseDebugLocalResources UP-TO-DATE
+> Task :feature:repos:generateDebugRFile UP-TO-DATE
+> Task :feature:history:parseDebugLocalResources UP-TO-DATE
+> Task :feature:history:generateDebugRFile UP-TO-DATE
 > Task :feature:updates:parseDebugLocalResources UP-TO-DATE
+> Task :feature:downloads:parseDebugLocalResources UP-TO-DATE
+> Task :feature:downloads:generateDebugRFile UP-TO-DATE
 > Task :feature:updates:generateDebugRFile UP-TO-DATE
-> Task :feature:settings:generateDebugRFile UP-TO-DATE
-> Task :feature:library:javaPreCompileDebug UP-TO-DATE
-> Task :feature:repos:javaPreCompileDebug UP-TO-DATE
-> Task :feature:manga:javaPreCompileDebug UP-TO-DATE
-> Task :feature:reader:javaPreCompileDebug UP-TO-DATE
 > Task :feature:source:javaPreCompileDebug UP-TO-DATE
 > Task :feature:updates:javaPreCompileDebug UP-TO-DATE
+> Task :feature:repos:javaPreCompileDebug UP-TO-DATE
+> Task :feature:library:javaPreCompileDebug UP-TO-DATE
+> Task :feature:servers:javaPreCompileDebug UP-TO-DATE
+> Task :feature:manga:javaPreCompileDebug UP-TO-DATE
 > Task :feature:downloads:javaPreCompileDebug UP-TO-DATE
 > Task :feature:browse:javaPreCompileDebug UP-TO-DATE
-> Task :feature:servers:javaPreCompileDebug UP-TO-DATE
 > Task :feature:history:javaPreCompileDebug UP-TO-DATE
-> Task :core:network:generateDebugAssets UP-TO-DATE
-> Task :feature:manga:generateDebugAssets UP-TO-DATE
-> Task :feature:library:generateDebugAssets UP-TO-DATE
-> Task :feature:reader:generateDebugAssets UP-TO-DATE
+> Task :feature:reader:javaPreCompileDebug UP-TO-DATE
 > Task :feature:history:generateDebugAssets UP-TO-DATE
-> Task :feature:browse:generateDebugAssets UP-TO-DATE
+> Task :core:network:generateDebugAssets UP-TO-DATE
+> Task :feature:reader:generateDebugAssets UP-TO-DATE
 > Task :feature:downloads:generateDebugAssets UP-TO-DATE
-> Task :feature:repos:generateDebugAssets UP-TO-DATE
+> Task :feature:manga:generateDebugAssets UP-TO-DATE
+> Task :feature:browse:generateDebugAssets UP-TO-DATE
 > Task :feature:servers:generateDebugAssets UP-TO-DATE
-> Task :feature:browse:mergeDebugAssets UP-TO-DATE
+> Task :feature:library:generateDebugAssets UP-TO-DATE
 > Task :feature:source:generateDebugAssets UP-TO-DATE
+> Task :feature:repos:generateDebugAssets UP-TO-DATE
+> Task :feature:manga:mergeDebugAssets UP-TO-DATE
+> Task :feature:updates:generateDebugAssets UP-TO-DATE
+> Task :feature:history:mergeDebugAssets UP-TO-DATE
 > Task :feature:reader:mergeDebugAssets UP-TO-DATE
+> Task :feature:servers:mergeDebugAssets UP-TO-DATE
+> Task :feature:browse:mergeDebugAssets UP-TO-DATE
+> Task :feature:repos:mergeDebugAssets UP-TO-DATE
 > Task :core:network:mergeDebugAssets UP-TO-DATE
 > Task :feature:downloads:mergeDebugAssets UP-TO-DATE
-> Task :feature:updates:generateDebugAssets UP-TO-DATE
-> Task :feature:library:mergeDebugAssets UP-TO-DATE
-> Task :feature:repos:mergeDebugAssets UP-TO-DATE
-> Task :feature:manga:mergeDebugAssets UP-TO-DATE
-> Task :feature:history:mergeDebugAssets UP-TO-DATE
-> Task :core:api:patchGeneratedSources
-> Task :feature:servers:mergeDebugAssets UP-TO-DATE
-> Task :core:network:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:browse:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:updates:mergeDebugAssets UP-TO-DATE
-> Task :feature:downloads:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:history:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:reader:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:servers:writeDebugAarMetadata UP-TO-DATE
 > Task :feature:source:mergeDebugAssets UP-TO-DATE
+> Task :feature:updates:mergeDebugAssets UP-TO-DATE
+> Task :feature:library:mergeDebugAssets UP-TO-DATE
+> Task :feature:history:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:manga:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:browse:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:reader:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:downloads:writeDebugAarMetadata UP-TO-DATE
+> Task :core:network:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:repos:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:servers:writeDebugAarMetadata UP-TO-DATE
 > Task :feature:library:writeDebugAarMetadata UP-TO-DATE
 > Task :feature:updates:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:repos:writeDebugAarMetadata UP-TO-DATE
-> Task :feature:manga:writeDebugAarMetadata UP-TO-DATE
 > Task :feature:source:writeDebugAarMetadata UP-TO-DATE
-> Task :core:network:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:downloads:extractDeepLinksDebug UP-TO-DATE
 > Task :feature:browse:extractDeepLinksDebug UP-TO-DATE
 > Task :feature:history:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:servers:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:library:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:repos:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:reader:extractDeepLinksDebug UP-TO-DATE
 > Task :feature:manga:extractDeepLinksDebug UP-TO-DATE
-> Task :core:network:processDebugManifest UP-TO-DATE
-> Task :feature:history:processDebugManifest UP-TO-DATE
-> Task :feature:servers:processDebugManifest UP-TO-DATE
+> Task :feature:library:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:reader:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:downloads:extractDeepLinksDebug UP-TO-DATE
+> Task :core:network:extractDeepLinksDebug UP-TO-DATE
 > Task :feature:source:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:downloads:processDebugManifest UP-TO-DATE
-> Task :feature:repos:processDebugManifest UP-TO-DATE
-> Task :feature:library:processDebugManifest UP-TO-DATE
-> Task :feature:updates:extractDeepLinksDebug UP-TO-DATE
-> Task :feature:reader:processDebugManifest UP-TO-DATE
-> Task :feature:manga:processDebugManifest UP-TO-DATE
-> Task :feature:repos:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:servers:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:repos:extractDeepLinksDebug UP-TO-DATE
 > Task :feature:browse:processDebugManifest UP-TO-DATE
-> Task :core:network:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:reader:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:repos:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:manga:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:manga:processDebugManifest UP-TO-DATE
+> Task :feature:library:processDebugManifest UP-TO-DATE
+> Task :feature:downloads:processDebugManifest UP-TO-DATE
+> Task :feature:reader:processDebugManifest UP-TO-DATE
+> Task :feature:updates:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:history:processDebugManifest UP-TO-DATE
+> Task :feature:source:processDebugManifest UP-TO-DATE
+> Task :feature:servers:processDebugManifest UP-TO-DATE
+> Task :core:network:processDebugManifest UP-TO-DATE
+> Task :feature:repos:processDebugManifest UP-TO-DATE
 > Task :feature:downloads:mapDebugSourceSetPaths UP-TO-DATE
 > Task :feature:browse:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:updates:processDebugManifest UP-TO-DATE
-> Task :feature:source:processDebugManifest UP-TO-DATE
-> Task :feature:history:mapDebugSourceSetPaths UP-TO-DATE
 > Task :feature:library:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:history:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:browse:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:manga:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:history:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:servers:mapDebugSourceSetPaths UP-TO-DATE
 > Task :feature:downloads:compileDebugLibraryResources UP-TO-DATE
 > Task :feature:manga:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:updates:processDebugManifest UP-TO-DATE
+> Task :feature:browse:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:repos:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:history:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:reader:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:servers:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:repos:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:source:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:downloads:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:network:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:reader:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:updates:mapDebugSourceSetPaths UP-TO-DATE
+> Task :feature:downloads:mergeDebugNativeLibs NO-SOURCE
 > Task :core:network:compileDebugLibraryResources UP-TO-DATE
 > Task :feature:library:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:servers:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:downloads:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:browse:mergeDebugJniLibFolders UP-TO-DATE
 > Task :feature:history:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:updates:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:manga:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:reader:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:source:mapDebugSourceSetPaths UP-TO-DATE
-> Task :feature:servers:compileDebugLibraryResources UP-TO-DATE
-> Task :core:network:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:updates:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:downloads:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:library:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:manga:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:history:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:source:compileDebugLibraryResources UP-TO-DATE
-> Task :feature:browse:mergeDebugNativeLibs NO-SOURCE
-> Task :core:network:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:reader:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:downloads:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :feature:servers:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:history:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :feature:library:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:repos:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:manga:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:downloads:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:source:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:updates:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:browse:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:network:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:servers:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:browse:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:source:mergeDebugJniLibFolders UP-TO-DATE
-> Task :core:network:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:library:mergeDebugJniLibFolders UP-TO-DATE
 > Task :feature:updates:mergeDebugJniLibFolders UP-TO-DATE
-> Task :feature:reader:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:browse:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:reader:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:manga:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:servers:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:history:mergeDebugNativeLibs NO-SOURCE
+> Task :core:network:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:library:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:reader:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:source:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:manga:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :feature:repos:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:library:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :feature:servers:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :feature:reader:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :core:network:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:library:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:source:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :feature:history:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :feature:repos:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :feature:updates:mergeDebugNativeLibs NO-SOURCE
-> Task :feature:source:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:updates:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :feature:source:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :core:model:compileKotlin UP-TO-DATE
+> Task :core:api:patchGeneratedSources
 > Task :core:common:compileKotlin UP-TO-DATE
-> Task :core:model:compileJava NO-SOURCE
 > Task :core:common:compileJava NO-SOURCE
 > Task :core:common:processResources NO-SOURCE
 > Task :core:common:classes UP-TO-DATE
+> Task :core:data:javaPreCompileDebug UP-TO-DATE
+> Task :core:data:generateDebugAssets UP-TO-DATE
+> Task :core:data:mergeDebugAssets UP-TO-DATE
+> Task :core:model:compileKotlin UP-TO-DATE
+> Task :core:data:writeDebugAarMetadata UP-TO-DATE
+> Task :core:common:jar UP-TO-DATE
+> Task :core:data:extractDeepLinksDebug UP-TO-DATE
+> Task :core:model:compileJava NO-SOURCE
+> Task :core:data:processDebugManifest UP-TO-DATE
 > Task :core:model:processResources NO-SOURCE
 > Task :core:model:classes UP-TO-DATE
+> Task :core:data:mapDebugSourceSetPaths UP-TO-DATE
+> Task :core:data:compileDebugLibraryResources UP-TO-DATE
 > Task :core:model:jar UP-TO-DATE
-> Task :core:common:jar UP-TO-DATE
-> Task :core:data:javaPreCompileDebug UP-TO-DATE
+> Task :core:data:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:api:compileKotlin UP-TO-DATE
+> Task :core:api:compileJava NO-SOURCE
 > Task :core:api:processResources NO-SOURCE
+> Task :core:api:classes UP-TO-DATE
+> Task :core:data:kspDebugKotlin UP-TO-DATE
 > Task :feature:settings:compileDebugKotlin UP-TO-DATE
 > Task :feature:settings:javaPreCompileDebug UP-TO-DATE
-> Task :core:data:kspDebugKotlin UP-TO-DATE
 > Task :feature:settings:compileDebugJavaWithJavac NO-SOURCE
 > Task :feature:settings:bundleLibCompileToJarDebug UP-TO-DATE
 > Task :feature:settings:generateDebugAssets UP-TO-DATE
 > Task :feature:settings:mergeDebugAssets UP-TO-DATE
+> Task :core:data:compileDebugKotlin UP-TO-DATE
 > Task :feature:settings:compressDebugJavaRes UP-TO-DATE
 > Task :feature:settings:bundleLibRuntimeToDirDebug UP-TO-DATE
 > Task :feature:settings:bundleLibRuntimeToJarDebug UP-TO-DATE
@@ -247,24 +259,15 @@
 > Task :feature:settings:processDebugManifest UP-TO-DATE
 > Task :feature:settings:mapDebugSourceSetPaths UP-TO-DATE
 > Task :feature:settings:compileDebugLibraryResources UP-TO-DATE
+> Task :core:data:compileDebugJavaWithJavac UP-TO-DATE
 > Task :feature:settings:mergeDebugJniLibFolders UP-TO-DATE
 > Task :feature:settings:mergeDebugNativeLibs NO-SOURCE
 > Task :feature:settings:copyDebugJniLibsProjectOnly UP-TO-DATE
-> Task :core:data:compileDebugKotlin UP-TO-DATE
-> Task :core:data:compileDebugJavaWithJavac UP-TO-DATE
 > Task :core:data:transformDebugClassesWithAsm UP-TO-DATE
 > Task :core:data:bundleLibCompileToJarDebug UP-TO-DATE
 > Task :core:data:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :core:data:generateDebugAssets UP-TO-DATE
-> Task :core:data:mergeDebugAssets UP-TO-DATE
 > Task :core:data:compressDebugJavaRes UP-TO-DATE
 > Task :core:data:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :core:data:writeDebugAarMetadata UP-TO-DATE
-> Task :core:data:extractDeepLinksDebug UP-TO-DATE
-> Task :core:data:processDebugManifest UP-TO-DATE
-> Task :core:data:mapDebugSourceSetPaths UP-TO-DATE
-> Task :core:data:compileDebugLibraryResources UP-TO-DATE
-> Task :core:data:mergeDebugJniLibFolders UP-TO-DATE
 > Task :core:data:mergeDebugNativeLibs NO-SOURCE
 > Task :core:data:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :app:processDebugNavigationResources UP-TO-DATE
@@ -292,9 +295,6 @@
 > Task :app:validateSigningDebug UP-TO-DATE
 > Task :app:writeDebugAppMetadata UP-TO-DATE
 > Task :app:writeDebugSigningConfigVersions UP-TO-DATE
-> Task :core:api:compileKotlin
-> Task :core:api:compileJava NO-SOURCE
-> Task :core:api:classes UP-TO-DATE
 > Task :core:api:jar
 > Task :app:mergeDebugNativeLibs UP-TO-DATE
 > Task :app:stripDebugDebugSymbols UP-TO-DATE
@@ -304,76 +304,79 @@
 > Task :core:network:bundleLibRuntimeToJarDebug UP-TO-DATE
 > Task :core:network:compressDebugJavaRes UP-TO-DATE
 > Task :core:network:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:repos:kspDebugKotlin
 > Task :feature:servers:kspDebugKotlin
-> Task :feature:downloads:kspDebugKotlin
+> Task :feature:browse:kspDebugKotlin
 > Task :feature:history:kspDebugKotlin
-> Task :feature:updates:kspDebugKotlin
-> Task :feature:manga:kspDebugKotlin
-> Task :feature:reader:kspDebugKotlin
 > Task :feature:library:kspDebugKotlin
+> Task :feature:reader:kspDebugKotlin
+> Task :feature:manga:kspDebugKotlin
+> Task :feature:repos:kspDebugKotlin
+> Task :feature:updates:kspDebugKotlin
+> Task :feature:downloads:kspDebugKotlin
+> Task :feature:source:kspDebugKotlin
+> Task :feature:history:compileDebugKotlin
+> Task :feature:browse:compileDebugKotlin
 > Task :feature:servers:compileDebugKotlin
+> Task :feature:library:compileDebugKotlin
 > Task :feature:repos:compileDebugKotlin
 > Task :feature:downloads:compileDebugKotlin
-> Task :feature:history:compileDebugKotlin
-> Task :feature:updates:compileDebugKotlin
 > Task :feature:reader:compileDebugKotlin
+> Task :feature:updates:compileDebugKotlin
 > Task :feature:manga:compileDebugKotlin
-> Task :feature:library:compileDebugKotlin
-> Task :feature:repos:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:servers:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:repos:compressDebugJavaRes UP-TO-DATE
-> Task :feature:servers:compressDebugJavaRes UP-TO-DATE
-> Task :feature:downloads:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:history:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:downloads:compressDebugJavaRes UP-TO-DATE
-> Task :feature:history:compressDebugJavaRes UP-TO-DATE
-> Task :feature:manga:compileDebugJavaWithJavac UP-TO-DATE
 > Task :feature:library:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:history:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:browse:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:downloads:compileDebugJavaWithJavac UP-TO-DATE
 > Task :feature:updates:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:library:compressDebugJavaRes UP-TO-DATE
-> Task :feature:manga:compressDebugJavaRes UP-TO-DATE
 > Task :feature:reader:compileDebugJavaWithJavac UP-TO-DATE
-> Task :feature:updates:compressDebugJavaRes UP-TO-DATE
+> Task :feature:manga:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:history:compressDebugJavaRes UP-TO-DATE
+> Task :feature:library:compressDebugJavaRes UP-TO-DATE
+> Task :feature:browse:compressDebugJavaRes UP-TO-DATE
+> Task :feature:servers:compileDebugJavaWithJavac UP-TO-DATE
 > Task :feature:reader:compressDebugJavaRes UP-TO-DATE
-> Task :feature:browse:kspDebugKotlin
-> Task :feature:repos:transformDebugClassesWithAsm
-> Task :feature:repos:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:repos:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:repos:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:manga:transformDebugClassesWithAsm
-> Task :feature:manga:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:manga:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:manga:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:library:transformDebugClassesWithAsm
-> Task :feature:library:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:library:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:library:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:source:kspDebugKotlin
+> Task :feature:downloads:compressDebugJavaRes UP-TO-DATE
+> Task :feature:updates:compressDebugJavaRes UP-TO-DATE
+> Task :feature:manga:compressDebugJavaRes UP-TO-DATE
+> Task :feature:repos:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:servers:compressDebugJavaRes UP-TO-DATE
+> Task :feature:repos:compressDebugJavaRes UP-TO-DATE
 > Task :feature:history:transformDebugClassesWithAsm
 > Task :feature:history:bundleLibCompileToJarDebug UP-TO-DATE
 > Task :feature:history:bundleLibRuntimeToDirDebug UP-TO-DATE
 > Task :feature:history:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:downloads:transformDebugClassesWithAsm
-> Task :feature:downloads:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:downloads:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:downloads:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:repos:transformDebugClassesWithAsm
+> Task :feature:repos:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:repos:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:repos:bundleLibRuntimeToJarDebug UP-TO-DATE
 > Task :feature:servers:transformDebugClassesWithAsm
 > Task :feature:servers:bundleLibCompileToJarDebug UP-TO-DATE
 > Task :feature:servers:bundleLibRuntimeToDirDebug UP-TO-DATE
 > Task :feature:servers:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:reader:transformDebugClassesWithAsm
-> Task :feature:reader:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:reader:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:reader:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:manga:transformDebugClassesWithAsm
+> Task :feature:manga:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:manga:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:manga:bundleLibRuntimeToJarDebug UP-TO-DATE
 > Task :feature:updates:transformDebugClassesWithAsm
 > Task :feature:updates:bundleLibCompileToJarDebug UP-TO-DATE
 > Task :feature:updates:bundleLibRuntimeToDirDebug UP-TO-DATE
 > Task :feature:updates:bundleLibRuntimeToJarDebug UP-TO-DATE
-
-> Task :feature:browse:compileDebugKotlin
-w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:74:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-w: file:///G:/Github/Sumidoku-android/feature/browse/src/main/kotlin/org/sumidoku/android/feature/browse/BrowseScreen.kt:263:34 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+> Task :feature:downloads:transformDebugClassesWithAsm
+> Task :feature:downloads:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:downloads:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:downloads:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:reader:transformDebugClassesWithAsm
+> Task :feature:reader:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:reader:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:reader:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:browse:transformDebugClassesWithAsm
+> Task :feature:browse:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:browse:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:browse:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:library:transformDebugClassesWithAsm
+> Task :feature:library:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:library:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :feature:library:bundleLibRuntimeToJarDebug UP-TO-DATE
 
 > Task :feature:source:compileDebugKotlin
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceHomeScreen.kt:85:38 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
@@ -385,34 +388,29 @@ w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidok
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceHomeScreen.kt:284:18 Unnecessary safe call on a non-null receiver of type 'HomeComponentValue'.
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceHomeScreen.kt:289:18 Unnecessary safe call on a non-null receiver of type 'HomeComponentValue'.
 w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceHomeScreen.kt:304:18 Unnecessary safe call on a non-null receiver of type 'HomeComponentValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:62:42 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:141:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:149:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:157:88 Elvis operator (?:) always returns the left operand of non-nullable type 'Boolean'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:163:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:198:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:246:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:248:48 Elvis operator (?:) always returns the left operand of non-nullable type 'Double'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:249:48 Elvis operator (?:) always returns the left operand of non-nullable type 'Double'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:276:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:295:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:312:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:346:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:353:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
-w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:362:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:74:42 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:183:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:191:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:199:88 Elvis operator (?:) always returns the left operand of non-nullable type 'Boolean'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:205:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:240:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:288:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:290:48 Elvis operator (?:) always returns the left operand of non-nullable type 'Double'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:291:48 Elvis operator (?:) always returns the left operand of non-nullable type 'Double'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:318:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:337:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:354:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:388:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:394:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:400:45 'val Icons.Outlined.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.OpenInNew.
+w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidoku/android/feature/source/SourceSettingsScreen.kt:407:25 Unnecessary safe call on a non-null receiver of type 'SettingValue'.
 
-> Task :feature:browse:compileDebugJavaWithJavac
 > Task :feature:source:compileDebugJavaWithJavac
 > Task :feature:source:compressDebugJavaRes UP-TO-DATE
-> Task :feature:browse:compressDebugJavaRes UP-TO-DATE
 > Task :feature:source:transformDebugClassesWithAsm
-> Task :feature:source:bundleLibCompileToJarDebug UP-TO-DATE
-> Task :feature:source:bundleLibRuntimeToDirDebug UP-TO-DATE
-> Task :feature:source:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :feature:browse:transformDebugClassesWithAsm
-> Task :feature:browse:bundleLibCompileToJarDebug
-> Task :feature:browse:bundleLibRuntimeToJarDebug
-> Task :feature:browse:bundleLibRuntimeToDirDebug
+> Task :feature:source:bundleLibCompileToJarDebug
+> Task :feature:source:bundleLibRuntimeToJarDebug
+> Task :feature:source:bundleLibRuntimeToDirDebug
 > Task :app:kspDebugKotlin
 > Task :app:compileDebugKotlin
 > Task :app:compileDebugJavaWithJavac UP-TO-DATE
@@ -420,16 +418,16 @@ w: file:///G:/Github/Sumidoku-android/feature/source/src/main/kotlin/org/sumidok
 > Task :app:mergeDebugJavaResource UP-TO-DATE
 > Task :app:hiltCollectClassesDebug
 > Task :app:hiltAggregateDepsDebug UP-TO-DATE
-> Task :app:mergeLibDexDebug
 > Task :app:hiltJavaCompileDebug
 > Task :app:transformDebugClassesWithAsm
 > Task :app:dexBuilderDebug UP-TO-DATE
 > Task :app:mergeProjectDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug
 > Task :app:packageDebug
 > Task :app:createDebugApkListingFileRedirect UP-TO-DATE
 > Task :app:assembleDebug
 
 [Incubating] Problems report is available at: file:///G:/Github/Sumidoku-android/build/reports/problems/problems-report.html
 
-BUILD SUCCESSFUL in 24s
-329 actionable tasks: 45 executed, 284 up-to-date
+BUILD SUCCESSFUL in 19s
+329 actionable tasks: 43 executed, 286 up-to-date
