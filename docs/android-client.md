@@ -425,11 +425,40 @@ lineage from existing work:
   (`GET /chapter/{id}/page/{index}`,
   `Cache-Control: private, max-age=3600`); scaling is a client duty by
   design. Coil decodes with viewport-appropriate sampling. Double-page
-  spread composition and wide-page split follow the rules in the web
-  UI's `spreads.ts` (ported from KMReader): pairs in reading
-  direction, landscape pages solo, cover solo in `doubleNoCover`,
-  blank-page fallback at a 2:3 ratio, split halves ordered by reading
-  direction.
+  spread composition follows the web UI's `spreads.ts` (ported from
+  KMReader): pairs in reading direction, cover and closing page paired
+  with a blank on their outer side in `double`, straight pairing in
+  `doubleNoCover`, blank-page fallback at a 2:3 ratio.
+- Wide-page detection: one shared rule — strictly `width > height`
+  from the page's `width`/`height` in `GET /chapter/{id}/pages`
+  (`spreads.ts:isLandscapePage`, `splitWide.ts:isSplittable`). Pages
+  without dimensions (unmeasured remote pages) are treated as
+  portrait until measurement lands; when it does, the layout
+  re-composes in place without moving the current position.
+- Wide-page handling is two mutually exclusive layouts, not one
+  feature: in a double-page layout a landscape page gets a solo
+  spread (and a landscape second page pushes its mate to a blank);
+  the wide-page *split* (`splitWide.ts`, after Mihon's "split double
+  pages") exists only in paged single layout. A splittable page
+  becomes two half-pages in reading order (`ltr` reads the left half
+  first, `rtl` the right). The split is a navigation concept only:
+  position is `{page, half}`, progress/slider/restore stay in real
+  page indexes so a chapter never reports fractional counts; backward
+  entry lands on the second half; mark-read, tracker push and
+  download cleanup fire only when the *last* half of the last page is
+  reached (`splitEndReached`).
+- Swipe-to-turn: 1:1 drag follow on the spread track, release decides
+  (`swipeTurn.ts`, port the constants verbatim). A release turns when
+  the drag's *projected landing* — offset + release velocity × 150ms —
+  crosses `min(25% viewport width, 96px)` in a direction, or on a
+  flick: velocity ≥ 0.2px/ms with at least 16px of travel. Anything
+  shorter springs back over the 300ms track animation. Release
+  velocity is measured over the last ~100ms of the drag only (a
+  finger slows before it lifts; a whole-drag average under-reads
+  flicks). Offsets are screen-space mapped into reading direction by
+  a forward sign, so RTL needs no separate code path. Compose:
+  `detectHorizontalDragGestures` + `VelocityTracker` with the same
+  window math; spring-back via `Animatable`.
 - Prefetch: Coil `enqueue` lookahead ±3 pages in reading direction,
   generation-tagged so stale prefetches are dropped on chapter change
   (Aidoku's `ReaderPagePrefetcher` policy).
