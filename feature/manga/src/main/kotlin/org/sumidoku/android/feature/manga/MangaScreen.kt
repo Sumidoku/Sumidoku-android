@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
@@ -179,8 +180,10 @@ fun MangaScreen(
                     items(state.chapters, key = { it.id }) { chapter ->
                         ChapterRow(
 							chapter = chapter,
+							localStatus = state.localStatus[chapter.id],
 							onClick = { onOpenChapter(manga.id, chapter.id) },
 							onEnqueue = { viewModel.enqueueChapter(chapter.id) },
+							onEnqueueLocal = { viewModel.enqueueLocal(chapter.id) },
 						)
                     }
                 }
@@ -320,7 +323,13 @@ private fun MangaHeader(
 }
 
 @Composable
-private fun ChapterRow(chapter: ChapterWithDownload, onClick: () -> Unit, onEnqueue: () -> Unit) {
+private fun ChapterRow(
+    chapter: ChapterWithDownload,
+    localStatus: String?,
+    onClick: () -> Unit,
+    onEnqueue: () -> Unit,
+    onEnqueueLocal: () -> Unit,
+) {
     val dimmed = chapter.isRead
     Row(
         modifier = Modifier
@@ -373,6 +382,35 @@ private fun ChapterRow(chapter: ChapterWithDownload, onClick: () -> Unit, onEnqu
                 Icon(
                     Icons.Outlined.CloudDownload,
                     contentDescription = "下载本章",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        when (localStatus) {
+            "done" -> Icon(
+                Icons.Outlined.SaveAlt,
+                contentDescription = "已存到本机",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp).padding(start = 2.dp),
+            )
+            "queued", "downloading" -> CircularProgressIndicator(
+                modifier = Modifier.size(16.dp).padding(start = 2.dp),
+                strokeWidth = 2.dp,
+            )
+            "error" -> Icon(
+                Icons.Outlined.SaveAlt,
+                contentDescription = "本机下载失败，点击重试",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(start = 2.dp)
+                    .clickable(onClick = onEnqueueLocal),
+            )
+            else -> IconButton(onClick = onEnqueueLocal, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Outlined.SaveAlt,
+                    contentDescription = "存到本机（离线阅读）",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )

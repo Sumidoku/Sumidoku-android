@@ -13,6 +13,8 @@ import org.sumidoku.android.core.api.model.DeleteDownloadsRequest
 import org.sumidoku.android.core.api.model.Download
 import org.sumidoku.android.core.api.model.DownloadStatus
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.download.LocalDownloadEngine
+import org.sumidoku.android.core.download.LocalDownloadEntity
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import org.sumidoku.android.core.stream.EventsStream
@@ -30,6 +32,8 @@ data class DownloadsUiState(
     val running: Boolean = false,
     val online: Boolean = false,
     val downloads: List<Download> = emptyList(),
+    /** Tier B rows: chapters saved on this device for offline reading. */
+    val local: List<LocalDownloadEntity> = emptyList(),
     val loading: Boolean = true,
     val error: String? = null,
     val message: String? = null,
@@ -40,6 +44,7 @@ class DownloadsViewModel @Inject constructor(
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val eventsStream: EventsStream,
+    private val localDownloads: LocalDownloadEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadsUiState())
@@ -50,6 +55,22 @@ class DownloadsViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch {
+            localDownloads.init()
+            localDownloads.observeAll().collect { rows ->
+                _state.value = _state.value.copy(local = rows)
+            }
+        }
+    }
+
+    /** Remove a Tier B local copy (archive + extracted pages). */
+    fun removeLocal(chapterId: Long) {
+        viewModelScope.launch { localDownloads.remove(chapterId) }
+    }
+
+    fun retryLocal(chapterId: Long) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch { localDownloads.retry(profile, chapterId) }
     }
 
     fun refresh() {

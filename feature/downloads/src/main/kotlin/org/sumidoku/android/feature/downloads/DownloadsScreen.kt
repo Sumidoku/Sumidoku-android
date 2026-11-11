@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -95,7 +96,7 @@ fun DownloadsScreen(
             state.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            state.error != null && state.downloads.isEmpty() ->
+            state.error != null && state.downloads.isEmpty() && state.local.isEmpty() ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.error!!, color = MaterialTheme.colorScheme.error)
@@ -103,13 +104,38 @@ fun DownloadsScreen(
                         TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
                     }
                 }
-            state.downloads.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            state.downloads.isEmpty() && state.local.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("下载队列为空", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
+                if (state.local.isNotEmpty()) {
+                    item(key = "local-header") {
+                        Text(
+                            "本机离线（${state.local.size}）",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
+                    }
+                    items(state.local, key = { "local-${it.chapterId}" }) { row ->
+                        LocalDownloadRow(
+                            row = row,
+                            onRemove = { viewModel.removeLocal(row.chapterId) },
+                            onRetry = { viewModel.retryLocal(row.chapterId) },
+                        )
+                    }
+                    item(key = "server-header") {
+                        Text(
+                            "服务器队列",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
+                    }
+                }
                 items(state.downloads, key = { it.chapterId }) { download ->
                     DownloadRow(
                         download = download,
@@ -119,6 +145,60 @@ fun DownloadsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun LocalDownloadRow(
+    row: org.sumidoku.android.core.download.LocalDownloadEntity,
+    onRemove: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    ListItem(
+        leadingContent = {
+            when (row.status) {
+                "done" -> Icon(
+                    Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                "error" -> Icon(
+                    Icons.Outlined.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                else -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
+        },
+        headlineContent = { Text("${row.mangaTitle}  ·  ${row.chapterLabel}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Text(
+                when (row.status) {
+                    "done" -> "已存到本机 · ${formatBytes(row.bytes)}"
+                    "error" -> row.error ?: "下载失败"
+                    "downloading" -> "下载中…"
+                    else -> "排队中"
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (row.status == "error") {
+                    TextButton(onClick = onRetry) { Text("重试") }
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除本机副本")
+                }
+            }
+        },
+    )
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1L shl 20 -> "%.1f MB".format(bytes / 1048576.0)
+    bytes >= 1L shl 10 -> "%.1f KB".format(bytes / 1024.0)
+    else -> "$bytes B"
 }
 
 @Composable

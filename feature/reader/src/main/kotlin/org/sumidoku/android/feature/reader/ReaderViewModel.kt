@@ -62,6 +62,7 @@ class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val localDownloads: org.sumidoku.android.core.download.LocalDownloadEngine,
 ) : ViewModel() {
 
     val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
@@ -71,6 +72,10 @@ class ReaderViewModel @Inject constructor(
     val state: StateFlow<ReaderUiState> = _state
 
     private var progressJob: Job? = null
+    /** Tier B: extracted local page files for the open chapter, when a
+     *  finished on-device copy exists — the reader serves these instead
+     *  of network URLs, which is what makes offline reading work. */
+    private var localPages: List<java.io.File>? = null
 
     init {
         viewModelScope.launch {
@@ -102,6 +107,11 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch {
             val profile = _state.value.profile ?: return@launch
             _state.value = _state.value.copy(loading = true, error = null, chapterId = chapterId)
+            localPages = try {
+                localDownloads.localPages(chapterId)
+            } catch (_: Exception) {
+                null
+            }
             try {
                 val api = clientFactory.create<MangaApi>(profile)
                 val pages = api.getChapterPages(chapterId).await()
@@ -154,6 +164,10 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun pageImageUrl(page: Page): String {
+        val local = localPages
+        if (local != null && page.index.toInt() < local.size) {
+            return android.net.Uri.fromFile(local[page.index.toInt()]).toString()
+        }
         val profile = _state.value.profile
         val base = profile?.baseUrl?.trimEnd('/').orEmpty()
         return "$base/api/v1/chapter/${_state.value.chapterId}/page/${page.index}?v=${page.cacheRevision}"

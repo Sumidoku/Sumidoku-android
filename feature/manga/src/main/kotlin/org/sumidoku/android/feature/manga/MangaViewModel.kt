@@ -33,6 +33,7 @@ import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.api.model.TrackerSyncRequest
 import org.sumidoku.android.core.api.model.UpdateMangaRequest
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.download.LocalDownloadEngine
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
@@ -43,6 +44,8 @@ data class MangaUiState(
     val profile: ServerProfile? = null,
     val manga: Manga? = null,
     val chapters: List<ChapterWithDownload> = emptyList(),
+    /** Tier B local offline status per chapter: queued/downloading/done/error. */
+    val localStatus: Map<Long, String> = emptyMap(),
     val error: String? = null,
 ) {
     /** First unread chapter, else the latest one — the "继续阅读" target. */
@@ -55,6 +58,7 @@ class MangaViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val localDownloads: LocalDownloadEngine,
 ) : ViewModel() {
 
     val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
@@ -64,6 +68,28 @@ class MangaViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch {
+            localDownloads.init()
+            localDownloads.observeForManga(mangaId).collect { rows ->
+                _state.value = _state.value.copy(
+                    localStatus = rows.associate { it.chapterId to it.status },
+                )
+            }
+        }
+    }
+
+    /** Tier B enqueue: download the chapter's CBZ to device storage for
+     *  offline reading (design §6 Tier B). */
+    fun enqueueLocal(chapterId: Long) {
+        val profile = _state.value.profile ?: return
+        val manga = _state.value.manga ?: return
+        val chapter = _state.value.chapters.firstOrNull { it.id == chapterId } ?: return
+        val label = chapter.title?.takeIf { it.isNotBlank() }
+            ?: chapter.chapterNumber?.let { "第 $it 话" }
+            ?: "第 ${chapterId} 章"
+        viewModelScope.launch {
+            localDownloads.enqueue(profile, chapterId, mangaId, manga.title, label)
+        }
     }
 
     fun refresh() {
