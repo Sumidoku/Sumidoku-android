@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>匹配元数据 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+  .diff { padding: 9px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+  .diff .ck { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--accent); font-size: 11px; display: flex; align-items: center; justify-content: center; flex: none; margin-top: 2px; }
+  .diff .ck.off { border-color: var(--surface3); background: none; color: transparent; }
+  .diff .old { font-size: 12px; color: var(--faint); text-decoration: line-through; }
+  .diff .new { font-size: 13px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1 class="page-title">匹配元数据（详情页 ⋯ → 匹配元数据）</h1>
+<p class="page-sub">MatchMetadataDialog · provider Tab 搜索 → 预览 diff + 字段勾选 → POST /manga/{id}/metadata/apply · 空值永不覆盖</p>
+<div class="phone">
+  <div class="statusbar"><span>21:40</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+  <div class="content" style="opacity:.5;padding-top:8px">
+    <div style="display:flex;gap:14px">
+      <div class="cover g2" style="width:108px;aspect-ratio:2/3"><span class="ct">葬送的芙莉莲</span></div>
+      <div style="flex:1"><div style="font-size:18px;font-weight:700">葬送的芙莉莲</div></div>
+    </div>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="sheet" style="max-height:660px;overflow:hidden">
+    <div class="grab"></div>
+    <div style="display:flex;align-items:center;margin-bottom:10px">
+      <b style="font-size:16px">匹配元数据</b>
+      <span style="margin-left:auto;color:var(--faint)">✕</span>
+    </div>
+
+    <div class="chips" style="flex-wrap:wrap;row-gap:6px">
+      <span class="chip active">AniList ✓已关联</span>
+      <span class="chip">Bangumi</span>
+      <span class="chip">MangaBaka</span>
+      <span class="chip">按源搜索</span>
+    </div>
+    <div class="searchbox" style="margin-bottom:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      葬送的芙莉莲
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">预览 · Sousou no Frieren（AniList #105987）<span class="tag acc" style="margin-left:6px">应用即写 tracker:anilist 锁</span></div>
+
+    <div class="diff"><span class="ck">✓</span><div><div class="fl" style="font-size:11px;color:var(--muted)">标题</div><div class="old">葬送的芙莉莲</div><div class="new">葬送的芙莉莲（native 默认）</div></div></div>
+    <div class="diff"><span class="ck">✓</span><div><div style="font-size:11px;color:var(--muted)">作者</div><div class="old">山田钟人</div><div class="new">山田鐘人 / 阿部司</div></div></div>
+    <div class="diff"><span class="ck off"></span><div><div style="font-size:11px;color:var(--muted)">标签（替换策略）</div><div class="old">少年 / 奇幻</div><div class="new">Adventure / Drama / Fantasy / Shounen</div></div></div>
+    <div class="diff" style="border-bottom:0"><span class="ck off"></span><div><div style="font-size:11px;color:var(--muted)">简介</div><div class="new" style="color:var(--muted)">The elf mage Frieren…（未勾选不写入）</div></div></div>
+
+    <div class="btnrow" style="margin-top:12px">
+      <span class="btn ghost" style="flex:1">重新搜索</span>
+      <span class="btn" style="flex:1">应用 2 项</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

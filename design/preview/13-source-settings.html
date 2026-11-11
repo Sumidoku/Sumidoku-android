@@ -21,8 +21,11 @@
 
   <div class="content">
     <div class="setgroup">
-      <div class="gh">账户</div>
-      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></span><div class="grow"><div class="t">登录</div><div class="s">Web 登录（内置浏览器，cookie 自动提交）</div></div><span class="btn ghost" style="padding:7px 16px;font-size:13px">登录</span></div>
+      <div class="gh">账户 <span class="tag ok" style="margin-left:4px">已登录 · web</span></div>
+      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></span><div class="grow"><div class="t">账号密码登录</div><div class="s">basic · 用户名 / 密码 → POST …/login/basic</div></div><span class="val">›</span></div>
+      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9s-1.4 6.4-3.9 9c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></svg></span><div class="grow"><div class="t">Web 登录</div><div class="s">内置浏览器，CookieManager 抓 cookie → …/login/web</div></div><span class="val">›</span></div>
+      <div class="setitem"><span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span><div class="grow"><div class="t">OAuth 登录</div><div class="s">拦截回调 URL → …/login/oauth/complete（无需手动粘贴）</div></div><span class="val">›</span></div>
+      <div class="setitem"><span class="sic" style="color:var(--error)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></span><div class="grow"><div class="t" style="color:var(--error)">登出</div><div class="s">POST …/logout · 清除服务端保存的源凭据</div></div></div>
     </div>
 
     <div class="setgroup">
