@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
@@ -40,6 +41,7 @@ fun SettingsScreen(
     onOpenApiKeys: () -> Unit = {},
     onOpenCache: () -> Unit = {},
     onOpenTasks: () -> Unit = {},
+    onOpenTrash: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -115,6 +117,15 @@ fun SettingsScreen(
                     subtitle = "服务器后台任务（扫描/分析/清空回收站）",
                     enabled = true,
                     onClick = onOpenTasks,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.DeleteOutline,
+                    title = "本地回收站",
+                    subtitle = "恢复或彻底删除被回收的本地漫画与章节",
+                    enabled = true,
+                    onClick = onOpenTrash,
                 )
             }
             item { SectionHeader("关于") }

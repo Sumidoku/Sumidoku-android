@@ -61,6 +61,7 @@ import org.sumidoku.android.feature.settings.ApiKeysScreen
 import org.sumidoku.android.feature.settings.CacheScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.settings.TasksScreen
+import org.sumidoku.android.feature.settings.TrashScreen
 import org.sumidoku.android.feature.source.SourceHomeScreen
 import org.sumidoku.android.feature.source.SourceSettingsScreen
 import org.sumidoku.android.feature.trackers.TrackersScreen
@@ -237,7 +238,11 @@ private fun MainTabs(
                     onOpenApiKeys = { innerNav.navigate("api-keys") },
                     onOpenCache = { innerNav.navigate("cache") },
                     onOpenTasks = { innerNav.navigate("tasks") },
+                    onOpenTrash = { innerNav.navigate("trash") },
                 )
+            }
+            composable("trash") {
+                TrashScreen(onBack = { innerNav.popBackStack() })
             }
             composable("api-keys") {
                 ApiKeysScreen(onBack = { innerNav.popBackStack() })
