@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -70,7 +73,6 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.Page
-import org.sumidoku.android.core.api.model.TextPage
 
 /** Reader MVP: paged (HorizontalPager + pinch zoom + tap zones) and webtoon
  *  (continuous LazyColumn) modes; debounced progress PATCH on settle.
@@ -224,13 +226,38 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     .fillMaxWidth()
                     .clickable { viewModel.toggleOverlay() },
             ) {
-                ReaderImage(
-                    url = viewModel.pageImageUrl(page),
-                    apiKey = state.profile?.apiKey,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentScale = ContentScale.FillWidth,
-                )
+                val textPage = page.content.text
+                if (textPage != null) {
+                    TextPageContent(textPage, fillWidth = true)
+                } else {
+                    ReaderImage(
+                        url = viewModel.pageImageUrl(page),
+                        apiKey = state.profile?.apiKey,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = ContentScale.FillWidth,
+                    )
+                }
             }
+        }
+    }
+}
+
+/** Text chapters: the novel/Novel-style content the server embeds in
+ *  the pages response renders as scrollable, selectable text instead
+ *  of an image (design §12, text page support). */
+@Composable
+private fun TextPageContent(text: String, fillWidth: Boolean) {
+    SelectionContainer {
+        Column(
+            (if (fillWidth) Modifier.fillMaxWidth() else Modifier.fillMaxSize())
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+        ) {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5,
+            )
         }
     }
 }
@@ -281,12 +308,17 @@ private fun ReaderPage(
                     translationY = 0f
                 }
         }
-        ReaderImage(
-            url = url,
-            apiKey = apiKey,
-            modifier = imageModifier,
-            contentScale = ContentScale.Fit,
-        )
+        val textPage = page.content.text
+        if (textPage != null) {
+            TextPageContent(textPage, fillWidth = false)
+        } else {
+            ReaderImage(
+                url = url,
+                apiKey = apiKey,
+                modifier = imageModifier,
+                contentScale = ContentScale.Fit,
+            )
+        }
         if (scale <= 1.01f) {
             // Tap zones: prev / menu / next thirds — see preview 24 zone map.
             Row(Modifier.fillMaxSize()) {

@@ -24,6 +24,8 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.North
+import androidx.compose.material.icons.outlined.South
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -194,11 +196,31 @@ fun MangaScreen(
                         )
                     }
                     item {
-                        Text(
-                            "章节（${state.chapters.size}）",
-                            style = MaterialTheme.typography.titleSmall,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
+                        ) {
+                            Text(
+                                "章节（${state.chapters.size}）",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = { viewModel.toggleChapterOrder() }, modifier = Modifier.size(28.dp)) {
+                                Icon(
+                                    if (viewModel.chapterOrder == org.sumidoku.android.core.api.model.SortOrder.DESC) {
+                                        Icons.Outlined.South
+                                    } else {
+                                        Icons.Outlined.North
+                                    },
+                                    contentDescription = if (viewModel.chapterOrder == org.sumidoku.android.core.api.model.SortOrder.DESC) {
+                                        "当前：最新在前，点击切换"
+                                    } else {
+                                        "当前：最旧在前，点击切换"
+                                    },
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                     items(state.chapters, key = { it.id }) { chapter ->
                         ChapterRow(

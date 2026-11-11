@@ -98,6 +98,27 @@ class MangaViewModel @AssistedInject constructor(
         }
     }
 
+    /** Chapter listing order for the header sort toggle (design §14
+     *  M2): newest-first (DESC) vs oldest-first (ASC). */
+    var chapterOrder: SortOrder = SortOrder.DESC
+        private set
+
+    fun toggleChapterOrder() {
+        chapterOrder = if (chapterOrder == SortOrder.DESC) SortOrder.ASC else SortOrder.DESC
+        val manga = _state.value.manga ?: return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val chapters = clientFactory.create<MangaApi>(profile)
+                    .getMangaChapters(manga.id, sort = ChapterSort.CHAPTER, order = chapterOrder)
+                    .await()
+                _state.value = _state.value.copy(chapters = chapters)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+            }
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
@@ -111,7 +132,7 @@ class MangaViewModel @AssistedInject constructor(
                 val chapters = api.getMangaChapters(
                     mangaId,
                     sort = ChapterSort.CHAPTER,
-                    order = SortOrder.DESC,
+                    order = chapterOrder,
                 ).await()
                 _state.value = MangaUiState(
                     loading = false,
