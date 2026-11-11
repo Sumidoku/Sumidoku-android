@@ -20,8 +20,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import org.sumidoku.android.core.api.ReposApi
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.model.InstallSourceRequest
+import org.sumidoku.android.core.api.model.ReorderPinnedRequest
 import org.sumidoku.android.core.api.model.RepoSource
 import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.api.model.SourcePatch
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -112,6 +114,54 @@ class BrowseViewModel @Inject constructor(
                 _state.update {
                     it.copy(updateAllRunning = false, updateAllResult = "更新失败：${e.message ?: e}")
                 }
+            }
+        }
+    }
+
+    // --- pin management (Aidoku pinned section + reorder-pinned) ---
+
+    fun togglePin(source: Source) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .patchSource(source.id, SourcePatch(pinned = !source.pinned))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    fun toggleEnabled(source: Source) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .patchSource(source.id, SourcePatch(enabled = !source.enabled))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    /** Persist a new pinned order — full replacement, server semantics. */
+    fun savePinOrder(orderedIds: List<Long>) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile)
+                    .reorderPinnedSources(ReorderPinnedRequest(ids = orderedIds.map { it.toString() }))
+                    .await()
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(error = e.message ?: e.toString()) }
             }
         }
     }

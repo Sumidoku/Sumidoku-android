@@ -1,6 +1,8 @@
 package org.sumidoku.android.feature.browse
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -19,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -75,6 +79,7 @@ fun BrowseScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showMenu by remember { mutableStateOf(false) }
+    var showPinOrder by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
@@ -109,14 +114,19 @@ fun BrowseScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("添加内部源（M5）") },
-                                enabled = false,
-                                onClick = {},
+                                text = { Text("编辑置顶顺序") },
+                                enabled = state.pinned.size > 1,
+                                onClick = {
+                                    showMenu = false
+                                    showPinOrder = true
+                                },
                             )
                             DropdownMenuItem(
-                                text = { Text("导入 .aix（M5）") },
-                                enabled = false,
-                                onClick = {},
+                                text = { Text("添加内部源 / 导入 .aix") },
+                                onClick = {
+                                    showMenu = false
+                                    onAddSource()
+                                },
                             )
                         }
                     }
@@ -150,23 +160,34 @@ fun BrowseScreen(
                 if (state.updatable.isNotEmpty()) {
                     item { SectionHeader("可更新（${state.updatable.size}）") }
                     items(state.updatable, key = { "u${it.id}" }) { source ->
-                        SourceRow(source, state.profile, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
+                        SourceRow(source, state.profile, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
                     }
                 }
                 if (state.pinned.isNotEmpty()) {
                     item { SectionHeader("置顶") }
                     items(state.pinned, key = { "p${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
+                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
                     }
                 }
                 if (state.installed.isNotEmpty()) {
                     item { SectionHeader("已安装") }
                     items(state.installed, key = { "i${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) })
+                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
                     }
                 }
             }
         }
+    }
+
+    if (showPinOrder) {
+        PinOrderDialog(
+            pinned = state.pinned,
+            onDismiss = { showPinOrder = false },
+            onSave = { ids ->
+                showPinOrder = false
+                viewModel.savePinOrder(ids)
+            },
+        )
     }
 }
 
@@ -180,6 +201,7 @@ private fun SectionHeader(title: String) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SourceRow(
     source: Source,
@@ -187,49 +209,128 @@ private fun SourceRow(
     badge: String? = null,
     onClick: () -> Unit,
     onSettings: () -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleEnabled: () -> Unit,
 ) {
-    ListItem(
-        leadingContent = { SourceIcon(source, profile) },
-        headlineContent = {
-            Text(
-                buildString {
-                    append(source.name)
-                    append("  v${badge?.removePrefix("v") ?: source.version}")
-                    if (source.contentRating >= 2) append("  18+")
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        supportingContent = {
-            Text(
-                source.languages.joinToString(" · ").ifEmpty { "multi" },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (source.missingFromRepos) {
-                    Icon(
-                        Icons.Outlined.Warning,
-                        contentDescription = "已不在任何来源列表中",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-                // 齿轮进图源设置（webui：OPDS 源无齿轮）
-                if (source.kind != Source.Kind.OPDS) {
-                    IconButton(onClick = onSettings) {
+    var showContextMenu by remember { mutableStateOf(false) }
+    Box {
+        ListItem(
+            leadingContent = { SourceIcon(source, profile) },
+            headlineContent = {
+                Text(
+                    buildString {
+                        append(source.name)
+                        append("  v${badge?.removePrefix("v") ?: source.version}")
+                        if (source.contentRating >= 2) append("  18+")
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (source.enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            supportingContent = {
+                Text(
+                    buildString {
+                        append(source.languages.joinToString(" · ").ifEmpty { "multi" })
+                        if (!source.enabled) append(" · 已停用")
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (source.missingFromRepos) {
                         Icon(
-                            Icons.Outlined.Settings,
-                            contentDescription = "图源设置",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Icons.Outlined.Warning,
+                            contentDescription = "已不在任何来源列表中",
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
+                    // 齿轮进图源设置（webui：OPDS 源无齿轮）
+                    if (source.kind != Source.Kind.OPDS) {
+                        IconButton(onClick = onSettings) {
+                            Icon(
+                                Icons.Outlined.Settings,
+                                contentDescription = "图源设置",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = { showContextMenu = true },
+            ),
+        )
+        DropdownMenu(expanded = showContextMenu, onDismissRequest = { showContextMenu = false }) {
+            DropdownMenuItem(
+                text = { Text(if (source.pinned) "取消置顶" else "置顶") },
+                onClick = {
+                    showContextMenu = false
+                    onTogglePin()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(if (source.enabled) "停用" else "启用") },
+                onClick = {
+                    showContextMenu = false
+                    onToggleEnabled()
+                },
+            )
+        }
+    }
+}
+
+/** Pinned-order editor: up/down arrows, save sends the full ordered id
+ *  list (server semantics: complete replacement). */
+@Composable
+private fun PinOrderDialog(
+    pinned: List<Source>,
+    onDismiss: () -> Unit,
+    onSave: (List<Long>) -> Unit,
+) {
+    var order by remember { mutableStateOf(pinned.map { it.id }) }
+    val byId = remember(pinned) { pinned.associateBy { it.id } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑置顶顺序") },
+        text = {
+            LazyColumn {
+                items(order.size) { i ->
+                    val source = byId[order[i]] ?: return@items
+                    ListItem(
+                        headlineContent = { Text(source.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingContent = {
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        if (i > 0) {
+                                            order = order.toMutableList().apply { add(i - 1, removeAt(i)) }
+                                        }
+                                    },
+                                    enabled = i > 0,
+                                ) { Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移") }
+                                IconButton(
+                                    onClick = {
+                                        if (i < order.size - 1) {
+                                            order = order.toMutableList().apply { add(i + 1, removeAt(i)) }
+                                        }
+                                    },
+                                    enabled = i < order.size - 1,
+                                ) { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移") }
+                            }
+                        },
+                    )
                 }
             }
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        confirmButton = {
+            TextButton(onClick = { onSave(order) }) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
 }
 
