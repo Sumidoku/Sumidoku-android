@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Storage
@@ -42,6 +43,7 @@ fun SettingsScreen(
     onOpenCache: () -> Unit = {},
     onOpenTasks: () -> Unit = {},
     onOpenTrash: () -> Unit = {},
+    onOpenCategories: () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -117,6 +119,15 @@ fun SettingsScreen(
                     subtitle = "服务器后台任务（扫描/分析/清空回收站）",
                     enabled = true,
                     onClick = onOpenTasks,
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Outlined.Label,
+                    title = "分类管理",
+                    subtitle = "书库分类的新建、重命名、删除与排序",
+                    enabled = true,
+                    onClick = onOpenCategories,
                 )
             }
             item {

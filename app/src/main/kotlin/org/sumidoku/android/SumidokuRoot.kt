@@ -59,6 +59,7 @@ import org.sumidoku.android.feature.search.SearchScreen
 import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.feature.settings.ApiKeysScreen
 import org.sumidoku.android.feature.settings.CacheScreen
+import org.sumidoku.android.feature.settings.CategoriesScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.settings.TasksScreen
 import org.sumidoku.android.feature.settings.TrashScreen
@@ -239,7 +240,11 @@ private fun MainTabs(
                     onOpenCache = { innerNav.navigate("cache") },
                     onOpenTasks = { innerNav.navigate("tasks") },
                     onOpenTrash = { innerNav.navigate("trash") },
+                    onOpenCategories = { innerNav.navigate("categories") },
                 )
+            }
+            composable("categories") {
+                CategoriesScreen(onBack = { innerNav.popBackStack() })
             }
             composable("trash") {
                 TrashScreen(onBack = { innerNav.popBackStack() })
