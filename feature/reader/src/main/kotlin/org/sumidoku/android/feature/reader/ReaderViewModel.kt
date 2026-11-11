@@ -45,6 +45,17 @@ data class ReaderUiState(
     /** Tap-zone layout: "lr" | "rl" | "edge" | "kindle" | "off"
      *  (design §12, webui TapZoneLayout parity; mirrored by dir). */
     val tapZones: String = "lr",
+    /** Page scale mode (design §12, webui sumidoku.reader.scale parity):
+     *  "fit" | "width" | "widthShrink" | "height" | "original". */
+    val pageScale: String = "fit",
+    /** Canvas background: "dark" | "gray" | "light" | "auto" (webui
+     *  sumidoku.reader.bg parity). */
+    val background: String = "dark",
+    /** Custom image filters (webui reader filters parity, simplified):
+     *  brightness factor 0.5–1.5, plus grayscale / sepia toggles. */
+    val brightness: Float = 1f,
+    val grayscale: Boolean = false,
+    val sepia: Boolean = false,
     val error: String? = null,
 ) {
     val currentChapter: ChapterWithDownload? get() = chapters.firstOrNull { it.id == chapterId }
@@ -186,6 +197,26 @@ class ReaderViewModel @Inject constructor(
 
     fun setTapZones(tapZones: String) {
         _state.value = _state.value.copy(tapZones = tapZones)
+    }
+
+    fun setPageScale(pageScale: String) {
+        _state.value = _state.value.copy(pageScale = pageScale)
+    }
+
+    fun setBackground(background: String) {
+        _state.value = _state.value.copy(background = background)
+    }
+
+    fun setBrightness(brightness: Float) {
+        _state.value = _state.value.copy(brightness = brightness.coerceIn(0.5f, 1.5f))
+    }
+
+    fun setGrayscale(grayscale: Boolean) {
+        _state.value = _state.value.copy(grayscale = grayscale)
+    }
+
+    fun setSepia(sepia: Boolean) {
+        _state.value = _state.value.copy(sepia = sepia)
     }
 
     fun toggleOverlay() {

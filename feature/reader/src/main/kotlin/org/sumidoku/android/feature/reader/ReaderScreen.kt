@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -63,6 +65,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -87,8 +91,16 @@ fun ReaderScreen(
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    // Canvas background (design §12, webui sumidoku.reader.bg parity):
+    // dark/gray/light are fixed, auto follows the app theme surface.
+    val canvasColor = when (state.background) {
+        "gray" -> Color(0xFF1E1E26)
+        "light" -> Color(0xFFFFFFFF)
+        "auto" -> MaterialTheme.colorScheme.surface
+        else -> Color.Black
+    }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(canvasColor)) {
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -242,6 +254,7 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     apiKey = state.profile?.apiKey,
                     tapZones = state.tapZones,
                     rtl = rtl,
+                    colorFilter = readerColorFilter(state),
                     onTapLeft = {
                         if (pagerState.currentPage > 0) {
                             displayPages.getOrNull(pagerState.currentPage - 1)?.let {
@@ -264,6 +277,8 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     apiKey = state.profile?.apiKey,
                     tapZones = state.tapZones,
                     rtl = rtl,
+                    pageScale = state.pageScale,
+                    colorFilter = readerColorFilter(state),
                     onZoomChange = { zoomed = it },
                     onTapLeft = {
                         if (pagerState.currentPage > 0) {
@@ -307,11 +322,35 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                         apiKey = state.profile?.apiKey,
                         modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.FillWidth,
+                        colorFilter = readerColorFilter(state),
                     )
                 }
             }
         }
     }
+}
+
+/** Custom reader filters (design §12, webui filters parity simplified):
+ *  brightness factor plus grayscale/sepia, rendered as a ColorMatrix. */
+private fun readerColorFilter(state: ReaderUiState): ColorFilter? {
+    if (state.brightness == 1f && !state.grayscale && !state.sepia) return null
+    val m = if (state.sepia) {
+        val b = state.brightness
+        ColorMatrix(
+            floatArrayOf(
+                0.393f * b, 0.769f * b, 0.189f * b, 0f, 0f,
+                0.349f * b, 0.686f * b, 0.168f * b, 0f, 0f,
+                0.272f * b, 0.534f * b, 0.131f * b, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+    } else {
+        ColorMatrix().apply {
+            if (state.grayscale) setToSaturation(0f)
+            timesAssign(ColorMatrix().apply { setToScale(state.brightness, state.brightness, state.brightness, 1f) })
+        }
+    }
+    return ColorFilter.colorMatrix(m)
 }
 
 /** Text chapters: the novel/Novel-style content the server embeds in
@@ -342,6 +381,8 @@ private fun ReaderPage(
     apiKey: String?,
     tapZones: String,
     rtl: Boolean,
+    pageScale: String,
+    colorFilter: ColorFilter?,
     onZoomChange: (Boolean) -> Unit,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
@@ -351,6 +392,45 @@ private fun ReaderPage(
     var offset by remember(page.index) { mutableStateOf(Offset.Zero) }
 
     Box(Modifier.fillMaxSize()) {
+        val textPage = page.content.text
+        if (pageScale != "fit" && crop == 0) {
+            // Page-scale modes (design §12, webui sumidoku.reader.scale
+            // parity): width fills width and scrolls vertically, height
+            // fills height and scrolls horizontally, original renders
+            // unscaled in both directions. Zoom stays off; tap zones
+            // overlay the scroller.
+            val scrollModifier = when (pageScale) {
+                "width" -> Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                "height" -> Modifier.fillMaxHeight().horizontalScroll(rememberScrollState())
+                else -> Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+            }
+            val contentScale = when (pageScale) {
+                "width" -> ContentScale.FillWidth
+                "height" -> ContentScale.FillHeight
+                else -> ContentScale.None
+            }
+            Box(Modifier.fillMaxSize()) {
+                if (textPage != null) {
+                    TextPageContent(textPage, fillWidth = false)
+                } else {
+                    ReaderImage(
+                        url = url,
+                        apiKey = apiKey,
+                        modifier = scrollModifier,
+                        contentScale = contentScale,
+                        colorFilter = colorFilter,
+                    )
+                }
+            }
+            TapZoneOverlay(
+                layout = tapZones,
+                rtl = rtl,
+                onPrev = onTapLeft,
+                onMenu = onTapCenter,
+                onNext = onTapRight,
+            )
+            return@Box
+        }
         val imageModifier = if (crop == 0) {
             Modifier
                 .fillMaxSize()
@@ -382,7 +462,6 @@ private fun ReaderPage(
                     translationY = 0f
                 }
         }
-        val textPage = page.content.text
         if (textPage != null) {
             TextPageContent(textPage, fillWidth = false)
         } else {
@@ -391,6 +470,7 @@ private fun ReaderPage(
                 apiKey = apiKey,
                 modifier = imageModifier,
                 contentScale = ContentScale.Fit,
+                colorFilter = colorFilter,
             )
         }
         if (scale <= 1.01f) {
@@ -515,6 +595,7 @@ private fun SpreadPage(
     apiKey: String?,
     tapZones: String,
     rtl: Boolean,
+    colorFilter: ColorFilter?,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
@@ -532,6 +613,7 @@ private fun SpreadPage(
                             apiKey = apiKey,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
+                            colorFilter = colorFilter,
                         )
                     }
                 }
@@ -553,6 +635,7 @@ private fun ReaderImage(
     apiKey: String?,
     modifier: Modifier,
     contentScale: ContentScale,
+    colorFilter: ColorFilter? = null,
 ) {
     val context = LocalContext.current
     val model = ImageRequest.Builder(context).data(url).apply {
@@ -573,6 +656,7 @@ private fun ReaderImage(
             contentDescription = null,
             modifier = modifier,
             contentScale = contentScale,
+            colorFilter = colorFilter,
             onError = { failed = true },
         )
     }
@@ -719,6 +803,67 @@ private fun ReaderSettingsSheet(
                         label = { Text(label) },
                     )
                 }
+            }
+
+            HorizontalDivider()
+            Text("缩放", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    "fit" to "适应",
+                    "width" to "宽度",
+                    "height" to "高度",
+                    "original" to "原始",
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.pageScale == value,
+                        onClick = { viewModel.setPageScale(value) },
+                        label = { Text(label) },
+                        enabled = !state.webtoon && state.doublePage == 0,
+                    )
+                }
+            }
+            Text(
+                "宽度/高度/原始模式可拖动查看；条漫恒为填充宽度，双页固定适应",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            HorizontalDivider()
+            Text("背景", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    "dark" to "纯黑",
+                    "gray" to "深灰",
+                    "light" to "白色",
+                    "auto" to "跟随主题",
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.background == value,
+                        onClick = { viewModel.setBackground(value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+            Text("滤镜", style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("亮度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Slider(
+                    value = state.brightness,
+                    onValueChange = { viewModel.setBrightness(it) },
+                    valueRange = 0.5f..1.5f,
+                    modifier = Modifier.weight(3f),
+                )
+                Text("${(state.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("灰度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(checked = state.grayscale, onCheckedChange = { viewModel.setGrayscale(it) })
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("棕褐", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(checked = state.sepia, onCheckedChange = { viewModel.setSepia(it) })
             }
 
             HorizontalDivider()

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -27,9 +29,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /** Settings hub — static entry rows. Server-side setting groups
  *  (updates/library/download/…) land with M8; this screen only hosts
@@ -53,6 +60,8 @@ fun SettingsScreen(
         topBar = { TopAppBar(title = { Text("设置") }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            item { SectionHeader("外观") }
+            item { AppearanceRow() }
             item { SectionHeader("图源") }
             item {
                 SettingsRow(
@@ -173,6 +182,27 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
+    val theme by viewModel.theme.collectAsState()
+    ListItem(
+        leadingContent = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
+        headlineContent = { Text("主题") },
+        supportingContent = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("system" to "跟随系统", "dark" to "深色", "light" to "浅色").forEach { (value, label) ->
+                    FilterChip(
+                        selected = theme == value,
+                        onClick = { viewModel.setTheme(value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+        },
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable

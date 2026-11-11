@@ -75,11 +75,16 @@ import javax.inject.Inject
 @HiltViewModel
 class AppViewModel @Inject constructor(
     repository: ServerProfileRepository,
+    appearanceStore: org.sumidoku.android.core.data.AppearanceStore,
 ) : ViewModel() {
     /** null while loading; false = no server configured yet. */
     val hasServer: StateFlow<Boolean?> = repository.activeProfile
         .map { it != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Appearance preference (M9 theming): system | dark | light. */
+    val theme: StateFlow<String> = appearanceStore.theme
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -94,7 +99,8 @@ private val tabs = listOf(
 
 @Composable
 fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
-    SumidokuTheme {
+    val themePref by appViewModel.theme.collectAsState()
+    SumidokuTheme(themePref = themePref) {
         val hasServer by appViewModel.hasServer.collectAsState()
         when (hasServer) {
             null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
