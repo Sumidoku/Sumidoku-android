@@ -91,12 +91,21 @@ fun BackupsScreen(
         }
     }
 
+    val tachibkLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            val bytes = runCatching { context.contentResolver.openInputStream(uri)?.readBytes() }.getOrNull()
+            if (bytes != null) viewModel.startTachibk(bytes, uri.lastPathSegment ?: "backup.tachibk")
+        }
+    }
+
     LaunchedEffect(state.exportJson) {
         state.exportJson?.let { exportLauncher.launch("sumidoku-backup.json") }
     }
 
-    LaunchedEffect(state.message, state.error, state.aidokuSummary) {
-        val text = state.message ?: state.error ?: state.aidokuSummary
+    LaunchedEffect(state.message, state.error, state.aidokuSummary, state.suwayomiSummary) {
+        val text = state.message ?: state.error ?: state.aidokuSummary ?: state.suwayomiSummary
         if (text != null) {
             snackbar.showSnackbar(text)
             viewModel.consumeTransient()
@@ -158,6 +167,10 @@ fun BackupsScreen(
                                     enabled = !state.busy,
                                 ) { Text("导入 Aidoku .aib…") }
                             }
+                            OutlinedButton(
+                                onClick = { tachibkLauncher.launch("*/*") },
+                                enabled = !state.busy,
+                            ) { Text("导入 Mihon/Suwayomi .tachibk…") }
                         }
                     }
                 }
@@ -256,6 +269,39 @@ fun BackupsScreen(
             confirmButton = {
                 TextButton(onClick = { viewModel.consumeTransient() }) { Text("好") }
             },
+        )
+    }
+
+    // Aidoku dry-run: show what would be imported, then confirm (M8).
+    state.aidokuDryRun?.let { result ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelAidokuDryRun() },
+            title = { Text("导入 Aidoku 备份（预览）") },
+            text = {
+                Text(
+                    "将导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）。确定导入？",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.consumeTransient()
+                    viewModel.confirmAidokuImport()
+                }) { Text("导入") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelAidokuDryRun() }) { Text("取消") }
+            },
+        )
+    }
+
+    // Mihon/.tachibk wizard sheet: per-source mapping then import (M8).
+    state.suwayomiDryRun?.let { report ->
+        TachibkWizardSheet(
+            report = report,
+            mapping = state.suwayomiMapping,
+            onMap = { id, key -> viewModel.setSuwayomiMapping(id, key) },
+            onImport = { viewModel.runTachibk() },
+            onDismiss = { viewModel.cancelTachibk() },
         )
     }
 }

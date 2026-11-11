@@ -9,10 +9,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.sumidoku.android.core.api.BackupsApi
+import org.sumidoku.android.core.api.model.AidokuImportResponse
 import org.sumidoku.android.core.api.model.BackupDoc
 import org.sumidoku.android.core.api.model.BackupFile
 import org.sumidoku.android.core.api.model.BackupRestoreResponse
 import org.sumidoku.android.core.api.model.RestoreBackupRequest
+import org.sumidoku.android.core.api.model.SuwayomiImportResponse
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -29,6 +31,12 @@ data class BackupsUiState(
     val exportJson: String? = null,
     val restoreResult: BackupRestoreResponse? = null,
     val aidokuSummary: String? = null,
+    /** Aidoku .aib dry-run result awaiting confirmation (M8). */
+    val aidokuDryRun: AidokuImportResponse? = null,
+    /** Mihon/.tachibk wizard state (M8): dry-run report + mapping. */
+    val suwayomiDryRun: SuwayomiImportResponse? = null,
+    val suwayomiMapping: Map<String, String> = emptyMap(),
+    val suwayomiSummary: String? = null,
     val message: String? = null,
     val error: String? = null,
 )
@@ -122,26 +130,118 @@ class BackupsViewModel @Inject constructor(
         }
     }
 
-    /** Import an Aidoku .aib backup picked from device storage. */
-    fun importAidoku(bytes: ByteArray, fileName: String) {
+    /** Import an Aidoku .aib backup picked from device storage.
+     *  dryRun=true shows the would-be counts and asks the screen to
+     *  confirm; confirmAidokuImport() then runs the real import. */
+    private var aidokuBytes: ByteArray? = null
+
+    fun importAidoku(bytes: ByteArray, fileName: String, dryRun: Boolean = true) {
         val api = api() ?: return
+        if (!dryRun && bytes.isNotEmpty()) aidokuBytes = bytes
         viewModelScope.launch {
             _state.value = _state.value.copy(busy = true)
             try {
+                val payload = if (dryRun) bytes else aidokuBytes ?: bytes
                 val tmp = File.createTempFile("aidoku-import", ".aib").apply {
+                    writeBytes(payload)
+                    deleteOnExit()
+                }
+                val result = api.importAidokuBackup(tmp, dryRun = dryRun).await()
+                if (dryRun) {
+                    aidokuBytes = bytes
+                    _state.value = _state.value.copy(busy = false, aidokuDryRun = result)
+                } else {
+                    aidokuBytes = null
+                    _state.value = _state.value.copy(
+                        busy = false,
+                        aidokuDryRun = null,
+                        aidokuSummary = "已导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）",
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.value = _state.value.copy(busy = false, error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Run the confirmed real import after the dry-run preview. */
+    fun confirmAidokuImport() {
+        importAidoku(bytes = aidokuBytes ?: return, fileName = "", dryRun = false)
+    }
+
+    // ---- Mihon/Suwayomi .tachibk wizard (design §14 M8) ----
+
+    private var tachibkBytes: ByteArray? = null
+    private var tachibkName: String = "backup.tachibk"
+
+    /** Step 1: dry-run the .tachibk to get the per-source report. */
+    fun startTachibk(bytes: ByteArray, fileName: String) {
+        val api = api() ?: return
+        tachibkBytes = bytes
+        tachibkName = fileName
+        viewModelScope.launch {
+            _state.value = _state.value.copy(busy = true, suwayomiDryRun = null, suwayomiMapping = emptyMap())
+            try {
+                val tmp = File.createTempFile("suwayomi-import", ".tachibk").apply {
                     writeBytes(bytes)
                     deleteOnExit()
                 }
-                val result = api.importAidokuBackup(tmp).await()
+                val result = api.importSuwayomiBackup(tmp, dryRun = true).await()
+                _state.value = _state.value.copy(busy = false, suwayomiDryRun = result)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.value = _state.value.copy(busy = false, error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Map one Mihon source to an installed Aidoku source key (or to
+     *  skip when null). */
+    fun setSuwayomiMapping(mihonSourceId: String, aidokuSourceKey: String?) {
+        val mapping = _state.value.suwayomiMapping.toMutableMap()
+        if (aidokuSourceKey == null) mapping.remove(mihonSourceId) else mapping[mihonSourceId] = aidokuSourceKey
+        _state.value = _state.value.copy(suwayomiMapping = mapping)
+    }
+
+    /** Step 2: run the real import with the chosen mapping. */
+    fun runTachibk() {
+        val api = api() ?: return
+        val bytes = tachibkBytes ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(busy = true)
+            try {
+                val tmp = File.createTempFile("suwayomi-import", ".tachibk").apply {
+                    writeBytes(bytes)
+                    deleteOnExit()
+                }
+                val mapping = _state.value.suwayomiMapping
+                val mappingJson = if (mapping.isEmpty()) null else {
+                    kotlinx.serialization.json.buildJsonObject {
+                        mapping.forEach { (k, v) -> put(k, kotlinx.serialization.json.JsonPrimitive(v)) }
+                    }.toString()
+                }
+                val result = api.importSuwayomiBackup(tmp, dryRun = false, sourceMapping = mappingJson).await()
+                tachibkBytes = null
                 _state.value = _state.value.copy(
                     busy = false,
-                    aidokuSummary = "已导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）",
+                    suwayomiDryRun = null,
+                    suwayomiSummary = "已导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）",
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(busy = false, error = e.message ?: e.toString())
             }
         }
+    }
+
+    fun cancelTachibk() {
+        tachibkBytes = null
+        _state.value = _state.value.copy(suwayomiDryRun = null, suwayomiMapping = emptyMap())
+    }
+
+    fun cancelAidokuDryRun() {
+        _state.value = _state.value.copy(aidokuDryRun = null)
     }
 
     fun consumeTransient() {
@@ -151,6 +251,7 @@ class BackupsViewModel @Inject constructor(
             exportJson = null,
             restoreResult = null,
             aidokuSummary = null,
+            suwayomiSummary = null,
         )
     }
 }
