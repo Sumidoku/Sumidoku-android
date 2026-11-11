@@ -47,6 +47,7 @@ import org.sumidoku.android.feature.manga.MangaScreen
 import org.sumidoku.android.feature.migrate.MigrateScreen
 import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.repos.ReposScreen
+import org.sumidoku.android.feature.search.SearchScreen
 import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.source.SourceHomeScreen
@@ -171,6 +172,13 @@ private fun MainTabs(
                     onOpenSourceSettings = { innerNav.navigate("source-settings/$it") },
                     onAddSource = { innerNav.navigate("add-source") },
                     onMigrate = { innerNav.navigate("migrate") },
+                    onSearch = { innerNav.navigate("search") },
+                )
+            }
+            composable("search") {
+                SearchScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenManga = { innerNav.navigate("manga/$it") },
                 )
             }
             composable("add-source") {

@@ -76,6 +76,7 @@ fun BrowseScreen(
     onOpenSourceSettings: (Long) -> Unit = {},
     onAddSource: () -> Unit = {},
     onMigrate: () -> Unit = {},
+    onSearch: () -> Unit = {},
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -95,7 +96,7 @@ fun BrowseScreen(
             TopAppBar(
                 title = { Text("浏览") },
                 actions = {
-                    IconButton(onClick = { /* M2: 跨源搜索 */ }) {
+                    IconButton(onClick = onSearch) {
                         Icon(Icons.Outlined.Search, contentDescription = "跨源搜索")
                     }
                     IconButton(onClick = onAddSource) {

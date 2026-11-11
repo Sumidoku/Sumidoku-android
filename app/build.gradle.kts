@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:trackers"))
     implementation(project(":feature:migrate"))
+    implementation(project(":feature:search"))
     implementation(project(":feature:backups"))
     implementation(project(":core:common"))
     implementation(project(":core:model"))
