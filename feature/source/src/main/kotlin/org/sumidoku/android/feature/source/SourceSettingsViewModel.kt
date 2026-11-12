@@ -109,11 +109,15 @@ class SourceSettingsViewModel @Inject constructor(
                 val api = clientFactory.create<SourcesApi>(profile)
                 // Only the edited keys go back (webui parity); each changed
                 // setting's declared notification is forwarded via ?notify=.
+                // The body is a raw JsonObject — the generated Map<String,Any>
+                // body type cannot serialize (patched in core:api).
                 val touched = flattenSettings(current.settings?.settings.orEmpty())
                     .filter { it.key in current.editedKeys }
-                val edits = current.editedKeys
-                    .mapNotNull { k -> current.values[k]?.let { k to (it as Any) } }
-                    .toMap()
+                val edits = kotlinx.serialization.json.buildJsonObject {
+                    current.editedKeys.forEach { k ->
+                        current.values[k]?.let { v -> put(k, v) }
+                    }
+                }
                 val notify = touched.mapNotNull { s -> s.notification?.takeIf { it.isNotEmpty() } }
                 api.putSourceSettings(sourceId, edits, notify.ifEmpty { null }).await()
                 _state.value = _state.value.copy(

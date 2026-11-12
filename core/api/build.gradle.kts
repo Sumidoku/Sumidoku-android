@@ -114,9 +114,18 @@ tasks.register("patchGeneratedSources") {
         val sourcesApi = File(projectDir, "build/generated/openapi/src/main/kotlin/org/sumidoku/android/core/api/SourcesApi.kt")
         if (sourcesApi.exists()) {
             val original = sourcesApi.readText()
-            val patched = original.replace(
+            var patched = original.replace(
                 "registerInternalSource(@Body registerInternalRequest: RegisterInternalRequest)",
                 "registerInternalSource(@Body body: kotlinx.serialization.json.JsonObject)",
+            )
+            // putSourceSettings takes Map<String, Any> in the generator
+            // output; the kotlinx converter cannot serialize values typed
+            // as Any (runtime SerializationException — the settings save
+            // silently failed). Patch to a raw JsonObject so edited values
+            // round-trip as-is.
+            patched = patched.replace(
+                "@Body requestBody: kotlin.collections.Map<kotlin.String, kotlin.Any>",
+                "@Body requestBody: kotlinx.serialization.json.JsonObject",
             )
             if (patched != original) sourcesApi.writeText(patched)
         }
