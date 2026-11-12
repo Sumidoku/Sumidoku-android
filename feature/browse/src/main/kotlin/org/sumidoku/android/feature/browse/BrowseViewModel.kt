@@ -15,7 +15,6 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -75,6 +74,19 @@ data class AddSourceUiState(
                 .sortedBy { it.name.lowercase() }
         }
 }
+
+/** Local internal source draft. Defaults match the server config layer
+ *  (`local_scan_force_modified_time` off, page/metadata analysis on), so the
+ *  request only carries the fields the user actually changed. */
+data class LocalSourceDraft(
+    val name: String,
+    val paths: List<String>,
+    val oneshotsDir: String? = null,
+    val exclusions: List<String> = emptyList(),
+    val forceModifiedTime: Boolean = false,
+    val analyzePages: Boolean = true,
+    val analyzeMetadata: Boolean = true,
+)
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
@@ -280,14 +292,22 @@ class BrowseViewModel @Inject constructor(
 
     // --- internal sources (local folders / OPDS catalogs) & .aix import ---
 
-    /** Create a built-in local source. Dirs are server filesystem paths. */
-    fun createInternalLocal(name: String, dirs: List<String>, oneshotsDir: String?, onDone: () -> Unit) {
+    /** Create a built-in local source. Dirs are server filesystem paths.
+     *  Body mirrors webui `RegisterLocalInstance`: internally tagged on
+     *  `type` with camelCase fields, and optional overrides are only sent
+     *  when they deviate from the server defaults (webui InternalSourceModal). */
+    fun createInternalLocal(draft: LocalSourceDraft, onDone: () -> Unit) {
         val body = buildJsonObject {
-            putJsonObject("Local") {
-                put("name", name)
-                putJsonArray("dirs") { dirs.forEach { add(it) } }
-                if (!oneshotsDir.isNullOrBlank()) put("oneshots_dir", oneshotsDir)
+            put("type", "local")
+            put("name", draft.name)
+            putJsonArray("paths") { draft.paths.forEach { add(it) } }
+            draft.oneshotsDir?.takeIf { it.isNotBlank() }?.let { put("oneshotsDir", it) }
+            if (draft.exclusions.isNotEmpty()) {
+                putJsonArray("exclusions") { draft.exclusions.forEach { add(it) } }
             }
+            if (draft.forceModifiedTime) put("forceModifiedTime", true)
+            if (!draft.analyzePages) put("analyzePages", false)
+            if (!draft.analyzeMetadata) put("analyzeMetadata", false)
         }
         registerInternal(body, onDone)
     }
@@ -295,10 +315,9 @@ class BrowseViewModel @Inject constructor(
     /** Create a built-in OPDS source from an external catalog URL. */
     fun createInternalOpds(name: String, url: String, onDone: () -> Unit) {
         val body = buildJsonObject {
-            putJsonObject("Opds") {
-                put("name", name)
-                put("url", url)
-            }
+            put("type", "opds")
+            put("name", name)
+            put("url", url)
         }
         registerInternal(body, onDone)
     }

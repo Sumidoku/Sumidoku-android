@@ -3,6 +3,7 @@ package org.sumidoku.android.feature.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudQueue
@@ -19,6 +20,8 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -26,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -62,6 +66,8 @@ fun SettingsScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item { SectionHeader("外观") }
             item { AppearanceRow() }
+            item { SectionHeader("通用") }
+            item { IncognitoRow() }
             item { SectionHeader("图源") }
             item {
                 SettingsRow(
@@ -156,7 +162,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Outlined.Settings,
                     title = "服务器设置",
-                    subtitle = "阅读、书库更新、下载、计划备份与缓存上限",
+                    subtitle = "书库更新、下载、计划备份与缓存上限",
                     enabled = true,
                     onClick = onOpenServerSettings,
                 )
@@ -199,6 +205,35 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                         label = { Text(label) },
                     )
                 }
+            }
+        },
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+/** 无痕阅读开关：webui 的常规组设置，放在首页而不是服务器设置里；
+ *  开/关立即 PUT 服务器设置（详情页仍可按单部覆盖）。 */
+@Composable
+private fun IncognitoRow(viewModel: IncognitoViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsState()
+    ListItem(
+        leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
+        headlineContent = { Text("无痕阅读") },
+        supportingContent = {
+            Text(
+                state.error ?: "全局暂停记录阅读历史；漫画详情页可按单部覆盖",
+                color = if (state.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailingContent = {
+            if (state.loading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp))
+            } else {
+                Switch(
+                    checked = state.enabled,
+                    enabled = !state.busy,
+                    onCheckedChange = { viewModel.setEnabled(it) },
+                )
             }
         },
     )

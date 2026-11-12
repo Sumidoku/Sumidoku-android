@@ -1,5 +1,7 @@
 package org.sumidoku.android.feature.updates
 
+import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Refresh
@@ -36,10 +39,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import coil3.request.ImageRequest
+import java.net.URLEncoder
+import org.sumidoku.android.core.api.model.RecentEntry
 import org.sumidoku.android.core.common.relativeEpochMs
+import org.sumidoku.android.core.model.ServerProfile
 
 /** Updates tab — summary card + recent chapters feed.
  *  Preview 10-updates.html. */
@@ -136,6 +149,7 @@ fun UpdatesScreen(
                 }
                 itemsIndexed(state.entries, key = { _, e -> "${e.chapter.id}:${e.fetchedAt}" }) { _, entry ->
                     ListItem(
+                        leadingContent = { UpdateCover(entry, state.profile) },
                         headlineContent = {
                             Text(entry.manga.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         },
@@ -170,4 +184,42 @@ fun UpdatesScreen(
             }
         }
     }
+}
+
+/** Leading 2:3 cover of one update row — same proxied endpoint as webui
+ *  UpdatesPage (`coverUrl(manga.id, manga.cover)`), so local-source manga
+ *  get a cover too and the cache-busting `?v=` follows the source cover. */
+@Composable
+private fun UpdateCover(entry: RecentEntry, profile: ServerProfile?) {
+    AsyncImage(
+        model = coverRequest(LocalContext.current, entry.manga.id, entry.manga.cover, profile),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .size(width = 48.dp, height = 72.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    )
+}
+
+private fun coverRequest(
+    context: Context,
+    mangaId: Long,
+    cover: String?,
+    profile: ServerProfile?,
+): Any? {
+    if (profile == null) return null
+    val url = buildString {
+        append(profile.baseUrl.trimEnd('/'))
+        append("/api/v1/manga/").append(mangaId).append("/cover")
+        cover?.let { append("?v=").append(URLEncoder.encode(it, "UTF-8")) }
+    }
+    return ImageRequest.Builder(context)
+        .data(url)
+        .apply {
+            profile.apiKey?.let { key ->
+                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+            }
+        }
+        .build()
 }

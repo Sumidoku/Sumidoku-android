@@ -1,10 +1,12 @@
 package org.sumidoku.android.feature.browse
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -57,7 +61,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -436,24 +442,72 @@ private fun PinOrderDialog(
     )
 }
 
+/** Source icon. Local-folder sources have no server icon (webui falls back to
+ *  a hashed-colour initial), so draw the icon when there is one and a letter
+ *  badge otherwise; a failed load falls back the same way. */
 @Composable
 private fun SourceIcon(source: Source, profile: ServerProfile?) {
+    var failed by remember(source.id) { mutableStateOf(false) }
     val context = LocalContext.current
-    val model = profile?.let {
-        ImageRequest.Builder(context)
-            .data("${it.baseUrl.trimEnd('/')}/api/v1/sources/${source.id}/icon")
-            .apply {
-                it.apiKey?.let { key ->
-                    httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+    val model = profile
+        ?.takeIf { !failed && source.kind != Source.Kind.LOCAL }
+        ?.let { p ->
+            ImageRequest.Builder(context)
+                .data("${p.baseUrl.trimEnd('/')}/api/v1/sources/${source.id}/icon")
+                .apply {
+                    p.apiKey?.let { key ->
+                        httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+                    }
                 }
-            }
-            .build()
+                .build()
+        }
+    if (model == null) {
+        SourceIconFallback(source)
+    } else {
+        AsyncImage(
+            model = model,
+            contentDescription = null,
+            onError = { failed = true },
+            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)),
+        )
     }
-    AsyncImage(
-        model = model,
-        contentDescription = null,
-        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)),
-    )
+}
+
+@Composable
+private fun SourceIconFallback(source: Source) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(sourceIconColor(source.key)),
+    ) {
+        Text(
+            source.name.take(1),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+        )
+    }
+}
+
+/** Mirrors webui browse/iconColor.ts so a source keeps the same badge tint. */
+private val sourceIconColors = listOf(
+    Color(0xFF7C6CF0),
+    Color(0xFF4F8EF7),
+    Color(0xFF3FB68B),
+    Color(0xFFD9A03F),
+    Color(0xFFE5534B),
+    Color(0xFFC86DD7),
+    Color(0xFF5FB8A6),
+    Color(0xFF8B9CF9),
+)
+
+private fun sourceIconColor(key: String): Color {
+    var hash = 0
+    key.forEach { hash = hash * 31 + it.code }
+    val index = ((hash % sourceIconColors.size) + sourceIconColors.size) % sourceIconColors.size
+    return sourceIconColors[index]
 }
 
 /** Add-source screen: flat aggregated list of every repo's not-yet-
@@ -562,8 +616,8 @@ fun AddSourceScreen(
     if (showInternalDialog) {
         InternalSourceDialog(
             onDismiss = { showInternalDialog = false },
-            onCreateLocal = { name, dirs, oneshots ->
-                viewModel.createInternalLocal(name, dirs, oneshots) { showInternalDialog = false }
+            onCreateLocal = { draft ->
+                viewModel.createInternalLocal(draft) { showInternalDialog = false }
             },
             onCreateOpds = { name, url ->
                 viewModel.createInternalOpds(name, url) { showInternalDialog = false }
@@ -573,24 +627,33 @@ fun AddSourceScreen(
 }
 
 /** 添加内部源：本地文件夹或 OPDS 目录（服务器侧路径/URL）。
- *  对齐 webui InternalSourceModal 的核心字段。 */
+ *  字段对齐 webui InternalSourceModal：多目录、oneshots 目录、排除子串
+ *  以及三个扫描开关（默认值与服务端配置层一致，创建后仍可在源设置里改）。 */
 @Composable
 private fun InternalSourceDialog(
     onDismiss: () -> Unit,
-    onCreateLocal: (name: String, dirs: List<String>, oneshotsDir: String?) -> Unit,
+    onCreateLocal: (LocalSourceDraft) -> Unit,
     onCreateOpds: (name: String, url: String) -> Unit,
 ) {
     var isLocal by remember { mutableStateOf(true) }
     var name by remember { mutableStateOf("") }
     var dirsText by remember { mutableStateOf("") }
     var oneshotsDir by remember { mutableStateOf("") }
+    var exclusionsText by remember { mutableStateOf("") }
+    var forceModifiedTime by remember { mutableStateOf(false) }
+    var analyzePages by remember { mutableStateOf(true) }
+    var analyzeMetadata by remember { mutableStateOf(true) }
     var url by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("添加内部源") },
         text = {
-            Column {
+            Column(
+                Modifier
+                    .heightIn(max = 460.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Row {
                     TextButton(onClick = { isLocal = true }) {
                         Text("本地文件夹", color = if (isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -608,10 +671,17 @@ private fun InternalSourceDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 if (isLocal) {
+                    Text(
+                        "直接阅读服务器上的本地目录。每个路径都必须存在；之后也可以在源设置里修改。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = dirsText,
                         onValueChange = { dirsText = it },
                         label = { Text("目录（每行一个，服务器路径）") },
+                        placeholder = { Text("/mnt/manga") },
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -620,8 +690,28 @@ private fun InternalSourceDialog(
                         value = oneshotsDir,
                         onValueChange = { oneshotsDir = it },
                         label = { Text("单话目录（可选）") },
+                        placeholder = { Text("oneshots") },
+                        supportingText = { Text("路径中含该名字的目录不列出，其中的压缩档各成为一部单话漫画") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = exclusionsText,
+                        onValueChange = { exclusionsText = it },
+                        label = { Text("排除规则（每行一个子串）") },
+                        placeholder = { Text("如 @eaDir") },
+                        supportingText = { Text("路径包含任一子串（不区分大小写）的条目在扫描时跳过") },
+                        minLines = 2,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    DialogSwitchRow("强制按修改时间刷新", forceModifiedTime) { forceModifiedTime = it }
+                    DialogSwitchRow("分析页面", analyzePages) { analyzePages = it }
+                    DialogSwitchRow("分析元数据", analyzeMetadata) { analyzeMetadata = it }
+                    Text(
+                        "这三项覆盖服务端配置的回退值；影响扫描的修改会自动触发重新扫描。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     OutlinedTextField(
@@ -641,9 +731,15 @@ private fun InternalSourceDialog(
                 onClick = {
                     if (isLocal) {
                         onCreateLocal(
-                            name.trim(),
-                            dirsText.lines().map { it.trim() }.filter { it.isNotEmpty() },
-                            oneshotsDir.trim().ifEmpty { null },
+                            LocalSourceDraft(
+                                name = name.trim(),
+                                paths = linesOf(dirsText),
+                                oneshotsDir = oneshotsDir.trim().ifEmpty { null },
+                                exclusions = linesOf(exclusionsText),
+                                forceModifiedTime = forceModifiedTime,
+                                analyzePages = analyzePages,
+                                analyzeMetadata = analyzeMetadata,
+                            ),
                         )
                     } else {
                         onCreateOpds(name.trim(), url.trim())
@@ -654,6 +750,20 @@ private fun InternalSourceDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
+}
+
+private fun linesOf(text: String): List<String> =
+    text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+@Composable
+private fun DialogSwitchRow(title: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
 }
 
 @Composable

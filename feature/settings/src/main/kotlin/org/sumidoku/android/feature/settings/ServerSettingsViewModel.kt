@@ -9,8 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.sumidoku.android.core.api.CategoriesApi
 import org.sumidoku.android.core.api.SettingsApi
 import org.sumidoku.android.core.api.model.BackupSettings
+import org.sumidoku.android.core.api.model.Category
 import org.sumidoku.android.core.api.model.ChapterCacheSettings
 import org.sumidoku.android.core.api.model.DownloadSettings
 import org.sumidoku.android.core.api.model.LibrarySettings
@@ -23,6 +25,7 @@ import retrofit2.await
 data class ServerSettingsUiState(
     val loading: Boolean = true,
     val settings: ServerSettings? = null,
+    val categories: List<Category> = emptyList(),
     val busy: Boolean = false,
     val saved: Boolean = false,
     val error: String? = null,
@@ -53,6 +56,13 @@ class ServerSettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+            }
+            // 分类列表只用于排除规则的展示，失败时保持空列表（不阻断编辑）
+            try {
+                val categories = factory.create<CategoriesApi>(p).listCategories().await()
+                _state.value = _state.value.copy(categories = categories)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
             }
         }
     }

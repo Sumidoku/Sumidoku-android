@@ -4,6 +4,7 @@ import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Card
@@ -43,6 +46,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,6 +61,40 @@ private fun providerLabel(provider: TrackerProvider): String = when (provider) {
     TrackerProvider.MAL -> "MyAnimeList"
     TrackerProvider.BANGUMI -> "Bangumi"
     TrackerProvider.MANGABAKA -> "MangaBaka"
+}
+
+/** Brand monogram + colour per provider. No brand assets are bundled, so
+ *  the badge is a tinted lettered square in the provider's brand colour
+ *  (preview 14-trackers.html uses the same monogram convention). */
+private data class TrackerBrand(val monogram: String, val color: Color)
+
+private fun providerBrand(provider: TrackerProvider): TrackerBrand = when (provider) {
+    TrackerProvider.ANILIST -> TrackerBrand("AL", Color(0xFF02A9FF))
+    TrackerProvider.MAL -> TrackerBrand("MAL", Color(0xFF2E51A2))
+    TrackerProvider.BANGUMI -> TrackerBrand("BGM", Color(0xFFF0913A))
+    TrackerProvider.MANGABAKA -> TrackerBrand("MB", Color(0xFF6E56CF))
+}
+
+@Composable
+private fun TrackerProviderBadge(provider: TrackerProvider) {
+    val brand = providerBrand(provider)
+    // Tint the square and lift the glyph towards the foreground colour so
+    // the same brand colour stays legible in light and dark themes.
+    val glyph = lerp(brand.color, MaterialTheme.colorScheme.onSurface, 0.35f)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(brand.color.copy(alpha = 0.18f)),
+    ) {
+        Text(
+            brand.monogram,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = glyph,
+        )
+    }
 }
 
 /** Tracker account bindings: OAuth status per provider, bind via an
@@ -108,7 +149,8 @@ fun TrackersScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(12.dp),
                         ) {
-                            Column(Modifier.weight(1f)) {
+                            TrackerProviderBadge(provider)
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
                                 Text(providerLabel(provider), style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     when {
