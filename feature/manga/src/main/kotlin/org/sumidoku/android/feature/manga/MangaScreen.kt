@@ -74,6 +74,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.ChapterWithDownload
+import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.model.ServerProfile
@@ -91,12 +92,16 @@ fun MangaScreen(
     mangaId: Long,
     onBack: () -> Unit,
     onOpenChapter: (mangaId: Long, chapterId: Long) -> Unit,
+    /** Author/artist/tag tap: hand the browse page the single filter value
+     *  it should search with (webui searchByFilters parity). */
+    onFilterSearch: (List<FilterValue>) -> Unit = {},
     viewModel: MangaViewModel = hiltViewModel<MangaViewModel, MangaViewModel.Factory>(
         key = "manga-$mangaId",
     ) { factory -> factory.create(mangaId) },
 ) {
     val state by viewModel.state.collectAsState()
     val meta by viewModel.meta.collectAsState()
+    val searchMeta by viewModel.searchMeta.collectAsState()
     var activeSheet by remember { mutableStateOf<MangaSheet?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
@@ -203,10 +208,12 @@ fun MangaScreen(
                     item {
                         MangaHeader(
                             state = state,
+                            searchMeta = searchMeta,
                             onResume = {
                                 state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
                             },
                             onToggleLibrary = { viewModel.toggleLibrary() },
+                            onFilterSearch = onFilterSearch,
                         )
                     }
                     item {
@@ -484,8 +491,10 @@ private fun MigrateSheet(
 @Composable
 private fun MangaHeader(
     state: MangaUiState,
+    searchMeta: SourceSearchMeta,
     onResume: () -> Unit,
     onToggleLibrary: () -> Unit,
+    onFilterSearch: (List<FilterValue>) -> Unit,
 ) {
     val manga = state.manga!!
     val profile = state.profile
@@ -495,9 +504,35 @@ private fun MangaHeader(
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(manga.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                manga.authors?.firstOrNull()?.let {
+                val creators = searchMeta.creators(manga.authors, manga.artists)
+                if (creators.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        creators.forEachIndexed { index, (name, isAuthor) ->
+                            if (index > 0) {
+                                Text(
+                                    " / ",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            val value = searchMeta.creatorFilterValue(name, isAuthor)
+                            Text(
+                                name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (value != null) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = if (value != null) {
+                                    Modifier.clickable { onFilterSearch(listOf(value)) }
+                                } else {
+                                    Modifier
+                                },
+                            )
+                        }
+                    }
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -550,7 +585,11 @@ private fun MangaHeader(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 tags.take(6).forEach { tag ->
-                    SuggestionChip(onClick = { /* tap-to-search: M6 对齐 webui */ }, label = { Text(tag) })
+                    val value = searchMeta.tagFilterValue(tag)
+                    SuggestionChip(
+                        onClick = { value?.let { onFilterSearch(listOf(it)) } },
+                        label = { Text(tag) },
+                    )
                 }
             }
         }

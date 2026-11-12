@@ -39,6 +39,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
@@ -67,7 +69,9 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.AidokuListing
+import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.HomeComponent
+import org.sumidoku.android.core.api.model.HomeFilterItem
 import org.sumidoku.android.core.api.model.Link
 import org.sumidoku.android.core.api.model.Listing
 import org.sumidoku.android.core.api.model.MangaWithChapter
@@ -82,14 +86,27 @@ fun SourceHomeScreen(
     onBack: () -> Unit,
     onOpenManga: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    /** Filters handed in by navigation (manga detail author/tag/tag chip
+     *  tap): the screen opens straight into the filtered grid. */
+    initialFilters: List<FilterValue> = emptyList(),
     viewModel: SourceHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     var searchOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var initialFiltersApplied by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.openManga.collect { onOpenManga(it) }
+    }
+
+    // The view model needs the profile before it can page a filtered search,
+    // so wait for the home refresh to land.
+    LaunchedEffect(initialFilters, state.profile) {
+        if (!initialFiltersApplied && initialFilters.isNotEmpty() && state.profile != null) {
+            initialFiltersApplied = true
+            viewModel.openFilteredSearch(initialFilters)
+        }
     }
 
     Scaffold(
@@ -235,6 +252,7 @@ private fun HomeBody(state: SourceHomeUiState, viewModel: SourceHomeViewModel, s
                 onOpenUrl = { url ->
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 },
+                onOpenFilter = { item -> viewModel.openFilterItem(item) },
             )
         }
     }
@@ -248,6 +266,7 @@ private fun HomeComponentView(
     onOpenManga: (String) -> Unit,
     onOpenListing: (String) -> Unit,
     onOpenUrl: (String) -> Unit,
+    onOpenFilter: (HomeFilterItem) -> Unit,
 ) {
     Column {
         component.title?.let {
@@ -311,13 +330,76 @@ private fun HomeComponentView(
                     }
                 }
             }
-            value?.filters != null -> {
-                // 筛选行：点击进入对应 listing（筛选本体在列表页处理）
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(value.filters!!) { filter ->
-                        androidx.compose.material3.SuggestionChip(
-                            onClick = { /* M5B：带筛选进列表 */ },
-                            label = { Text(filter.title) },
+            value?.filters != null -> FilterButtons(
+                items = value.filters!!,
+                onOpen = onOpenFilter,
+            )
+        }
+    }
+}
+
+/** Home "filters" component: a two-column button grid (Aidoku
+ *  HomeFiltersView). Past six entries the grid keeps the first five plus a
+ *  "查看全部" entry that lists every filter in a sheet. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterButtons(items: List<HomeFilterItem>, onOpen: (HomeFilterItem) -> Unit) {
+    if (items.isEmpty()) return
+    var sheetOpen by remember { mutableStateOf(false) }
+    val collapsed = items.size > 6
+    // Slot 6 doubles as the "view all" entry, like Aidoku's index == 5.
+    val slots: List<HomeFilterItem?> = if (collapsed) items.take(5) + listOf(null) else items
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        slots.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                row.forEach { item ->
+                    OutlinedButton(
+                        onClick = {
+                            if (item == null) sheetOpen = true else onOpen(item)
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (item == null) {
+                            Icon(
+                                Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("查看全部")
+                        } else {
+                            Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+    if (sheetOpen) {
+        ModalBottomSheet(onDismissRequest = { sheetOpen = false }) {
+            Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                items.forEach { item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable {
+                                sheetOpen = false
+                                onOpen(item)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(item.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

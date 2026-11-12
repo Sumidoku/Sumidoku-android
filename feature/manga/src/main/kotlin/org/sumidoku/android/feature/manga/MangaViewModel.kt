@@ -15,12 +15,16 @@ import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.DownloadsApi
 import org.sumidoku.android.core.api.MetadataApi
 import org.sumidoku.android.core.api.MigrationApi
+import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.TrackersApi
 import org.sumidoku.android.core.api.model.AddToLibraryRequest
 import org.sumidoku.android.core.api.model.ChapterSort
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.ContentRating
 import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
+import org.sumidoku.android.core.api.model.FilterValue
+import org.sumidoku.android.core.api.model.FilterValueOneOf4MultiSelect
+import org.sumidoku.android.core.api.model.FilterValueOneOfText
 import org.sumidoku.android.core.api.model.Manga
 import org.sumidoku.android.core.api.model.MangaStatus
 import org.sumidoku.android.core.api.model.MigrateEntry
@@ -34,6 +38,8 @@ import org.sumidoku.android.core.api.model.MetadataRestoreRequest
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.SelectCoverRequest
 import org.sumidoku.android.core.api.model.SortOrder
+import org.sumidoku.android.core.api.model.SourceConfig
+import org.sumidoku.android.core.api.model.SourceFilter
 import org.sumidoku.android.core.api.model.TrackSearchItem
 import org.sumidoku.android.core.api.model.TrackerLink
 import org.sumidoku.android.core.api.model.TrackerLinkUpsert
@@ -45,6 +51,69 @@ import org.sumidoku.android.core.download.LocalDownloadEngine
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
+
+/** Which author/artist/tag taps on the detail header are searchable, and
+ *  with which filter value — webui MangaDetailPage parity
+ *  (creatorSearchable / genreFilterValue). */
+data class SourceSearchMeta(
+    val filters: List<SourceFilter> = emptyList(),
+    val config: SourceConfig? = null,
+) {
+    /** Aidoku: the manifest declaration wins; only when it is undeclared
+     *  does a text filter with the same id make the field searchable. */
+    fun creatorFilterValue(name: String, isAuthor: Boolean): FilterValue? {
+        if (name.isBlank()) return null
+        val id = if (isAuthor) AUTHOR_FILTER_ID else ARTIST_FILTER_ID
+        val declared = if (isAuthor) config?.supportsAuthorSearch else config?.supportsArtistSearch
+        val searchable = declared ?: filters.any { it.type == "text" && it.id == id }
+        if (!searchable) return null
+        return FilterValue(text = FilterValueOneOfText(id = id, value = name))
+    }
+
+    /** supportsTagSearch sends the raw tag as a "genre" select; otherwise the
+     *  first genre option equal to the tag is used (ids[i] ?? options[i]). */
+    fun tagFilterValue(tag: String): FilterValue? {
+        if (tag.isBlank()) return null
+        if (config?.supportsTagSearch == true) {
+            return FilterValue(select = FilterValueOneOfText(id = GENRE_FILTER_ID, value = tag))
+        }
+        filters.forEach { filter ->
+            if (filter.type != "select" && filter.type != "multi-select") return@forEach
+            if (filter.isGenre != true) return@forEach
+            val options = filter.options ?: return@forEach
+            val index = options.indexOf(tag)
+            if (index < 0) return@forEach
+            val value = filter.ids?.getOrNull(index) ?: options[index]
+            if (value.isEmpty()) return@forEach
+            return if (filter.type == "multi-select") {
+                FilterValue(
+                    multiSelect = FilterValueOneOf4MultiSelect(
+                        id = filter.id,
+                        included = listOf(value),
+                        excluded = emptyList(),
+                    ),
+                )
+            } else {
+                FilterValue(select = FilterValueOneOfText(id = filter.id, value = value))
+            }
+        }
+        return null
+    }
+
+    /** Authors then artists, deduped in order; a name in both stays author. */
+    fun creators(authors: List<String>?, artists: List<String>?): List<Pair<String, Boolean>> {
+        val out = LinkedHashMap<String, Boolean>()
+        authors.orEmpty().forEach { if (it.isNotBlank()) out[it] = true }
+        artists.orEmpty().forEach { if (it.isNotBlank() && !out.containsKey(it)) out[it] = false }
+        return out.map { it.key to it.value }
+    }
+
+    private companion object {
+        const val AUTHOR_FILTER_ID = "author"
+        const val ARTIST_FILTER_ID = "artist"
+        const val GENRE_FILTER_ID = "genre"
+    }
+}
 
 data class MangaUiState(
     val loading: Boolean = true,
@@ -77,6 +146,20 @@ class MangaViewModel @AssistedInject constructor(
 
     private val _state = MutableStateFlow(MangaUiState())
     val state: StateFlow<MangaUiState> = _state
+
+    private val _searchMeta = MutableStateFlow(SourceSearchMeta())
+
+    /** Source filters + manifest config behind author/artist/tag taps. */
+    val searchMeta: StateFlow<SourceSearchMeta> = _searchMeta
+    private var searchMetaLoaded = false
+
+    /** Filter value for tapping an author/artist name, or null when this
+     *  source cannot search by that field. */
+    fun creatorFilterValue(name: String, isAuthor: Boolean): FilterValue? =
+        _searchMeta.value.creatorFilterValue(name, isAuthor)
+
+    /** Filter value for tapping a tag chip, or null when not searchable. */
+    fun tagFilterValue(tag: String): FilterValue? = _searchMeta.value.tagFilterValue(tag)
 
     init {
         refresh()
@@ -146,9 +229,26 @@ class MangaViewModel @AssistedInject constructor(
                     manga = manga,
                     chapters = chapters,
                 )
+                loadSearchMeta(profile, manga.sourceId)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, profile = profile, error = e.message ?: e.toString())
             }
+        }
+    }
+
+    /** Author/artist/tag search support: the source row carries the manifest
+     *  config, the filters endpoint says which text/genre filters exist. A
+     *  failed request leaves the flags null, i.e. nothing becomes tappable. */
+    private fun loadSearchMeta(profile: ServerProfile, sourceId: Long) {
+        if (searchMetaLoaded) return
+        searchMetaLoaded = true
+        viewModelScope.launch {
+            val api = clientFactory.create<SourcesApi>(profile)
+            val config = runCatching {
+                api.listSources().await().firstOrNull { it.id == sourceId }?.config
+            }.getOrNull()
+            val filters = runCatching { api.getSourceFilters(sourceId).await() }.getOrDefault(emptyList())
+            _searchMeta.value = SourceSearchMeta(filters = filters, config = config)
         }
     }
 

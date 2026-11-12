@@ -13,6 +13,9 @@ import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.model.FilterValue
+import org.sumidoku.android.core.api.model.FilterValueOneOf4MultiSelect
+import org.sumidoku.android.core.api.model.FilterValueOneOfText
+import org.sumidoku.android.core.api.model.HomeFilterItem
 import org.sumidoku.android.core.api.model.HomeLayout
 import org.sumidoku.android.core.api.model.Listing
 import org.sumidoku.android.core.api.model.MangaPage
@@ -144,6 +147,75 @@ class SourceHomeViewModel @Inject constructor(
         _state.value = _state.value.copy(mode = SourceMode.FilteredMode(values))
         loadMore()
     }
+
+    /** Home "filters" component (M5B): open the filtered list for one entry.
+     *  Mirrors Aidoku HomeFiltersView.openFilteredPage — the pre-built
+     *  values go straight into a source search with an empty query. */
+    fun openFilteredSearch(values: List<FilterValue>) {
+        val active = values.mapNotNull { value -> filterValueId(value)?.let { id -> id to value } }.toMap()
+        _state.value = _state.value.copy(
+            activeFilters = active,
+            mode = SourceMode.FilteredMode(values),
+        )
+        loadMore()
+    }
+
+    /** One home filter entry: its explicit values, else the source's genre
+     *  filter matching the title, else a plain title search. */
+    fun openFilterItem(item: HomeFilterItem) {
+        item.propertyValues?.let { values ->
+            openFilteredSearch(values)
+            return
+        }
+        viewModelScope.launch {
+            val value = genreFilterValue(ensureFiltersLoaded(), item.title)
+            if (value != null) openFilteredSearch(listOf(value)) else search(item.title)
+        }
+    }
+
+    /** The home refresh pre-loads the filter schema; refetch once when it
+     *  came back empty so genre filters still resolve. */
+    private suspend fun ensureFiltersLoaded(): List<SourceFilter> {
+        val loaded = _state.value.filters
+        if (loaded.isNotEmpty()) return loaded
+        val profile = _state.value.profile ?: return emptyList()
+        val filters = runCatching {
+            clientFactory.create<SourcesApi>(profile).getSourceFilters(sourceId).await()
+        }.getOrDefault(emptyList())
+        if (filters.isNotEmpty()) _state.value = _state.value.copy(filters = filters)
+        return filters
+    }
+
+    /** First genre select/multi-select filter whose options contain the
+     *  title — webui genreFilterValue parity (exact, case-sensitive). */
+    private fun genreFilterValue(filters: List<SourceFilter>, title: String): FilterValue? {
+        for (filter in filters) {
+            if (filter.type != "select" && filter.type != "multi-select") continue
+            if (filter.isGenre != true) continue
+            val options = filter.options ?: continue
+            val index = options.indexOf(title)
+            if (index < 0) continue
+            val value = filter.ids?.getOrNull(index) ?: options[index]
+            if (value.isEmpty()) continue
+            return if (filter.type == "multi-select") {
+                FilterValue(
+                    multiSelect = FilterValueOneOf4MultiSelect(
+                        id = filter.id,
+                        included = listOf(value),
+                        excluded = emptyList(),
+                    ),
+                )
+            } else {
+                FilterValue(select = FilterValueOneOfText(id = filter.id, value = value))
+            }
+        }
+        return null
+    }
+
+    /** The filter id of any FilterValue union arm (wire model is tagged). */
+    private fun filterValueId(value: FilterValue): String? =
+        value.text?.id ?: value.sort?.id ?: value.check?.id
+            ?: value.select?.id ?: value.multiSelect?.id ?: value.range?.id
 
     fun loadMore() {
         val current = _state.value
