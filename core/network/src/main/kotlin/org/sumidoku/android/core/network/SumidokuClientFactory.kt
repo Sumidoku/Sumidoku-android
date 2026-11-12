@@ -2,6 +2,7 @@ package org.sumidoku.android.core.network
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
@@ -86,7 +87,7 @@ class SumidokuClientFactory @Inject constructor() {
                 if (obj["type"]?.toString()?.trim('"') == "final" || obj["type"]?.toString()?.trim('"') == "error") break
             }
         }
-    }
+    }.flowOn(kotlinx.coroutines.Dispatchers.IO)
 
     /**
      * Connectivity probe used when adding a server: GET /api/v1/version is the
@@ -102,7 +103,7 @@ class SumidokuClientFactory @Inject constructor() {
      *  Sumidoku server". */
     data class ProbeResult(val version: String?, val error: String?)
 
-    suspend fun probeVersionDetailed(profile: ServerProfile): ProbeResult {
+    suspend fun probeVersionDetailed(profile: ServerProfile): ProbeResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         var lastError: String? = null
         for (base in profile.candidates) {
             try {
@@ -122,14 +123,14 @@ class SumidokuClientFactory @Inject constructor() {
                     val body = response.body.string()
                     val element = json.parseToJsonElement(body).jsonObjectOrNull()
                     val version = element?.get("version")?.toString()?.trim('"')
-                    if (!version.isNullOrBlank()) return ProbeResult(version, null)
+                    if (!version.isNullOrBlank()) return@withContext ProbeResult(version, null)
                     lastError = "响应不是 Sumidoku 服务器"
                 }
             } catch (e: Exception) {
                 lastError = e.message ?: e.javaClass.simpleName
             }
         }
-        return ProbeResult(null, lastError ?: "无可用地址")
+        return@withContext ProbeResult(null, lastError ?: "无可用地址")
     }
 
     private fun String.ensureTrailingSlash(): String = if (endsWith("/")) this else "$this/"
