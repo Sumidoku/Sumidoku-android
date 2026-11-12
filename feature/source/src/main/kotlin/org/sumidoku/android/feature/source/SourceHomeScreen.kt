@@ -502,7 +502,7 @@ private fun MangaChapterRow(entry: MangaWithChapter, apiKey: String?, proxied: (
         Column {
             Text(entry.manga.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val chapterLabel = buildString {
-                entry.chapter.chapterNumber?.let { append("第 $it 话") }
+                entry.chapter.chapterNumber?.let { n -> append("第 ${if (n % 1f == 0f) n.toLong() else n} 话") }
                 entry.chapter.title?.takeIf { it.isNotBlank() }?.let {
                     if (isNotEmpty()) append(" · ")
                     append(it)
