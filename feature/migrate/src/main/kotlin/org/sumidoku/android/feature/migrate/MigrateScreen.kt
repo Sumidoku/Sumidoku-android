@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
@@ -72,9 +73,14 @@ fun MigrateScreen(
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(state.error) {
-        state.error?.let {
-            snackbar.showSnackbar(it)
-            viewModel.consumeError()
+        // A failed source-list load is shown inline in the SOURCE step
+        // (with a retry button) instead of a transient snackbar.
+        val inlineError = state.step == MigrateStep.SOURCE && state.sources.isEmpty()
+        if (!inlineError) {
+            state.error?.let {
+                snackbar.showSnackbar(it)
+                viewModel.consumeError()
+            }
         }
     }
 
@@ -142,7 +148,25 @@ private fun stepTitle(step: MigrateStep): String = when (step) {
 private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
     if (state.sources.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("没有可迁移的图源（书库为空）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.error != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "读取迁移图源失败",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        state.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
+                    )
+                    TextButton(onClick = { viewModel.loadSources() }) { Text("重试") }
+                }
+            } else {
+                Text("没有可迁移的图源（书库为空）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         return
     }
@@ -151,9 +175,13 @@ private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             val source = state.sources[i]
             Card(Modifier.fillMaxWidth().clickable { viewModel.selectFromSource(source) }) {
                 ListItem(
-                    headlineContent = { Text(source.name) },
+                    headlineContent = { Text(source.name ?: source.key ?: "图源 ${source.id}") },
                     supportingContent = {
-                        Text("${source.mangaCount} 本在库 · v${source.version}${source.languages.joinToString(" ").takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""}")
+                        Text(buildString {
+                            append("${source.mangaCount ?: 0} 本在库 · v${source.version ?: 0}")
+                            val langs = source.languages?.joinToString(" ").orEmpty()
+                            if (langs.isNotEmpty()) append(" · $langs")
+                        })
                     },
                 )
             }
@@ -237,7 +265,7 @@ private fun TargetsStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         checked = source.id in state.targetIds,
                         onCheckedChange = { viewModel.toggleTarget(source.id) },
                     )
-                    Text(source.name, style = MaterialTheme.typography.bodyMedium)
+                    Text(source.name ?: source.key ?: "图源 ${source.id}", style = MaterialTheme.typography.bodyMedium)
                 }
             }
             item {

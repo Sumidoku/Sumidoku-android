@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NewReleases
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +39,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.window.core.layout.WindowSizeClass
 import dagger.hilt.android.lifecycle.HiltViewModel
+import android.net.Uri
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import org.sumidoku.android.core.api.model.FilterValue
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -124,6 +129,7 @@ private val tabs = listOf(
     Tab("browse", "浏览", Icons.Outlined.Explore),
     Tab("updates", "更新", Icons.Outlined.NewReleases),
     Tab("history", "历史", Icons.Outlined.History),
+    Tab("search", "搜索", Icons.Outlined.Search),
     Tab("settings", "设置", Icons.Outlined.Settings),
 )
 
@@ -205,8 +211,23 @@ private fun MainTabs(
             navController = innerNav,
             startDestination = "library",
         ) {
+            // Filtered browse (webui /browse/{id}?filters=): a source home
+            // opened straight into FilteredMode with the tapped creator/tag filter.
+            val openFilteredSearch: (Long, List<FilterValue>) -> Unit = { sourceId, filters ->
+                val encoded = Uri.encode(
+                    Json.encodeToString(
+                        ListSerializer(FilterValue.serializer()),
+                        filters,
+                    ),
+                )
+                innerNav.navigate("source-filtered/$sourceId?filters=$encoded")
+            }
             composable("library") {
-                LibraryTab(onOpenReader = onOpenReader, onOpenManga = { innerNav.navigate("manga/$it") })
+                LibraryTab(
+                    onOpenReader = onOpenReader,
+                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onFilterSearch = openFilteredSearch,
+                )
             }
             composable(
                 route = "manga/{mangaId}",
@@ -216,6 +237,7 @@ private fun MainTabs(
                     mangaId = entry.arguments?.getLong("mangaId") ?: -1L,
                     onBack = { innerNav.popBackStack() },
                     onOpenChapter = onOpenReader,
+                    onFilterSearch = openFilteredSearch,
                 )
             }
             composable("browse") {
@@ -231,6 +253,31 @@ private fun MainTabs(
                 SearchScreen(
                     onBack = { innerNav.popBackStack() },
                     onOpenManga = { innerNav.navigate("manga/$it") },
+                    showBack = false,
+                )
+            }
+            composable(
+                route = "source-filtered/{sourceId}?filters={filters}",
+                arguments = listOf(
+                    navArgument("sourceId") { type = NavType.LongType },
+                    navArgument("filters") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+            ) { entry ->
+                val sourceId = entry.arguments?.getLong("sourceId") ?: return@composable
+                val filters = entry.arguments?.getString("filters")?.let { raw ->
+                    runCatching {
+                        Json.decodeFromString(ListSerializer(FilterValue.serializer()), raw)
+                    }.getOrNull()
+                }.orEmpty()
+                SourceHomeScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenSettings = { innerNav.navigate("source-settings/$sourceId") },
+                    initialFilters = filters,
                 )
             }
             composable("add-source") {
@@ -333,6 +380,7 @@ private fun PlaceholderTab(label: String) {
 private fun LibraryTab(
     onOpenReader: (Long, Long) -> Unit,
     onOpenManga: (Long) -> Unit,
+    onFilterSearch: (Long, List<FilterValue>) -> Unit,
 ) {
     val isExpanded = currentWindowAdaptiveInfo().windowSizeClass
         .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
@@ -363,6 +411,7 @@ private fun LibraryTab(
                         mangaId = mangaId,
                         onBack = { scope.launch { navigator.navigateBack() } },
                         onOpenChapter = onOpenReader,
+                        onFilterSearch = onFilterSearch,
                     )
                 } else {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

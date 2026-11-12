@@ -43,18 +43,72 @@ data class SourceSearchSection(
     val error: String? = null,
 )
 
+/** Tri-state filter entry, matching webui's `TriState` (-1 exclude / 1 include). */
+enum class TriFilter { NONE, INCLUDE, EXCLUDE }
+
+fun TriFilter.next(): TriFilter = when (this) {
+    TriFilter.NONE -> TriFilter.INCLUDE
+    TriFilter.INCLUDE -> TriFilter.EXCLUDE
+    TriFilter.EXCLUDE -> TriFilter.NONE
+}
+
+/** Per-dimension verdict (webui triAllows): with any include selected the
+ *  entry must hit one of them; hitting any exclude knocks it out. */
+fun triAllows(states: Map<*, TriFilter>, keys: List<Any>): Boolean {
+    var includes = 0
+    var includeHit = false
+    for ((k, v) in states) {
+        if (v == TriFilter.INCLUDE) {
+            includes += 1
+            if (keys.contains(k)) includeHit = true
+        } else if (v == TriFilter.EXCLUDE && keys.contains(k)) {
+            return false
+        }
+    }
+    return includes == 0 || includeHit
+}
+
 data class SearchUiState(
     val profile: ServerProfile? = null,
     val sources: List<Source> = emptyList(),
-    /** Sources participating in the next search; default = all enabled. */
-    val selectedSourceIds: Set<Long> = emptySet(),
+    /** Tri-state filter groups (webui globalSearchPrefs): ratings / languages / sources. */
+    val ratingFilter: Map<Long, TriFilter> = emptyMap(),
+    val langFilter: Map<String, TriFilter> = emptyMap(),
+    val sourceFilter: Map<Long, TriFilter> = emptyMap(),
     val query: String = "",
     val searching: Boolean = false,
     val searched: Boolean = false,
     val sections: List<SourceSearchSection> = emptyList(),
     val registeringKey: String? = null,
     val error: String? = null,
-)
+) {
+    /** Sources passing all three filter groups — these take part in the search. */
+    val participatingSources: List<Source>
+        get() = sources.filter { s ->
+            triAllows(ratingFilter, listOf(s.contentRating)) &&
+                triAllows(langFilter, s.languages.map { it.trim().lowercase() }) &&
+                triAllows(sourceFilter, listOfNotNull(s.id))
+        }
+
+    val participatingSourceIds: List<Long>
+        get() = participatingSources.mapNotNull { it.id }
+
+    /** Language options: the multi-language sentinel first (Aidoku convention), then by display name. */
+    val langOptions: List<String>
+        get() {
+            val set = linkedSetOf<String>()
+            for (s in sources) {
+                for (l in s.languages) {
+                    val code = l.trim().lowercase()
+                    if (code.isNotEmpty() && code != "multi" && code != "all") set.add(code)
+                }
+            }
+            return listOf("multi") + set.sortedBy { languageLabel(it) }
+        }
+
+    val activeFilterCount: Int
+        get() = ratingFilter.size + langFilter.size + sourceFilter.size
+}
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -74,10 +128,10 @@ class SearchViewModel @Inject constructor(
             runCatching {
                 clientFactory.create<SourcesApi>(profile).listSources().await()
             }.onSuccess { sources ->
-                val enabled = sources.filter { it.enabled }
                 _state.value = _state.value.copy(
-                    sources = enabled,
-                    selectedSourceIds = enabled.mapNotNull { it.id }.toSet(),
+                    sources = sources
+                        .filter { it.enabled }
+                        .sortedWith(compareBy({ it.name ?: it.key }, { it.key })),
                 )
             }
         }
@@ -87,16 +141,39 @@ class SearchViewModel @Inject constructor(
         _state.value = _state.value.copy(query = query)
     }
 
-    fun toggleSource(id: Long) {
-        val current = _state.value.selectedSourceIds.toMutableSet()
-        if (!current.remove(id)) current.add(id)
-        _state.value = _state.value.copy(selectedSourceIds = current)
+    fun cycleRating(level: Long) {
+        _state.value = _state.value.copy(ratingFilter = _state.value.ratingFilter.cycle(level))
+    }
+
+    fun cycleLanguage(code: String) {
+        _state.value = _state.value.copy(langFilter = _state.value.langFilter.cycle(code))
+    }
+
+    fun cycleSource(id: Long) {
+        _state.value = _state.value.copy(sourceFilter = _state.value.sourceFilter.cycle(id))
+    }
+
+    fun resetRatings() {
+        _state.value = _state.value.copy(ratingFilter = emptyMap())
+    }
+
+    fun resetLanguages() {
+        _state.value = _state.value.copy(langFilter = emptyMap())
+    }
+
+    fun resetSources() {
+        _state.value = _state.value.copy(sourceFilter = emptyMap())
+    }
+
+    private fun <K> Map<K, TriFilter>.cycle(key: K): Map<K, TriFilter> {
+        val next = (this[key] ?: TriFilter.NONE).next()
+        return if (next == TriFilter.NONE) this - key else this + (key to next)
     }
 
     fun search() {
         val profile = _state.value.profile ?: return
         val query = _state.value.query.trim()
-        val ids = _state.value.selectedSourceIds
+        val ids = _state.value.participatingSourceIds
         if (query.isEmpty() || ids.isEmpty()) return
         viewModelScope.launch {
             _state.value = _state.value.copy(searching = true, searched = true, sections = emptyList(), error = null)
@@ -295,3 +372,29 @@ private fun GlobalSearchResult.toSection(sourceName: String) = SourceSearchSecti
     page = 1,
     error = error?.message,
 )
+
+/** Source-language display name (webui lib/source.ts languageLabel,
+ *  Intl.DisplayNames equivalent with a fixed table for the common values). */
+fun languageLabel(code: String): String {
+    val normalized = code.trim().lowercase()
+    if (normalized == "multi" || normalized == "all") return "多语言"
+    return LANGUAGE_NAMES[normalized] ?: code
+}
+
+private val LANGUAGE_NAMES = mapOf(
+    "en" to "英语", "ja" to "日语", "zh" to "中文", "ko" to "韩语",
+    "fr" to "法语", "de" to "德语", "es" to "西班牙语", "pt" to "葡萄牙语",
+    "it" to "意大利语", "ru" to "俄语", "ar" to "阿拉伯语", "hi" to "印地语",
+    "th" to "泰语", "vi" to "越南语", "id" to "印尼语", "tr" to "土耳其语",
+    "pl" to "波兰语", "nl" to "荷兰语", "sv" to "瑞典语", "uk" to "乌克兰语",
+    "ro" to "罗马尼亚语", "cs" to "捷克语", "el" to "希腊语", "hu" to "匈牙利语",
+    "fi" to "芬兰语", "da" to "丹麦语", "no" to "挪威语", "he" to "希伯来语",
+    "fa" to "波斯语", "ms" to "马来语", "tl" to "他加禄语", "ca" to "加泰罗尼亚语",
+)
+
+/** Source-level content rating levels (webui CONTENT_RATING_LEVELS: 0 safe / 1 contains NSFW / 2 NSFW). */
+fun contentRatingLabel(level: Int): String = when (level) {
+    1 -> "含 NSFW"
+    2 -> "NSFW"
+    else -> "安全"
+}

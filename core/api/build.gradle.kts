@@ -199,6 +199,33 @@ tasks.register("patchGeneratedSources") {
             }
             if (changed) target.writeText(patched.joinToString(System.lineSeparator()))
         }
+        // MigrationSource is the /migrate/sources row. Older servers omit
+        // later-added fields (mangaCount, pin fields, updateVersion), and a
+        // missing key aborts the whole list decode — the migration screen
+        // then shows only "始终报错不显示内容". Default every property
+        // except the primary key so an older payload still decodes.
+        val migrationSource = File(modelDir, "MigrationSource.kt")
+        if (migrationSource.exists()) {
+            val lines = migrationSource.readLines()
+            var changed = false
+            val patched = lines.map { line ->
+                val trimmed = line.trimStart()
+                val candidate = trimmed.removeSuffix(",")
+                if (
+                    trimmed.startsWith("val ") &&
+                    !candidate.startsWith("val id:") &&
+                    !candidate.contains('?') &&
+                    !candidate.contains('=') &&
+                    candidate.length > 4
+                ) {
+                    changed = true
+                    "${line.substringBefore("val ")}$candidate? = null${if (trimmed.endsWith(",")) "," else ""}"
+                } else {
+                    line
+                }
+            }
+            if (changed) migrationSource.writeText(patched.joinToString(System.lineSeparator()))
+        }
     }
 }
 

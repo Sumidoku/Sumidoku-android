@@ -81,7 +81,13 @@ class MigrateViewModel @Inject constructor(
     private var entryPage = 1
 
     init {
+        loadSources()
+    }
+
+    /** Re-run the source list load (the SOURCE step's retry button). */
+    fun loadSources() {
         viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true, error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = MigrateUiState(loading = false, error = "未选择服务器")
                 return@launch
@@ -89,7 +95,7 @@ class MigrateViewModel @Inject constructor(
             try {
                 val sources = clientFactory.create<MigrationApi>(profile)
                     .getMigrationSources().await()
-                    .filter { it.mangaCount > 0 }
+                    .filter { (it.mangaCount ?: 0L) > 0L }
                 _state.value = _state.value.copy(loading = false, profile = profile, sources = sources)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
