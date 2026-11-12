@@ -27,6 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -118,8 +122,8 @@ fun ServersScreen(
                 showAddDialog = false
                 viewModel.dismissAddError()
             },
-            onConfirm = { name, url, key, mirrors ->
-                viewModel.addServer(name, url, key, mirrors)
+            onConfirm = { name, url, mode, credential, username, password, mirrors ->
+                viewModel.addServer(name, url, mode, credential, username, password, mirrors)
             },
         )
     }
@@ -194,11 +198,14 @@ private fun AddServerDialog(
     inFlight: Boolean,
     error: String?,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, baseUrl: String, apiKey: String?, mirrors: String) -> Unit,
+    onConfirm: (name: String, baseUrl: String, credentialMode: String, credential: String?, username: String, password: String, mirrors: String) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var baseUrl by rememberSaveable { mutableStateOf("") }
+    var credentialMode by rememberSaveable { mutableStateOf("key") }
     var apiKey by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
     var mirrors by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
@@ -221,14 +228,42 @@ private fun AddServerDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { apiKey = it },
-                    label = { Text("API Key（可选）") },
-                    supportingText = { Text("服务器设置 → 系统 → API keys 创建") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("key" to "API Key", "password" to "用户名密码").forEachIndexed { index, (value, label) ->
+                        SegmentedButton(
+                            selected = credentialMode == value,
+                            onClick = { credentialMode = value },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                        ) { Text(label) }
+                    }
+                }
+                if (credentialMode == "key") {
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it },
+                        label = { Text("API Key（可选）") },
+                        supportingText = { Text("服务器设置 → 系统 → API keys 创建") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("用户名") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("密码") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        supportingText = { Text("登录换 30 天滚动会话令牌，与 webui 同机制") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 OutlinedTextField(
                     value = mirrors,
                     onValueChange = { mirrors = it },
@@ -246,9 +281,16 @@ private fun AddServerDialog(
             }
         },
         confirmButton = {
+            val credentialReady = credentialMode == "key" || (username.isNotBlank() && password.isNotBlank())
             TextButton(
-                onClick = { onConfirm(name, baseUrl, apiKey, mirrors) },
-                enabled = baseUrl.isNotBlank() && !inFlight,
+                onClick = {
+                    onConfirm(
+                        name, baseUrl, credentialMode,
+                        if (credentialMode == "key") apiKey.ifBlank { null } else null,
+                        username, password, mirrors,
+                    )
+                },
+                enabled = baseUrl.isNotBlank() && credentialReady && !inFlight,
             ) {
                 if (inFlight) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
