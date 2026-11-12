@@ -3,6 +3,8 @@ package org.sumidoku.android.feature.browse
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -169,19 +171,19 @@ fun BrowseScreen(
                 if (state.updatable.isNotEmpty()) {
                     item { SectionHeader("可更新（${state.updatable.size}）") }
                     items(state.updatable, key = { "u${it.id}" }) { source ->
-                        SourceRow(source, state.profile, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
+                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
                     }
                 }
                 if (state.pinned.isNotEmpty()) {
                     item { SectionHeader("置顶") }
                     items(state.pinned, key = { "p${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
+                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
                     }
                 }
                 if (state.installed.isNotEmpty()) {
                     item { SectionHeader("已安装") }
                     items(state.installed, key = { "i${it.id}" }) { source ->
-                        SourceRow(source, state.profile, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) })
+                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
                     }
                 }
             }
@@ -215,38 +217,49 @@ private fun SectionHeader(title: String) {
 private fun SourceRow(
     source: Source,
     profile: ServerProfile?,
+    hasSettings: Boolean,
     badge: String? = null,
     onClick: () -> Unit,
     onSettings: () -> Unit,
     onTogglePin: () -> Unit,
     onToggleEnabled: () -> Unit,
+    onUninstall: () -> Unit,
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
+    var confirmUninstall by remember { mutableStateOf(false) }
     Box {
         ListItem(
             leadingContent = { SourceIcon(source, profile) },
             headlineContent = {
-                Text(
-                    buildString {
-                        append(source.name)
-                        append("  v${badge?.removePrefix("v") ?: source.version}")
-                        if (source.contentRating >= 2) append("  18+")
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = if (source.enabled) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // webui: name followed by a rating chip (only when rated)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        source.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = if (source.enabled) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    RatingChip(source.contentRating)
+                }
             },
             supportingContent = {
-                Text(
-                    buildString {
-                        append(source.languages.joinToString(" · ").ifEmpty { "multi" })
-                        if (!source.enabled) append(" · 已停用")
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                Column {
+                    // webui meta line: key · version
+                    Text(
+                        buildString {
+                            append(source.key)
+                            append(" · v${badge?.removePrefix("v") ?: source.version}")
+                            if (!source.enabled) append(" · 已停用")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    LanguageChips(source.languages)
+                }
             },
             trailingContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,8 +270,8 @@ private fun SourceRow(
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
-                    // 齿轮进图源设置（webui：OPDS 源无齿轮）
-                    if (source.kind != Source.Kind.OPDS) {
+                    // 仅当图源确实声明了设置项才显示齿轮（OPDS 源无设置 schema）
+                    if (hasSettings && source.kind != Source.Kind.OPDS) {
                         IconButton(onClick = onSettings) {
                             Icon(
                                 Icons.Outlined.Settings,
@@ -289,7 +302,87 @@ private fun SourceRow(
                     onToggleEnabled()
                 },
             )
+            DropdownMenuItem(
+                text = { Text("卸载", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showContextMenu = false
+                    confirmUninstall = true
+                },
+            )
         }
+        if (confirmUninstall) {
+            AlertDialog(
+                onDismissRequest = { confirmUninstall = false },
+                title = { Text("卸载 ${source.name}？") },
+                text = { Text("将同时删除该图源的书库关联、下载与缓存数据。") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmUninstall = false
+                        onUninstall()
+                    }) { Text("卸载", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = { TextButton(onClick = { confirmUninstall = false }) { Text("取消") } },
+            )
+        }
+    }
+}
+
+/** webui languageLabel: multi/all → 多语言；其余映射为显示名。 */
+private fun languageLabel(code: String): String = when (code.lowercase()) {
+    "multi", "all" -> "多语言"
+    "en" -> "英语"
+    "ja" -> "日语"
+    "ko" -> "韩语"
+    "zh", "zh-hans" -> "简体中文"
+    "zh-hant" -> "繁體中文"
+    "fr" -> "法语"
+    "de" -> "德语"
+    "es" -> "西班牙语"
+    "it" -> "意大利语"
+    "pt", "pt-br" -> "葡萄牙语"
+    "ru" -> "俄语"
+    "vi" -> "越南语"
+    "th" -> "泰语"
+    "id" -> "印尼语"
+    else -> code.uppercase()
+}
+
+/** webui 语言 chips：前 3 个显示名 + "+N"。 */
+@Composable
+private fun LanguageChips(languages: List<String>) {
+    if (languages.isEmpty()) return
+    Row(modifier = Modifier.padding(top = 2.dp)) {
+        languages.take(3).forEach { lang ->
+            MiniChip(languageLabel(lang))
+        }
+        if (languages.size > 3) {
+            MiniChip("+${languages.size - 3}")
+        }
+    }
+}
+
+@Composable
+private fun MiniChip(text: String, color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    androidx.compose.material3.Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.padding(end = 4.dp),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+/** webui 分级 chip：0 不显示，1 含 NSFW（警告色），2 NSFW（危险色）。 */
+@Composable
+private fun RatingChip(rating: Long) {
+    when {
+        rating >= 2 -> MiniChip("NSFW", MaterialTheme.colorScheme.error)
+        rating == 1L -> MiniChip("含 NSFW", MaterialTheme.colorScheme.tertiary)
     }
 }
 
@@ -414,6 +507,26 @@ fun AddSourceScreen(
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 singleLine = true,
             )
+            // webui/Aidoku 风格语言筛选：全部语言聚合后多选 chips
+            if (state.availableLangs.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                ) {
+                    state.availableLangs.forEach { lang ->
+                        val selected = lang in state.selectedLangs
+                        androidx.compose.material3.FilterChip(
+                            selected = selected,
+                            onClick = { viewModel.toggleLang(lang) },
+                            label = { Text(languageLabel(lang)) },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+            }
             when {
                 state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -559,25 +672,31 @@ private fun RepoSourceRow(
             )
         },
         headlineContent = {
-            Text(
-                buildString {
-                    append(repoSource.name)
-                    append("  v${repoSource.version}")
-                    if (repoSource.contentRating >= 2) append("  18+")
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    repoSource.name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                RatingChip(repoSource.contentRating)
+            }
         },
         supportingContent = {
-            Text(
-                buildString {
-                    append(repoSource.languages.joinToString(" · ").ifEmpty { "multi" })
-                    repoSource.repoName?.let { append("  ·  $it") }
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+            Column {
+                Text(
+                    buildString {
+                        append(repoSource.key)
+                        append(" · v${repoSource.version}")
+                        repoSource.repoName?.let { append(" · $it") }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                LanguageChips(repoSource.languages)
+            }
         },
         trailingContent = {
             when {

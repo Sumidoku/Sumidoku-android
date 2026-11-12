@@ -68,7 +68,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
@@ -590,7 +590,7 @@ private fun ChapterRow(
                 overflow = TextOverflow.Ellipsis,
             )
             val subtitle = buildList {
-                chapter.dateUploaded?.let { add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it))) }
+                chapter.dateUploaded?.let { add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(org.sumidoku.android.core.common.normalizeEpochMs(it)))) }
                 if (chapter.lastPageRead > 0 && !chapter.isRead) add("读到第 ${chapter.lastPageRead + 1} 页")
             }.joinToString(" · ")
             if (subtitle.isNotEmpty()) {

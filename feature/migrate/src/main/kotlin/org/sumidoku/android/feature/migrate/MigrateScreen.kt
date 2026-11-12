@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
@@ -46,7 +48,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import coil3.request.ImageRequest
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.MigrateResult
@@ -170,6 +179,23 @@ private fun MangaStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         checked = id != null && id in state.selectedIds,
                         onCheckedChange = { id?.let { viewModel.toggleManga(it) } },
                     )
+                    val ctx = LocalContext.current
+                    val coverModel = entry.cover?.let { cover ->
+                        val url = if (cover.startsWith("http")) cover
+                        else (state.profile?.baseUrl.orEmpty().trimEnd('/') + cover)
+                        ImageRequest.Builder(ctx).data(url).apply {
+                            state.profile?.apiKey?.let {
+                                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
+                            }
+                        }.build()
+                    }
+                    AsyncImage(
+                        model = coverModel,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp, 48.dp).clip(RoundedCornerShape(4.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.size(8.dp))
                     Column {
                         Text(entry.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                         val unread = entry.unreadCount

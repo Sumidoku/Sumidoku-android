@@ -152,6 +152,44 @@ tasks.register("patchGeneratedSources") {
                 if (patched != original) target.writeText(patched)
             }
         }
+        // Nullable properties without a default still require the key to be
+        // present: a missing key aborts the whole decode with
+        // MissingFieldException. The vendored aidoku wire types send
+        // explicit nulls, but any hand-written or future payload that omits
+        // an optional key would take the whole source home/listing/search
+        // response down. Default every nullable property to null in that
+        // payload family so decode tolerates omitted keys.
+        val tolerantNames = setOf(
+            "HomeComponent.kt", "HomeLayout.kt", "Link.kt", "AidokuListing.kt",
+            "Listing.kt", "HomeFilterItem.kt", "SourceManga.kt",
+            "SourceChapter.kt", "MangaWithChapter.kt",
+        )
+        modelDir.listFiles { f ->
+            f.extension == "kt" && (
+                f.name in tolerantNames ||
+                    f.name.startsWith("HomeComponentValueOneOf") ||
+                    f.name.startsWith("LinkValueOneOf")
+                )
+        }?.forEach { target ->
+            val lines = target.readLines()
+            var changed = false
+            val patched = lines.map { line ->
+                val trimmed = line.trimStart()
+                val candidate = trimmed.removeSuffix(",")
+                if (
+                    trimmed.startsWith("val ") &&
+                    candidate.contains('?') &&
+                    !candidate.contains('=') &&
+                    candidate.length > 4
+                ) {
+                    changed = true
+                    "${line.substringBefore("val ")}$candidate = null${if (trimmed.endsWith(",")) "," else ""}"
+                } else {
+                    line
+                }
+            }
+            if (changed) target.writeText(patched.joinToString(System.lineSeparator()))
+        }
     }
 }
 
@@ -168,4 +206,5 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.junit)
 }

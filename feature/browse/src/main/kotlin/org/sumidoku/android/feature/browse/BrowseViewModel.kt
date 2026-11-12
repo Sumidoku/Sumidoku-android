@@ -3,6 +3,8 @@ package org.sumidoku.android.feature.browse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,8 @@ data class BrowseUiState(
     val loading: Boolean = true,
     val profile: ServerProfile? = null,
     val sources: List<Source> = emptyList(),
+    /** source id → has configurable settings; absent = not probed yet. */
+    val settingsAvailable: Map<Long, Boolean> = emptyMap(),
     val error: String? = null,
     val updateAllRunning: Boolean = false,
     val updateAllResult: String? = null,
@@ -49,16 +53,25 @@ data class AddSourceUiState(
     val loading: Boolean = true,
     val repoSources: List<RepoSource> = emptyList(),
     val query: String = "",
+    /** webui/Aidoku-style language filter; empty = all. */
+    val selectedLangs: Set<String> = emptySet(),
     val installingKeys: Set<String> = emptySet(),
     val installedKeys: Set<String> = emptySet(),
     val error: String? = null,
 ) {
+    /** Distinct languages present across the aggregated repo listing. */
+    val availableLangs: List<String>
+        get() = repoSources.flatMap { it.languages }.distinct().sorted()
+
     val visible: List<RepoSource>
         get() {
             val q = query.trim().lowercase()
             return repoSources
                 .filter { it.installedId == null || installedKeys.contains(it.key) }
                 .filter { q.isEmpty() || it.name.lowercase().contains(q) || it.languages.any { l -> l.contains(q) } }
+                .filter {
+                    selectedLangs.isEmpty() || it.languages.any { l -> l in selectedLangs }
+                }
                 .sortedBy { it.name.lowercase() }
         }
 }
@@ -89,6 +102,7 @@ class BrowseViewModel @Inject constructor(
             try {
                 val sources = clientFactory.create<SourcesApi>(profile).listSources().await()
                 _state.update { it.copy(loading = false, profile = profile, sources = sources) }
+                probeSettingsAvailability(profile, sources)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.update { it.copy(loading = false, error = e.message ?: e.toString()) }
@@ -188,6 +202,53 @@ class BrowseViewModel @Inject constructor(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _addState.update { it.copy(loading = false, error = e.message ?: e.toString()) }
             }
+        }
+    }
+
+    /** Whether each source has configurable settings (drives the gear icon —
+     *  webui always shows it and lets the empty dialog explain, but an icon
+     *  that opens nothing is noise). OPDS sources have no settings schema. */
+    private fun probeSettingsAvailability(profile: ServerProfile, sources: List<Source>) {
+        viewModelScope.launch {
+            val api = clientFactory.create<SourcesApi>(profile)
+            val probed = coroutineScope {
+                sources
+                    .filter { it.kind != Source.Kind.OPDS }
+                    .map { source ->
+                        async {
+                            val has = try {
+                                api.getSourceSettings(source.id).await().settings.isNotEmpty()
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                null
+                            }
+                            if (has == null) null else source.id to has
+                        }
+                    }
+                    .mapNotNull { it.await() }
+                    .toMap()
+            }
+            _state.update { it.copy(settingsAvailable = it.settingsAvailable + probed) }
+        }
+    }
+
+    /** Uninstall a source — DELETE /sources/{id}, with a confirm dialog in the UI. */
+    fun uninstall(source: Source) {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            try {
+                clientFactory.create<SourcesApi>(profile).deleteSource(source.id).await()
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(error = "卸载失败：${e.message ?: e}") }
+            }
+        }
+    }
+
+    fun toggleLang(lang: String) {
+        _addState.update {
+            it.copy(selectedLangs = if (lang in it.selectedLangs) it.selectedLangs - lang else it.selectedLangs + lang)
         }
     }
 

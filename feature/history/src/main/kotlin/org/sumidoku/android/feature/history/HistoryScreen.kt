@@ -95,23 +95,29 @@ fun HistoryScreen(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("还没有阅读记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                else -> LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                ) {
-                    itemsIndexed(state.entries, key = { _, e -> "${e.chapter.id}:${e.lastReadAt}" }) { _, entry ->
-                        HistoryRow(
-                            entry = entry,
-                            baseUrl = state.profile?.baseUrl.orEmpty(),
-                            apiKey = state.profile?.apiKey,
-                            onClick = { onOpenManga(entry.manga.id) },
-                        )
-                    }
-                    if (state.loadingMore) {
-                        item {
-                            Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(Modifier.size(22.dp))
+                else -> {
+                    // webui HistoryPage：同一漫画同一天折叠为一条（保留最新），
+                    // 折叠条数以「还有 N 条」显示。
+                    val rows = androidx.compose.runtime.remember(state.entries) { dedupeHistory(state.entries) }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                    ) {
+                        itemsIndexed(rows, key = { _, r -> "${r.entry.chapter.id}:${r.entry.lastReadAt}" }) { _, row ->
+                            HistoryRow(
+                                entry = row.entry,
+                                extra = row.extra,
+                                baseUrl = state.profile?.baseUrl.orEmpty(),
+                                apiKey = state.profile?.apiKey,
+                                onClick = { onOpenManga(row.entry.manga.id) },
+                            )
+                        }
+                        if (state.loadingMore) {
+                            item {
+                                Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(Modifier.size(22.dp))
+                                }
                             }
                         }
                     }
@@ -121,9 +127,30 @@ fun HistoryScreen(
     }
 }
 
+private data class HistoryRowData(val entry: HistoryEntry, val extra: Int)
+
+/** webui HistoryPage.tsx：按 漫画 id + 本地日历日 分组，保留 lastReadAt
+ *  最大的一条，其余计为折叠条数，结果按时间降序。 */
+private fun dedupeHistory(entries: List<HistoryEntry>): List<HistoryRowData> {
+    val groups = LinkedHashMap<String, HistoryRowData>()
+    val cal = java.util.Calendar.getInstance()
+    for (e in entries) {
+        cal.timeInMillis = org.sumidoku.android.core.common.normalizeEpochMs(e.lastReadAt)
+        val key = "${e.manga.id}@${cal.get(java.util.Calendar.YEAR)}-${cal.get(java.util.Calendar.MONTH)}-${cal.get(java.util.Calendar.DAY_OF_MONTH)}"
+        val cur = groups[key]
+        groups[key] = if (cur == null) {
+            HistoryRowData(e, 0)
+        } else {
+            HistoryRowData(if (e.lastReadAt > cur.entry.lastReadAt) e else cur.entry, cur.extra + 1)
+        }
+    }
+    return groups.values.sortedByDescending { it.entry.lastReadAt }
+}
+
 @Composable
 private fun HistoryRow(
     entry: HistoryEntry,
+    extra: Int,
     baseUrl: String,
     apiKey: String?,
     onClick: () -> Unit,
@@ -150,9 +177,12 @@ private fun HistoryRow(
         supportingContent = {
             Text(
                 buildString {
-                    entry.chapter.chapterNumber?.let { append("第 $it 话  ·  ") }
+                    entry.chapter.chapterNumber?.let { n ->
+                        append("第 ${if (n % 1f == 0f) n.toLong() else n} 话  ·  ")
+                    }
                     append("读到第 ${entry.lastPageRead + 1} 页")
                     if (entry.isRead) append("  ·  已读完")
+                    if (extra > 0) append("  ·  还有 $extra 条")
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
