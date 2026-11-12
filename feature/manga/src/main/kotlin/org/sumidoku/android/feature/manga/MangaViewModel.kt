@@ -230,6 +230,7 @@ class MangaViewModel @AssistedInject constructor(
                     chapters = chapters,
                 )
                 loadSearchMeta(profile, manga.sourceId)
+                loadLinks()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, profile = profile, error = e.message ?: e.toString())
             }

@@ -2,6 +2,7 @@ package org.sumidoku.android.feature.manga
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
@@ -77,6 +79,8 @@ import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.SearchManga
+import org.sumidoku.android.core.api.model.TrackerLink
+import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.model.ServerProfile
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -93,8 +97,9 @@ fun MangaScreen(
     onBack: () -> Unit,
     onOpenChapter: (mangaId: Long, chapterId: Long) -> Unit,
     /** Author/artist/tag tap: hand the browse page the single filter value
-     *  it should search with (webui searchByFilters parity). */
-    onFilterSearch: (List<FilterValue>) -> Unit = {},
+     *  it should search with, plus the manga's source (webui
+     *  searchByFilters parity). */
+    onFilterSearch: (sourceId: Long, filters: List<FilterValue>) -> Unit = { _, _ -> },
     viewModel: MangaViewModel = hiltViewModel<MangaViewModel, MangaViewModel.Factory>(
         key = "manga-$mangaId",
     ) { factory -> factory.create(mangaId) },
@@ -160,11 +165,6 @@ fun MangaScreen(
                                     showMenu = false
                                     viewModel.restoreMetadata()
                                 })
-                                DropdownMenuItem(text = { Text("追踪链接") }, onClick = {
-                                    showMenu = false
-                                    viewModel.loadLinks()
-                                    activeSheet = MangaSheet.Links
-                                })
                                 DropdownMenuItem(text = { Text("分类…") }, onClick = {
                                     showMenu = false
                                     viewModel.loadCategories()
@@ -213,7 +213,16 @@ fun MangaScreen(
                                 state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
                             },
                             onToggleLibrary = { viewModel.toggleLibrary() },
-                            onFilterSearch = onFilterSearch,
+                            onFilterSearch = { values -> onFilterSearch(manga.sourceId, values) },
+                        )
+                    }
+                    item {
+                        TrackerSection(
+                            links = meta.links.orEmpty(),
+                            onManage = {
+                                viewModel.loadLinks()
+                                activeSheet = MangaSheet.Links
+                            },
                         )
                     }
                     item {
@@ -776,3 +785,63 @@ internal fun CoverImage(cover: String?, profile: ServerProfile?, modifier: Modif
 
 private fun formatNumber(value: Float): String =
     if (value % 1f == 0f) value.toInt().toString() else value.toString()
+
+/** Inline tracker bindings, mirroring webui's TrackerSection: a section
+ *  header with the bound provider pills and one entry point that opens the
+ *  full link manager (add/sync/unbind). */
+@Composable
+private fun TrackerSection(
+    links: List<TrackerLink>,
+    onManage: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "追踪",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onManage) {
+                Text(if (links.isEmpty()) "添加绑定" else "管理")
+            }
+        }
+        if (links.isEmpty()) {
+            Text(
+                "还没有绑定追踪条目",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                links.forEach { link -> TrackerPill(link, onManage) }
+            }
+        }
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+    }
+}
+
+@Composable
+private fun TrackerPill(link: TrackerLink, onClick: () -> Unit) {
+    val (label, color) = when (link.provider) {
+        TrackerProvider.ANILIST -> "AniList" to Color(0xFF02A9FF)
+        TrackerProvider.MAL -> "MyAnimeList" to Color(0xFF2E51A2)
+        TrackerProvider.BANGUMI -> "Bangumi" to Color(0xFFF0913A)
+        TrackerProvider.MANGABAKA -> "MangaBaka" to Color(0xFF6E56CF)
+    }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(10.dp).clip(RoundedCornerShape(50)).background(color))
+        Text(label, style = MaterialTheme.typography.labelLarge)
+    }
+}
