@@ -240,8 +240,12 @@ fun SourceHomeScreen(
                             )
                         }
                     }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.source_settings))
+                    // Sources without a settings schema get no gear icon
+                    // (browse list settingsAvailable parity).
+                    if (state.hasSettings) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.source_settings))
+                        }
                     }
                     // Design 04: source info / open in browser / settings / login
                     // collapse into one overflow once the action row gets crowded.
@@ -271,13 +275,15 @@ fun SourceHomeScreen(
                                     },
                                 )
                             }
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.source_settings_login)) },
-                                onClick = {
-                                    overflowOpen = false
-                                    onOpenSettings()
-                                },
-                            )
+                            if (state.hasSettings) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.source_settings_login)) },
+                                    onClick = {
+                                        overflowOpen = false
+                                        onOpenSettings()
+                                    },
+                                )
+                            }
                         }
                     }
                 },

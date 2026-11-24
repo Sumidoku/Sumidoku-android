@@ -100,6 +100,10 @@ data class SourceHomeUiState(
     val activeFilters: Map<String, FilterValue> = emptyMap(),
     /** Aidoku saved searches for this source. */
     val savedGroups: List<SavedFilterGroup> = emptyList(),
+    /** False once the server confirms the source declares no settings
+     *  schema — the top-bar gear and the overflow settings/login entry hide
+     *  then. Defaults true so a failed probe never locks the entry away. */
+    val hasSettings: Boolean = true,
     val error: String? = null,
 )
 
@@ -216,6 +220,11 @@ class SourceHomeViewModel @Inject constructor(
                 // anything else is a real, visible error (webui emptyOnUnsupported).
                 val listings = runCatching { api.getSourceListings(sourceId).await() }.getOrDefault(emptyList())
                 val filters = runCatching { api.getSourceFilters(sourceId).await() }.getOrDefault(emptyList())
+                // Browse list parity: sources with an empty settings schema
+                // get no gear icon (BrowseViewModel.settingsAvailable).
+                val hasSettings = runCatching {
+                    api.getSourceSettings(sourceId).await().settings.isNotEmpty()
+                }.getOrDefault(true)
                 // Home is fetched only when the user can actually see it: a
                 // deep link lands on the grid (Aidoku parity), so spending a
                 // home request here would be pure background waste. A source
@@ -249,6 +258,7 @@ class SourceHomeViewModel @Inject constructor(
                     home501 = homeOutcome.unsupported,
                     homeError = homeOutcome.error,
                     filters = filters,
+                    hasSettings = hasSettings,
                     activeFilters = draft,
                     savedGroups = savedGroups,
                 )
