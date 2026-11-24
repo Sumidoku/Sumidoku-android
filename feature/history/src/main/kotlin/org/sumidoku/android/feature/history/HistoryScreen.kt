@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,8 +22,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,6 +39,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -131,20 +133,33 @@ fun HistoryScreen(
                         item(key = "header-$day") {
                             SectionHeader(dayHeader(rows.firstOrNull()?.entry?.lastReadAt ?: 0L))
                         }
-                        items(rows, key = { "${it.entry.chapter.id}:${it.entry.lastReadAt}" }) { row ->
-                            HistoryRow(
-                                entry = row.entry,
-                                extra = row.extra,
-                                baseUrl = state.profile?.baseUrl.orEmpty(),
-                                apiKey = state.profile?.apiKey,
-                                onClick = {
-                                    if (row.entry.isRead) {
-                                        onOpenManga(row.entry.manga.id)
-                                    } else {
-                                        onOpenChapter(row.entry.manga.id, row.entry.chapter.id)
+                        // One rounded card per day group instead of rows that
+                        // butt against the screen edges (same language as the
+                        // settings hub card).
+                        item(key = "group-$day") {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            ) {
+                                Column {
+                                    rows.forEach { row ->
+                                        HistoryRow(
+                                            entry = row.entry,
+                                            extra = row.extra,
+                                            baseUrl = state.profile?.baseUrl.orEmpty(),
+                                            apiKey = state.profile?.apiKey,
+                                            onClick = {
+                                                if (row.entry.isRead) {
+                                                    onOpenManga(row.entry.manga.id)
+                                                } else {
+                                                    onOpenChapter(row.entry.manga.id, row.entry.chapter.id)
+                                                }
+                                            },
+                                        )
                                     }
-                                },
-                            )
+                                }
+                            }
                         }
                     }
                     if (state.loadingMore) {
@@ -208,6 +223,7 @@ private fun HistoryRow(
         }.build()
     val read = entry.isRead || (entry.chapter.pageCount > 0 && entry.lastPageRead + 1 >= entry.chapter.pageCount)
     ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = {
             AsyncImage(
                 model = coverModel,

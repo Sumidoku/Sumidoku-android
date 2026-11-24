@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,8 +27,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,6 +43,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -153,8 +155,20 @@ fun UpdatesScreen(
                             hint = stringResource(R.string.updates_section_hint, rows.size),
                         )
                     }
-                    items(rows, key = { "row-${it.mangaId}-$day" }) { row ->
-                        UpdateRowItem(row, state.profile) { onOpenManga(row.mangaId) }
+                    // One rounded card per day group instead of rows that
+                    // butt against the screen edges.
+                    item(key = "group-$day") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ) {
+                            Column {
+                                rows.forEach { row ->
+                                    UpdateRowItem(row, state.profile) { onOpenManga(row.mangaId) }
+                                }
+                            }
+                        }
                     }
                 }
                 if (state.loadingMore) {
@@ -215,6 +229,7 @@ private fun SectionHeader(title: String, hint: String?) {
 @Composable
 private fun UpdateRowItem(row: UpdateRowItemData, profile: ServerProfile?, onClick: () -> Unit) {
     ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { UpdateCover(row, profile) },
         headlineContent = { Text(row.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
@@ -247,7 +262,7 @@ private fun UpdateRowItem(row: UpdateRowItemData, profile: ServerProfile?, onCli
 @Composable
 private fun RunningCard(summary: UpdateSummary?) {
     val s = summary ?: return
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), shape = RoundedCornerShape(16.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -278,7 +293,7 @@ private fun RunningCard(summary: UpdateSummary?) {
 /** Update summary — the run recap card from preview 10-updates.html. */
 @Composable
 private fun SummaryCard(summary: UpdateSummary?) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
             Text(
                 stringResource(R.string.updates_summary_title),
