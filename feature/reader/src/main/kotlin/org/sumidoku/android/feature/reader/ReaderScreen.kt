@@ -94,7 +94,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -171,7 +170,7 @@ fun ReaderScreen(
         }
 
         if (state.overlay && !state.loading) {
-            ReaderOverlay(state, viewModel, onBack, landscape, canvasColor)
+            ReaderOverlay(state, viewModel, onBack, landscape)
         }
 
         if (state.chapterSheet) {
@@ -1030,20 +1029,20 @@ private fun ReaderOverlay(
     viewModel: ReaderViewModel,
     onBack: () -> Unit,
     landscape: Boolean,
-    canvasColor: Color,
 ) {
     var showQuickPanel by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
 
-    // KMReader-style floating chrome (ui/reader ReaderScreen "solid mode"):
-    // capsules tinted with the reader background colour instead of solid
-    // black bars. A 1 dp content-tinted edge keeps a capsule visible on
-    // same-coloured pages, and the gaps between capsules stay clear so
-    // taps there still turn pages.
-    val chromeContent = if (canvasColor.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White
-    val chromeScrim = canvasColor.copy(alpha = 0.88f)
+    // KMReader-style floating chrome, but Material You tinted: capsules use
+    // the theme's surfaceContainerHigh / onSurface instead of the (usually
+    // pure black) canvas colour, so they follow the app theme on any reader
+    // background. A subtle outline keeps a capsule visible on same-coloured
+    // pages, and the gaps between capsules stay clear so taps there still
+    // turn pages.
+    val chromeContent = MaterialTheme.colorScheme.onSurface
+    val chromeScrim = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
     val capsuleShape = RoundedCornerShape(24.dp)
-    val capsuleBorder = BorderStroke(1.dp, chromeContent.copy(alpha = 0.25f))
+    val capsuleBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
         // ---- top: left capsule (back + incognito + title) ----
