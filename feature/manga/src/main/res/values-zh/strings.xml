@@ -57,6 +57,7 @@
     <string name="manga_status_chapters">%1$s · %2$d 话</string>
     <string name="manga_resume_page">继续阅读 · 第 %1$d 页</string>
     <string name="manga_resume">继续阅读</string>
+    <string name="manga_start_reading">开始阅读</string>
     <string name="manga_no_chapters">无章节</string>
     <string name="manga_remove_from_library">移出书库</string>
     <string name="manga_add_to_library">加入书库</string>

@@ -178,8 +178,14 @@ fun MangaScreen(
                     onClick = { if (manga.id > 0) onOpenChapter(manga.id, resume.id) },
                     icon = { Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null) },
                     text = {
+                        // "Start reading" until any chapter has progress;
+                        // after that it is a resume (with the page number
+                        // when the chapter was left mid-way).
+                        val hasProgress = state.chapters.any { it.isRead || it.lastPageRead > 0 }
                         Text(
-                            if (resume.lastPageRead > 0 && !resume.isRead) {
+                            if (!hasProgress) {
+                                stringResource(R.string.manga_start_reading)
+                            } else if (resume.lastPageRead > 0 && !resume.isRead) {
                                 stringResource(R.string.manga_resume_page, resume.lastPageRead + 1)
                             } else {
                                 stringResource(R.string.manga_resume)
@@ -970,7 +976,10 @@ private fun MangaHeader(
             Button(onClick = onResume, enabled = state.resumeChapter != null, modifier = Modifier.weight(1f)) {
                 Text(
                     state.resumeChapter?.let { ch ->
-                        if (ch.lastPageRead > 0 && !ch.isRead) {
+                        val hasProgress = state.chapters.any { it.isRead || it.lastPageRead > 0 }
+                        if (!hasProgress) {
+                            stringResource(R.string.manga_start_reading)
+                        } else if (ch.lastPageRead > 0 && !ch.isRead) {
                             stringResource(R.string.manga_resume_page, ch.lastPageRead + 1)
                         } else {
                             stringResource(R.string.manga_resume)

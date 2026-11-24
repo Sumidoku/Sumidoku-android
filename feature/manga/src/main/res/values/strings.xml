@@ -57,6 +57,7 @@
     <string name="manga_status_chapters">%1$s · %2$d chapters</string>
     <string name="manga_resume_page">Resume · page %1$d</string>
     <string name="manga_resume">Resume</string>
+    <string name="manga_start_reading">Start reading</string>
     <string name="manga_no_chapters">No chapters</string>
     <string name="manga_remove_from_library">Remove from library</string>
     <string name="manga_add_to_library">Add to library</string>
