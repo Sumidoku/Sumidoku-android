@@ -203,11 +203,8 @@ fun BrowseScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                // Design 03: a tappable search field at the top of the list; the
-                // real search lives in SearchScreen, so this only forwards the tap.
-                item(key = "searchbar") {
-                    BrowseSearchBar(onClick = onSearch)
-                }
+                // No in-list search bar: the top bar search icon is the only
+                // entry to cross-source search.
                 if (state.updatable.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.browse_updatable_section, state.updatable.size)) }
                     items(state.updatable, key = { "u${it.id}" }) { source ->
@@ -271,33 +268,6 @@ fun BrowseScreen(
                 showPinOrder = false
                 viewModel.savePinOrder(ids)
             },
-        )
-    }
-}
-
-@Composable
-private fun BrowseSearchBar(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Outlined.Search,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            stringResource(R.string.browse_search_placeholder),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
