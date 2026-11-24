@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -181,7 +182,17 @@ fun ReaderScreen(
     CoverSeedTheme(coverTint) {
     Box(Modifier.fillMaxSize().background(canvasColor)) {
         when {
-            state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.loading -> Box(
+                Modifier
+                    .fillMaxSize()
+                    // Taps still toggle the chrome while loading so a stuck
+                    // load never traps the user without a back/retry entry.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { viewModel.toggleOverlay() },
+                contentAlignment = Alignment.Center,
+            ) {
                 CircularProgressIndicator()
             }
             state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -194,7 +205,9 @@ fun ReaderScreen(
             else -> PagedReaderBody(state, viewModel, landscape)
         }
 
-        if (state.overlay && !state.loading) {
+        // Also drawn during loading: the overlay is the only way out (back /
+        // chapters / settings) when a chapter load stalls.
+        if (state.overlay) {
             ReaderOverlay(state, viewModel, onBack, landscape)
         }
 

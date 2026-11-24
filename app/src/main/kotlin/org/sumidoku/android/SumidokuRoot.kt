@@ -221,7 +221,10 @@ private fun MainTabs(
                 // rail items centred vertically instead of pinned to the top.
                 NavigationRail {
                     Column(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        // No fillMaxWidth here: under the rail's loose
+                        // measurement it would stretch the whole rail to the
+                        // parent's full width and starve the content pane.
+                        modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
