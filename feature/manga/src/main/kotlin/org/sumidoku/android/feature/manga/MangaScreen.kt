@@ -50,7 +50,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -367,19 +367,20 @@ fun MangaScreen(
                                 runCatching { computeCoverTint(bitmap) }.getOrNull()?.let { coverTint = it }
                             },
                             )
+                            // Tracker links live inside the backdrop too, so
+                            // the gradient can fade out underneath them
+                            // instead of cutting off at the header edge.
+                            TrackerSection(
+                                links = meta.links.orEmpty(),
+                                remotes = meta.remoteStates,
+                                onOpen = { link -> viewModel.openLinkEditor(link) },
+                                onManage = {
+                                    viewModel.loadLinks()
+                                    activeSheet = MangaSheet.Links
+                                },
+                            )
                             }
                         }
-                    }
-                    item {
-                        TrackerSection(
-                            links = meta.links.orEmpty(),
-                            remotes = meta.remoteStates,
-                            onOpen = { link -> viewModel.openLinkEditor(link) },
-                            onManage = {
-                                viewModel.loadLinks()
-                                activeSheet = MangaSheet.Links
-                            },
-                        )
                     }
                 }
                 val chapterPane: LazyListScope.() -> Unit = {
@@ -885,10 +886,13 @@ private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
         modifier = Modifier
             .matchParentSize()
             .blur(7.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            .alpha(0.2f),
+            // 0.35 (not komikku's 0.2): our surfaceTint is strongly hued,
+            // so the cover needs more presence or every backdrop looks the
+            // same colour.
+            .alpha(0.35f),
         contentScale = ContentScale.Crop,
     )
-    Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.4f)))
+    Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.2f)))
     val background = MaterialTheme.colorScheme.background
     Box(
         Modifier
@@ -987,7 +991,7 @@ private fun MangaHeader(
                     } ?: stringResource(R.string.manga_no_chapters),
                 )
             }
-            OutlinedButton(onClick = onToggleLibrary, modifier = Modifier.weight(1f)) {
+            FilledTonalButton(onClick = onToggleLibrary, modifier = Modifier.weight(1f)) {
                 Text(if (manga.inLibrary) stringResource(R.string.manga_remove_from_library) else stringResource(R.string.manga_add_to_library))
             }
         }
