@@ -102,6 +102,8 @@
     <string name="reader_brightness">亮度</string>
     <string name="reader_grayscale">灰度</string>
     <string name="reader_sepia">棕褐</string>
+    <string name="reader_double_tap_zoom">双击缩放</string>
+    <string name="reader_double_tap_zoom_hint">双击页面时放大的倍率（1–8 倍）。</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">阅读器默认</string>

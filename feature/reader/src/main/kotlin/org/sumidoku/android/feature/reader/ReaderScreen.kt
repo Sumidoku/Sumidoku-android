@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -120,6 +121,7 @@ import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.ChapterWithDownload
@@ -393,6 +395,7 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
                     tapZones = state.tapZones,
                     rtl = rtl,
                     pageScale = state.scale,
+                    doubleTapZoom = state.doubleTapZoom,
                     colorFilter = readerColorFilter(state),
                     onZoomChange = { zoomed = it },
                     onTapLeft = pageBack,
@@ -745,6 +748,7 @@ private fun ReaderPage(
     tapZones: String,
     rtl: Boolean,
     pageScale: String,
+    doubleTapZoom: Float,
     colorFilter: ColorFilter?,
     onZoomChange: (Boolean) -> Unit,
     onTapLeft: () -> Unit,
@@ -789,20 +793,56 @@ private fun ReaderPage(
             )
             return@Box
         }
+        // KMReader parity: one modifier hosts both detectors — taps resolve
+        // their zone from the touch position, a double tap toggles between 1x
+        // and the configured multiplier, and pinch pans while zoomed. The
+        // applied scale is animated so the double-tap glides instead of
+        // snapping (pinch deltas are tiny, so the spring still tracks 1:1).
+        val appliedScale by animateFloatAsState(
+            targetValue = if (scale > 1.01f) scale else 1f,
+            label = "readerZoom",
+        )
         val imageModifier = if (crop == 0) {
             Modifier
                 .fillMaxSize()
-                .pointerInput(page.index) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        val newScale = (scale * zoom).coerceIn(1f, 4f)
-                        scale = newScale
-                        offset = if (scale > 1f) offset + pan else Offset.Zero
-                        onZoomChange(scale > 1.01f)
+                .pointerInput(page.index, tapZones, rtl, doubleTapZoom) {
+                    coroutineScope {
+                        launch {
+                            detectTapGestures(
+                                onTap = { pos ->
+                                    // A zoomed page is panned, never turned.
+                                    if (scale > 1.01f) return@detectTapGestures
+                                    when (tapZoneAction(tapZones, rtl, pos.x / size.width, pos.y / size.height)) {
+                                        TapZoneAction.PREV -> onTapLeft()
+                                        TapZoneAction.MENU -> onTapCenter()
+                                        TapZoneAction.NEXT -> onTapRight()
+                                        null -> Unit
+                                    }
+                                },
+                                onDoubleTap = {
+                                    scale = if (scale > 1.01f) {
+                                        offset = Offset.Zero
+                                        1f
+                                    } else {
+                                        doubleTapZoom.coerceIn(1f, 8f)
+                                    }
+                                    onZoomChange(scale > 1.01f)
+                                },
+                            )
+                        }
+                        launch {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val newScale = (scale * zoom).coerceIn(1f, 4f)
+                                scale = newScale
+                                offset = if (scale > 1f) offset + pan else Offset.Zero
+                                onZoomChange(scale > 1.01f)
+                            }
+                        }
                     }
                 }
                 .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
+                    scaleX = appliedScale
+                    scaleY = appliedScale
                     translationX = offset.x
                     translationY = offset.y
                 }
@@ -819,6 +859,14 @@ private fun ReaderPage(
         }
         if (textPage != null) {
             TextPageContent(textPage, fillWidth = false)
+            // Text pages never zoom, so they keep the simple zone overlay.
+            TapZoneOverlay(
+                layout = tapZones,
+                rtl = rtl,
+                onPrev = onTapLeft,
+                onMenu = onTapCenter,
+                onNext = onTapRight,
+            )
         } else {
             ReaderImage(
                 url = url,
@@ -828,14 +876,35 @@ private fun ReaderPage(
                 colorFilter = colorFilter,
             )
         }
-        if (scale <= 1.01f) {
-            TapZoneOverlay(
-                layout = tapZones,
-                rtl = rtl,
-                onPrev = onTapLeft,
-                onMenu = onTapCenter,
-                onNext = onTapRight,
-            )
+    }
+}
+
+private enum class TapZoneAction { PREV, MENU, NEXT }
+
+/** Position-based resolution of the tap zones, mirroring TapZoneOverlay's
+ *  geometry (single detector, so zone taps and double-tap zoom share one
+ *  surface and never double-fire). */
+private fun tapZoneAction(layout: String, rtl: Boolean, x: Float, y: Float): TapZoneAction? = when (layout) {
+    "off" -> null
+    "kindle" -> when {
+        y < 0.25f -> TapZoneAction.MENU
+        x < 0.25f -> if (rtl) TapZoneAction.NEXT else TapZoneAction.PREV
+        else -> if (rtl) TapZoneAction.PREV else TapZoneAction.NEXT
+    }
+    "edge" -> {
+        val leftIsPrev = !rtl
+        when {
+            x < 0.15f -> if (leftIsPrev) TapZoneAction.PREV else TapZoneAction.NEXT
+            x > 0.85f -> if (leftIsPrev) TapZoneAction.NEXT else TapZoneAction.PREV
+            else -> TapZoneAction.MENU
+        }
+    }
+    else -> {
+        val leftIsPrev = (layout != "rl") != rtl
+        when {
+            x < 0.3f -> if (leftIsPrev) TapZoneAction.PREV else TapZoneAction.NEXT
+            x > 0.7f -> if (leftIsPrev) TapZoneAction.NEXT else TapZoneAction.PREV
+            else -> TapZoneAction.MENU
         }
     }
 }
@@ -1755,6 +1824,22 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             if (state.tapZones != "off") {
                 TapZonePreview(layout = state.tapZones, rtl = state.dir == "rtl")
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_double_tap_zoom),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "%.1fx".format(state.doubleTapZoom),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Slider(
+                value = state.doubleTapZoom,
+                onValueChange = { viewModel.setDoubleTapZoom(it) },
+                valueRange = 1f..8f,
+            )
 
             HorizontalDivider()
             Text(stringResource(R.string.reader_page_scale), style = MaterialTheme.typography.titleSmall)

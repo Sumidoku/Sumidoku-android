@@ -28,6 +28,7 @@ enum class ReaderField(val key: String, val fallback: String) {
     BRIGHT("bright", "1"),        // 0.5–1.5
     GRAY("gray", "false"),
     SEPIA("sepia", "false"),
+    DTZOOM("dtzoom", "3"),      // double-tap zoom multiplier, 1–8x
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -43,6 +44,7 @@ data class ReaderPrefs(
     val brightness: Float = 1f,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
+    val doubleTapZoom: Float = 3f,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
@@ -58,6 +60,7 @@ data class ReaderPrefs(
         ReaderField.BRIGHT -> brightness.toString()
         ReaderField.GRAY -> grayscale.toString()
         ReaderField.SEPIA -> sepia.toString()
+        ReaderField.DTZOOM -> doubleTapZoom.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -75,6 +78,7 @@ data class ReaderPrefs(
             ReaderField.BRIGHT -> copy(brightness = raw.toFloatOrNull()?.coerceIn(0.5f, 1.5f) ?: brightness)
             ReaderField.GRAY -> copy(grayscale = raw.toBoolean())
             ReaderField.SEPIA -> copy(sepia = raw.toBoolean())
+            ReaderField.DTZOOM -> copy(doubleTapZoom = raw.toFloatOrNull()?.coerceIn(1f, 8f) ?: doubleTapZoom)
         }
     }
 

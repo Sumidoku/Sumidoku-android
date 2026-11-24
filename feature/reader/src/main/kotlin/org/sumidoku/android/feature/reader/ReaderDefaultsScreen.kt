@@ -132,6 +132,22 @@ fun ReaderDefaultsScreen(
                 onSelect = viewModel::setTapZones,
             )
 
+            SectionTitle(stringResource(R.string.reader_double_tap_zoom))
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("%.1fx".format(state.doubleTapZoom), style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.Slider(
+                    value = state.doubleTapZoom,
+                    onValueChange = viewModel::setDoubleTapZoom,
+                    valueRange = 1f..8f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Caption(stringResource(R.string.reader_double_tap_zoom_hint))
+
             SectionTitle(stringResource(R.string.reader_page_scale))
             ChipRow(
                 options = listOf(

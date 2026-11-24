@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.SettingsApi
 import org.sumidoku.android.core.api.model.ChapterSort
@@ -54,6 +55,8 @@ data class ReaderUiState(
     val tapZones: String = ReaderField.TAP.fallback,
     val background: String = ReaderField.BG.fallback,
     val brightness: Float = 1f,
+    /** Double-tap zoom multiplier (1–8x), global-only like the filters. */
+    val doubleTapZoom: Float = 3f,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
     /** manga.viewer metadata driving dir/mode until the manga is overridden. */
@@ -115,6 +118,7 @@ class ReaderViewModel @Inject constructor(
 
     private var progressJob: Job? = null
     private var brightnessJob: Job? = null
+    private var doubleTapZoomJob: Job? = null
     /** Tier B: extracted local page files for the open chapter, when a
      *  finished on-device copy exists — the reader serves these instead
      *  of network URLs, which is what makes offline reading work. */
@@ -183,6 +187,7 @@ class ReaderViewModel @Inject constructor(
             tapZones = (overrideRaw[ReaderField.TAP] ?: global.tapZones),
             background = (overrideRaw[ReaderField.BG] ?: global.background),
             brightness = merged.brightness,
+            doubleTapZoom = merged.doubleTapZoom,
             grayscale = (overrideRaw[ReaderField.GRAY] ?: global.raw(ReaderField.GRAY)).toBoolean(),
             sepia = (overrideRaw[ReaderField.SEPIA] ?: global.raw(ReaderField.SEPIA)).toBoolean(),
             viewer = viewer,
@@ -382,6 +387,18 @@ class ReaderViewModel @Inject constructor(
         brightnessJob = viewModelScope.launch {
             delay(250)
             settingsStore.setGlobal(ReaderField.BRIGHT, clamped.toString())
+        }
+    }
+
+    /** KMReader parity: double-tap zoom multiplier, 1–8x in 0.5 steps. Same
+     *  immediate-state + debounced-write pattern as the brightness slider. */
+    fun setDoubleTapZoom(value: Float) {
+        val snapped = ((value * 2f).roundToInt() / 2f).coerceIn(1f, 8f)
+        _state.value = _state.value.copy(doubleTapZoom = snapped)
+        doubleTapZoomJob?.cancel()
+        doubleTapZoomJob = viewModelScope.launch {
+            delay(250)
+            settingsStore.setGlobal(ReaderField.DTZOOM, snapped.toString())
         }
     }
 

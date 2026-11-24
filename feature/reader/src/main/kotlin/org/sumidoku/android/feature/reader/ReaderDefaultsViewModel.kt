@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 /**
  * Global reader defaults (preview 24-reader-settings.html): the same fields the
@@ -25,6 +26,7 @@ data class ReaderDefaultsState(
     val tapZones: String = "lr",
     val background: String = "dark",
     val brightness: Float = 1f,
+    val doubleTapZoom: Float = 3f,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
 )
@@ -50,6 +52,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 tapZones = prefs.tapZones,
                 background = prefs.background,
                 brightness = prefs.brightness,
+                doubleTapZoom = prefs.doubleTapZoom,
                 grayscale = prefs.grayscale,
                 sepia = prefs.sepia,
             )
@@ -65,6 +68,11 @@ class ReaderDefaultsViewModel @Inject constructor(
     fun setBrightness(value: Float) {
         _state.value = _state.value.copy(brightness = value)
         write(ReaderField.BRIGHT, value.toString())
+    }
+    fun setDoubleTapZoom(value: Float) {
+        val snapped = ((value * 2f).roundToInt() / 2f).coerceIn(1f, 8f)
+        _state.value = _state.value.copy(doubleTapZoom = snapped)
+        write(ReaderField.DTZOOM, snapped.toString())
     }
     fun setGrayscale(value: Boolean) = write(ReaderField.GRAY, value.toString())
     fun setSepia(value: Boolean) = write(ReaderField.SEPIA, value.toString())
@@ -110,6 +118,7 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.TAP -> copy(tapZones = raw)
     ReaderField.BG -> copy(background = raw)
     ReaderField.BRIGHT -> copy(brightness = raw.toFloatOrNull() ?: brightness)
+    ReaderField.DTZOOM -> copy(doubleTapZoom = raw.toFloatOrNull() ?: doubleTapZoom)
     ReaderField.GRAY -> copy(grayscale = raw.toBooleanStrictOrNull() ?: grayscale)
     ReaderField.SEPIA -> copy(sepia = raw.toBooleanStrictOrNull() ?: sepia)
 }

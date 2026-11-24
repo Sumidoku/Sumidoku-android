@@ -102,6 +102,8 @@
     <string name="reader_brightness">Brightness</string>
     <string name="reader_grayscale">Grayscale</string>
     <string name="reader_sepia">Sepia</string>
+    <string name="reader_double_tap_zoom">Double-tap zoom</string>
+    <string name="reader_double_tap_zoom_hint">Zoom multiplier applied when double-tapping a page (1–8x).</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">Reader defaults</string>
