@@ -27,10 +27,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -41,6 +41,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -158,42 +159,75 @@ fun SourceSettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-            ) {
-                // Local sources get the webui LocalSourcePanel actions:
-                // re-scan the configured directories (queued as a task).
-                if (state.source?.kind == Source.Kind.LOCAL) {
-                    item(key = "__scan_local__") {
-                        ListItem(
-                            headlineContent = { Text(stringResource(R.string.source_scan_local)) },
-                            supportingContent = {
-                                Text(stringResource(R.string.source_scan_local_subtitle))
-                            },
-                            trailingContent = {
-                                TextButton(onClick = { viewModel.scanLocal() }) {
-                                    Text(stringResource(R.string.source_scan))
-                                }
-                            },
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            else -> {
+                // App-settings/komikku parity: visible settings cluster into
+                // rounded surfaceContainerLow cards — one card per group,
+                // contiguous ungrouped rows sharing one card, no dividers.
+                val cards = remember(settings.settings, state.values) {
+                    val visible = settings.settings.filter { it.visibleIn(state.values) }
+                    val result = mutableListOf<List<SourceSetting>>()
+                    var run = mutableListOf<SourceSetting>()
+                    visible.forEach { s ->
+                        if (s.`value`?.group != null) {
+                            if (run.isNotEmpty()) { result += run.toList(); run = mutableListOf() }
+                            result += listOf(s)
+                        } else {
+                            run += s
+                        }
                     }
+                    if (run.isNotEmpty()) result += run.toList()
+                    result.toList()
                 }
-                items(settings.settings, key = { it.key }) { setting ->
-                    if (setting.visibleIn(state.values)) {
-                        SettingRow(
-                            setting,
-                            state.values,
-                            SettingActions(
-                                onChange = viewModel::updateValue,
-                                basicLogin = viewModel::basicLogin,
-                                webLogin = viewModel::webLogin,
-                                startOauth = viewModel::startOauth,
-                                completeOauth = viewModel::completeOauth,
-                                logout = viewModel::logout,
-                                pressButton = viewModel::pressButton,
-                            ),
-                        )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                ) {
+                    // Local sources get the webui LocalSourcePanel actions:
+                    // re-scan the configured directories (queued as a task).
+                    if (state.source?.kind == Source.Kind.LOCAL) {
+                        item(key = "__scan_local__") {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = RoundedCornerShape(24.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                            ) {
+                                ListItem(
+                                    headlineContent = { Text(stringResource(R.string.source_scan_local)) },
+                                    supportingContent = {
+                                        Text(stringResource(R.string.source_scan_local_subtitle))
+                                    },
+                                    trailingContent = {
+                                        TextButton(onClick = { viewModel.scanLocal() }) {
+                                            Text(stringResource(R.string.source_scan))
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    items(cards, key = { it.first().key }) { card ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        ) {
+                            Column(Modifier.padding(vertical = 8.dp)) {
+                                card.forEach { setting ->
+                                    SettingRow(
+                                        setting,
+                                        state.values,
+                                        SettingActions(
+                                            onChange = viewModel::updateValue,
+                                            basicLogin = viewModel::basicLogin,
+                                            webLogin = viewModel::webLogin,
+                                            startOauth = viewModel::startOauth,
+                                            completeOauth = viewModel::completeOauth,
+                                            logout = viewModel::logout,
+                                            pressButton = viewModel::pressButton,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -624,7 +658,6 @@ private fun SettingRow(
                 )
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
