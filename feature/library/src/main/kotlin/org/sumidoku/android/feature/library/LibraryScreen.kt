@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1050,27 +1051,52 @@ private fun CompactCell(entry: LibraryEntry, ctx: CellContext) {
             .combinedClickable(onClick = ctx.onClick, onLongClick = ctx.onLongClick),
     ) {
         CoverImage(entry, ctx.profile, Modifier.fillMaxSize())
+        // komikku CoverTextOverlay / KMReader CardTextOverlay parity: the
+        // bottom third deepens to ~85% black and the title is explicit white
+        // with a shadow — readable on any cover. The download mark trails
+        // the title line (KMReader) instead of a corner chip.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .fillMaxHeight(0.4f)
                 .background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f))),
-                )
-                .padding(start = 7.dp, end = 7.dp, top = 22.dp, bottom = 6.dp),
-        ) {
-            Text(
-                entry.title,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.5.sp,
-                    lineHeight = 15.5.sp,
-                    shadow = Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 3f),
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        1.0f to Color.Black.copy(alpha = 0.85f),
+                    ),
                 ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(start = 7.dp, end = 7.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.5.sp,
+                        shadow = Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 3f),
+                    ),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (ctx.display.badgeDownload && entry.id in ctx.downloads) {
+                    Icon(
+                        Icons.Outlined.Download,
+                        contentDescription = stringResource(R.string.library_downloaded),
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.padding(start = 4.dp).size(14.dp),
+                    )
+                }
+            }
         }
-        if (ctx.selectionMode) SelectionMark(ctx.selected, Modifier.align(Alignment.TopStart)) else CoverMarks(entry, ctx)
+        if (ctx.selectionMode) SelectionMark(ctx.selected, Modifier.align(Alignment.TopStart)) else CoverMarks(entry, ctx, showDownload = false)
     }
 }
 
@@ -1196,9 +1222,10 @@ private fun SelectionMark(selected: Boolean, modifier: Modifier = Modifier) {
 
 /** Cover marks: unread count top-right, download/source top-left (design 02).
  *  Stacked so a manga that is both downloaded and from a foreign source never
- *  draws two marks on top of each other. */
+ *  draws two marks on top of each other. showDownload=false when the cell
+ *  draws the download mark inside the title overlay (compact form). */
 @Composable
-private fun BoxScope.CoverMarks(entry: LibraryEntry, ctx: CellContext) {
+private fun BoxScope.CoverMarks(entry: LibraryEntry, ctx: CellContext, showDownload: Boolean = true) {
     if (ctx.display.badgeUnread && entry.unreadCount > 0) {
         Surface(
             color = MaterialTheme.colorScheme.primary,
@@ -1218,12 +1245,12 @@ private fun BoxScope.CoverMarks(entry: LibraryEntry, ctx: CellContext) {
         modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (ctx.display.badgeDownload && entry.id in ctx.downloads) {
+        if (showDownload && ctx.display.badgeDownload && entry.id in ctx.downloads) {
             Surface(color = Color.Black.copy(alpha = 0.55f), shape = RoundedCornerShape(6.dp)) {
                 Icon(
                     Icons.Outlined.Download,
                     contentDescription = stringResource(R.string.library_downloaded),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color.White.copy(alpha = 0.9f),
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp).size(13.dp),
                 )
             }
