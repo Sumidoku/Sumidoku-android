@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,7 +75,6 @@ import org.sumidoku.android.core.model.ServerProfile
 @Composable
 fun UpdatesScreen(
     onOpenManga: (Long) -> Unit,
-    onOpenDownloads: () -> Unit,
     viewModel: UpdatesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,12 +99,6 @@ fun UpdatesScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.updates_title)) },
                 actions = {
-                    IconButton(onClick = onOpenDownloads) {
-                        Icon(
-                            Icons.Outlined.CloudDownload,
-                            contentDescription = stringResource(R.string.updates_downloads),
-                        )
-                    }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(
                             Icons.Outlined.Refresh,

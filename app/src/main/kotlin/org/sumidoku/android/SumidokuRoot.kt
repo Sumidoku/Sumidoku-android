@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
@@ -132,6 +133,7 @@ private val tabs = listOf(
     Tab("browse", R.string.tab_browse, Icons.Outlined.Explore),
     Tab("updates", R.string.tab_updates, Icons.Outlined.NewReleases),
     Tab("history", R.string.tab_history, Icons.Outlined.History),
+    Tab("downloads", R.string.tab_downloads, Icons.Outlined.CloudDownload),
     Tab("search", R.string.tab_search, Icons.Outlined.Search),
     Tab("settings", R.string.tab_settings, Icons.Outlined.Settings),
 )
@@ -364,13 +366,13 @@ private fun MainTabs(
             composable("updates") {
                 UpdatesScreen(
                     onOpenManga = { innerNav.navigate("manga/$it") },
-                    onOpenDownloads = { innerNav.navigate("downloads") },
                 )
             }
             composable("downloads") {
                 DownloadsScreen(
                     onBack = { innerNav.popBackStack() },
                     onOpenCache = { innerNav.navigate("cache") },
+                    showBack = false,
                 )
             }
             composable("history") {

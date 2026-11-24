@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -47,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +66,7 @@ import org.sumidoku.android.core.common.relativeEpochMs
 fun DownloadsScreen(
     onBack: () -> Unit,
     onOpenCache: () -> Unit = {},
+    showBack: Boolean = true,
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -83,11 +87,13 @@ fun DownloadsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.downloads_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.downloads_back),
-                        )
+                    if (showBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.downloads_back),
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -294,8 +300,15 @@ private fun LocalDownloadRow(
     onRemove: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    ListItem(
-        leadingContent = {
+    // Same rounded card as ChapterCacheCard instead of an edge-to-edge row.
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = {
             when (row.status) {
                 "done" -> Icon(
                     Icons.Outlined.CheckCircle,
@@ -336,7 +349,8 @@ private fun LocalDownloadRow(
                 }
             }
         },
-    )
+        )
+    }
 }
 
 private fun formatBytes(bytes: Long): String = when {
@@ -347,8 +361,15 @@ private fun formatBytes(bytes: Long): String = when {
 
 @Composable
 private fun DownloadRow(download: Download, onDelete: () -> Unit, onRetry: () -> Unit) {
-    ListItem(
-        leadingContent = {
+    // Same rounded card as ChapterCacheCard instead of an edge-to-edge row.
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = {
             Icon(statusIcon(download.status), contentDescription = null, tint = statusTint(download.status))
         },
         headlineContent = {
@@ -401,7 +422,8 @@ private fun DownloadRow(download: Download, onDelete: () -> Unit, onRetry: () ->
                 }
             }
         },
-    )
+        )
+    }
 }
 
 private fun statusIcon(status: DownloadStatus): ImageVector = when (status) {

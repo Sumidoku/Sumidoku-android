@@ -3,6 +3,7 @@
     <string name="tab_browse">浏览</string>
     <string name="tab_updates">更新</string>
     <string name="tab_history">历史</string>
+    <string name="tab_downloads">下载</string>
     <string name="tab_search">搜索</string>
     <string name="tab_settings">设置</string>
     <string name="update_channel_name">章节更新</string>
