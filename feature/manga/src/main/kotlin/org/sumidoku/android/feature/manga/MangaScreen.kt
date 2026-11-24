@@ -114,6 +114,9 @@ import org.sumidoku.android.core.api.model.TrackerLink
 import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.common.chapterLabel
 import org.sumidoku.android.core.common.coverUrl
+import org.sumidoku.android.core.data.ChapterListSort
+import org.sumidoku.android.core.data.ChapterPrefs
+import org.sumidoku.android.core.data.Tri
 import org.sumidoku.android.core.common.sourceImageUrl
 import org.sumidoku.android.core.common.chapterLabel
 import org.sumidoku.android.core.common.entryCoverUrl
@@ -907,7 +910,11 @@ private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
                 drawRect(
                     Brush.verticalGradient(
                         colors = listOf(Color.Transparent, background),
-                        startY = size.height / 2,
+                        // Start the fade a bit above the halfway mark so the
+                        // blur texture dies out before the backdrop's bottom
+                        // edge instead of being cut off right under the last
+                        // tracker pill.
+                        startY = size.height * 0.35f,
                         endY = size.height,
                     ),
                 )
@@ -1393,7 +1400,9 @@ private fun TrackerSection(
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        // Generous bottom space: the backdrop gradient finishes fading in
+        // this empty band, so the pills never sit on the visible cut edge.
+        Spacer(Modifier.height(28.dp))
     }
 }
 

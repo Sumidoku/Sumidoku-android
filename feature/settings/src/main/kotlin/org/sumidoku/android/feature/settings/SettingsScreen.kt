@@ -36,7 +36,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -420,11 +419,13 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                             selected = active,
                             onClick = { viewModel.setTheme(value) },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                            // No check icon: four segments in the 360dp hub
-                            // pane leave no room for it and labels clip.
+                            // No check icon and tight padding: four segments
+                            // in the 360dp hub pane leave no room for either
+                            // and labels clip.
                             icon = {},
+                            contentPadding = PaddingValues(horizontal = 6.dp),
                         ) {
-                            Text(label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                            Text(label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -451,10 +452,9 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
     )
 }
 
-/** Incognito reading switch: belongs to the same General group as Appearance
- *  in the webui (SettingsPage.tsx:2532-2537), so it lives under the Appearance
- *  section here rather than in server settings; toggling immediately PUTs the
- *  server setting (detail pages can still override per manga). */
+/** Incognito reading switch: app-local (device-only, no server round-trip),
+ *  so it lives under the Appearance section rather than in server settings;
+ *  manga detail pages can still override per manga. */
 @Composable
 private fun IncognitoRow(viewModel: IncognitoViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
@@ -462,21 +462,13 @@ private fun IncognitoRow(viewModel: IncognitoViewModel = hiltViewModel()) {
         leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
         headlineContent = { Text(stringResource(R.string.settings_incognito)) },
         supportingContent = {
-            Text(
-                state.error ?: stringResource(R.string.settings_incognito_subtitle),
-                color = if (state.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(stringResource(R.string.settings_incognito_subtitle))
         },
         trailingContent = {
-            if (state.loading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-            } else {
-                Switch(
-                    checked = state.enabled,
-                    enabled = !state.busy,
-                    onCheckedChange = { viewModel.setEnabled(it) },
-                )
-            }
+            Switch(
+                checked = state.enabled,
+                onCheckedChange = { viewModel.setEnabled(it) },
+            )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
