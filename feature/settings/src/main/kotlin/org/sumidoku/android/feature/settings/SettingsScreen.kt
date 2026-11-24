@@ -66,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 enum class SettingsPage {
     ReaderDefaults,
     Repos,
+    Servers,
     Trackers,
     Backups,
     ApiKeys,
@@ -220,13 +221,12 @@ private fun SettingsHub(
             }
             item { SectionHeader(stringResource(R.string.settings_section_server)) }
             item {
-                // Server management is a multi-step flow (list + edit), so it
-                // keeps full-screen navigation even in the split layout.
                 SettingsRow(
                     icon = Icons.Outlined.Dns,
                     title = stringResource(R.string.settings_manage_servers),
                     subtitle = stringResource(R.string.settings_manage_servers_subtitle),
-                    onClick = onManageServers,
+                    selected = selectedPage == SettingsPage.Servers,
+                    onClick = { open(SettingsPage.Servers, onManageServers) },
                 )
             }
             item {

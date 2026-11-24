@@ -70,7 +70,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
@@ -111,6 +110,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import kotlinx.coroutines.flow.collectLatest
+import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.Category
 import org.sumidoku.android.core.api.model.LibraryEntry
 import org.sumidoku.android.core.api.model.LibraryFilter
@@ -301,7 +301,7 @@ fun LibraryScreen(
     }
 
     if (showCategorySheet) {
-        ModalBottomSheet(onDismissRequest = { showCategorySheet = false }) {
+        AppModalDialog(onDismissRequest = { showCategorySheet = false }) {
             CategorySheetContent(
                 state = state,
                 onCycleCategory = { viewModel.cycleCategory(it) },
@@ -313,7 +313,7 @@ fun LibraryScreen(
     }
 
     if (showFilterSheet) {
-        ModalBottomSheet(
+        AppModalDialog(
             onDismissRequest = {
                 showFilterSheet = false
                 sheetDimension = null
@@ -348,7 +348,7 @@ fun LibraryScreen(
     }
 
     if (showDisplaySheet) {
-        ModalBottomSheet(onDismissRequest = { showDisplaySheet = false }) {
+        AppModalDialog(onDismissRequest = { showDisplaySheet = false }) {
             DisplaySheet(
                 display = state.display,
                 landscape = landscape,
@@ -360,7 +360,7 @@ fun LibraryScreen(
     }
 
     if (showBatchCategorySheet) {
-        ModalBottomSheet(onDismissRequest = { showBatchCategorySheet = false }) {
+        AppModalDialog(onDismissRequest = { showBatchCategorySheet = false }) {
             BatchCategorySheet(
                 categories = state.categoryOptions,
                 onApply = { picked ->

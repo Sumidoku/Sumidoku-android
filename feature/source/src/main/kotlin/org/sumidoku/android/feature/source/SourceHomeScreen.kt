@@ -61,7 +61,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -105,6 +104,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.AidokuListing
 import org.sumidoku.android.core.api.model.ContentRating
 import org.sumidoku.android.core.api.model.FilterValue
@@ -711,7 +711,7 @@ private fun FilterButtons(items: List<HomeFilterItem>, onOpen: (HomeFilterItem) 
         }
     }
     if (sheetOpen) {
-        ModalBottomSheet(onDismissRequest = { sheetOpen = false }) {
+        AppModalDialog(onDismissRequest = { sheetOpen = false }) {
             Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
                 items.forEach { item ->
                     Row(
@@ -1114,7 +1114,7 @@ private fun FilterPanelSheet(
     onDismiss: () -> Unit,
 ) {
     var saveDialogOpen by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth()
                 .verticalScroll(rememberScrollState())

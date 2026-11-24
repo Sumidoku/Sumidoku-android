@@ -1,4 +1,4 @@
-package org.sumidoku.android.feature.reader
+package org.sumidoku.android.core.ui
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,10 +24,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 /**
- * Centred modal card for the reader's popups (chapters / quick panel /
- * settings), mirroring KMReader's `AppModalDialog`: a floating card instead
- * of a bottom sheet, so the popup looks identical on phones and tablets and
- * never stretches edge-to-edge on wide windows.
+ * Centred modal card shared by every popup in the app, mirroring KMReader's
+ * `AppModalDialog`: a floating card instead of a bottom sheet, so popups look
+ * identical on phones and tablets and never stretch edge-to-edge on wide
+ * windows.
  *
  * The card is at most 640 dp wide, rounded 28 dp, sits on
  * `surfaceContainerHigh` (a dialog must read lighter than the dimmed page
@@ -35,7 +35,7 @@ import androidx.compose.ui.window.DialogProperties
  * content up to the safe window area — tall bodies scroll themselves.
  */
 @Composable
-internal fun ReaderDialog(
+fun AppModalDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,

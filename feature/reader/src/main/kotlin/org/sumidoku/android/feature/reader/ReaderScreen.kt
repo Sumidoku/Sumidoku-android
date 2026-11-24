@@ -126,6 +126,7 @@ import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.ui.AppModalDialog
 
 /** Reader (design previews 07 paged / 08 webtoon / 24 settings /
  *  25 chapters / 39 spread / 40 transition / 41 quick panel).
@@ -949,8 +950,12 @@ private fun SpreadPage(
 ) {
     Box(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
-            pages.forEach { page ->
-                Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
+            pages.forEachIndexed { index, page ->
+                // Push each page image to the outer edge of its half so the
+                // two pages of a spread meet at the centre gutter (KMReader
+                // does the same; RTL flips Start/End automatically).
+                val edgeAlignment = if (index == 0) Alignment.CenterStart else Alignment.CenterEnd
+                Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = edgeAlignment) {
                     val textPage = page.content.text
                     if (textPage != null) {
                         TextPageContent(textPage, fillWidth = false)
@@ -960,6 +965,7 @@ private fun SpreadPage(
                             apiKey = apiKey,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
+                            alignment = edgeAlignment,
                             colorFilter = colorFilter,
                         )
                     }
@@ -982,6 +988,7 @@ private fun ReaderImage(
     apiKey: String?,
     modifier: Modifier,
     contentScale: ContentScale,
+    alignment: Alignment = Alignment.Center,
     colorFilter: ColorFilter? = null,
 ) {
     val context = LocalContext.current
@@ -1006,6 +1013,7 @@ private fun ReaderImage(
         contentDescription = null,
         modifier = modifier,
         contentScale = contentScale,
+        alignment = alignment,
         colorFilter = colorFilter,
         onError = { failed = true },
     )
@@ -1339,7 +1347,7 @@ private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initial)
 
-    ReaderDialog(onDismissRequest = { viewModel.openChapterSheet(false) }) {
+    AppModalDialog(onDismissRequest = { viewModel.openChapterSheet(false) }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -1534,7 +1542,7 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
 
 @Composable
 private fun QuickPanelSheet(state: ReaderUiState, viewModel: ReaderViewModel, onDismiss: () -> Unit) {
-    ReaderDialog(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -1655,7 +1663,7 @@ private fun DirSection(state: ReaderUiState, viewModel: ReaderViewModel) {
 
 @Composable
 private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel, onDismiss: () -> Unit) {
-    ReaderDialog(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp).padding(bottom = 24.dp),

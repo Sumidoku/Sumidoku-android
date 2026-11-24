@@ -368,6 +368,7 @@ private fun MainTabs(
                         when (page) {
                             SettingsPage.ReaderDefaults -> ReaderDefaultsScreen(onBack = onDismiss)
                             SettingsPage.Repos -> ReposScreen(onBack = onDismiss)
+                            SettingsPage.Servers -> ServersScreen(onServerSelected = onDismiss)
                             SettingsPage.Trackers -> TrackersScreen(onBack = onDismiss)
                             SettingsPage.Backups -> BackupsScreen(onBack = onDismiss)
                             SettingsPage.ApiKeys -> ApiKeysScreen(onBack = onDismiss)

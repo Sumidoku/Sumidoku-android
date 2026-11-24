@@ -40,7 +40,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -69,6 +68,7 @@ import coil3.request.ImageRequest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.ContentRating
 import org.sumidoku.android.core.api.model.Manga
 import org.sumidoku.android.core.api.model.MangaStatus
@@ -236,7 +236,7 @@ fun CoverPickerSheet(
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             Text(stringResource(R.string.manga_change_cover), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
@@ -298,7 +298,7 @@ fun MatchMetadataSheet(
     var bind by remember { mutableStateOf(true) }
     LaunchedEffectQuery(defaultQuery, meta.matchQuery, onQuery)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             Text(stringResource(R.string.metadata_match), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
@@ -442,7 +442,7 @@ fun TrackerLinksSheet(
     var pendingRemove by remember { mutableStateOf<TrackerProvider?>(null) }
     LaunchedEffectQuery(defaultQuery, meta.linkAddQuery, onQuery)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             if (!adding) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -596,7 +596,7 @@ fun TrackerLinkEditSheet(
     onDismiss: () -> Unit,
 ) {
     var confirmUnbind by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp).padding(bottom = 24.dp),

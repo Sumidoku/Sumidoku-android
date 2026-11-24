@@ -44,7 +44,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -86,6 +85,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.toBitmap
+import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.MangaStatus
@@ -666,7 +666,7 @@ private fun MigrateSheet(
     onRun: (MigrateMode) -> Unit,
 ) {
     var mode by remember { mutableStateOf(MigrateMode.MIGRATE) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1105,7 +1105,7 @@ private fun CategoriesSheet(
     onDismiss: () -> Unit,
 ) {
     var selected by remember(selectedIds) { mutableStateOf(selectedIds) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1331,7 +1331,7 @@ private fun ChapterFilterSheet(
     val languages = chapters.mapNotNull { it.language?.takeIf(String::isNotBlank) }.distinct().sorted()
     val allScanlators = chapters.flatMap { it.scanlators.orEmpty() }.distinct().sorted()
     val hasUngrouped = chapters.any { it.scanlators.orEmpty().isEmpty() }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalDialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
