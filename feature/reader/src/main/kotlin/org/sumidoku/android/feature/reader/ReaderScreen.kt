@@ -951,10 +951,11 @@ private fun SpreadPage(
     Box(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
             pages.forEachIndexed { index, page ->
-                // Push each page image to the outer edge of its half so the
-                // two pages of a spread meet at the centre gutter (KMReader
-                // does the same; RTL flips Start/End automatically).
-                val edgeAlignment = if (index == 0) Alignment.CenterStart else Alignment.CenterEnd
+                // Push each page image towards the centre gutter of its
+                // half so the two pages of a spread join in the middle
+                // (KMReader does the same; RTL flips Start/End
+                // automatically, keeping the seam in the middle).
+                val edgeAlignment = if (index == 0) Alignment.CenterEnd else Alignment.CenterStart
                 Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = edgeAlignment) {
                     val textPage = page.content.text
                     if (textPage != null) {

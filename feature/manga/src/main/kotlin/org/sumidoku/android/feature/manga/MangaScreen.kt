@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.manga
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -517,7 +518,11 @@ fun MangaScreen(
 						)
                     }
                 }
-                val isTablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
+                // Two-panel only pays off with real horizontal room:
+                // portrait tablets stay on the single-column phone layout.
+                val configuration = LocalConfiguration.current
+                val isTablet = configuration.smallestScreenWidthDp >= 600 &&
+                    configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 if (isTablet) {
                     // Two-panel (komikku TwoPanelBox parity): the info pane
                     // takes half the width capped at 450dp, the chapter list
