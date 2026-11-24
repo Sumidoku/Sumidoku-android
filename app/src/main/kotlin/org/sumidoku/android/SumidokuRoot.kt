@@ -3,6 +3,7 @@ package org.sumidoku.android
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
@@ -21,7 +22,6 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -195,9 +195,11 @@ private fun MainTabs(
     val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
         currentWindowAdaptiveInfo(),
     )
-    NavigationSuiteScaffoldLayout(
-        layoutType = layoutType,
-        navigationSuite = {
+    // Manual scaffold instead of NavigationSuiteScaffoldLayout: the layout
+    // mismeasures a custom navigationSuite (the rail ended up centred
+    // horizontally with a zero-width content area). A plain Row/Column is
+    // deterministic — komikku does the same with its own rail composable.
+    val navigationSuite: @Composable () -> Unit = {
             val navigateTo: (Tab) -> Unit = { tab ->
                 innerNav.navigate(tab.route) {
                     popUpTo(innerNav.graph.findStartDestination().id) { saveState = true }
@@ -236,8 +238,9 @@ private fun MainTabs(
                     }
                 }
             }
-        },
-    ) {
+        }
+
+    val navContent: @Composable () -> Unit = {
         NavHost(
             navController = innerNav,
             startDestination = "library",
@@ -456,6 +459,18 @@ private fun MainTabs(
             composable("migrate") {
                 MigrateScreen(onBack = { innerNav.popBackStack() })
             }
+        }
+    }
+
+    if (layoutType == NavigationSuiteType.NavigationBar) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) { navContent() }
+            navigationSuite()
+        }
+    } else {
+        Row(Modifier.fillMaxSize()) {
+            navigationSuite()
+            Box(Modifier.weight(1f)) { navContent() }
         }
     }
 }
