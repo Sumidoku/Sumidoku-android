@@ -74,6 +74,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,7 +84,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
@@ -165,6 +165,13 @@ fun MangaScreen(
             snackbar.showSnackbar(text)
             viewModel.consumeMessage()
         }
+    }
+
+    // Back from the reader (or any pushed page): silently re-sync chapter
+    // progress; the first ON_RESUME is a no-op inside the view model.
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResume()
+        onPauseOrDispose { }
     }
 
     // Average cover colour (KMReader computeCoverTint) seeds a dynamic
@@ -894,7 +901,11 @@ private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
         contentDescription = null,
         modifier = Modifier
             .matchParentSize()
-            .blur(7.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+            // Default Rectangle edge treatment: Unbounded lets the blur glow
+            // bleed ~one radius below the backdrop's bottom edge, where the
+            // fade gradient (clipped to bounds) cannot cover it — that glow
+            // reads as a harsh bright seam, worst in landscape.
+            .blur(7.dp)
             // 0.35 (not komikku's 0.2): our surfaceTint is strongly hued,
             // so the cover needs more presence or every backdrop looks the
             // same colour.
