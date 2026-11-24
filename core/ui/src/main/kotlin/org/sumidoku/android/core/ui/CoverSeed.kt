@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.palette.graphics.Palette
 import com.materialkolor.DynamicMaterialTheme
 
 /** komikku "theme based on cover" parity: once the cover colour is known,
@@ -27,36 +28,54 @@ fun CoverSeedTheme(seedColor: Color?, content: @Composable () -> Unit) {
     }
 }
 
-/** KMReader-style cover tint (ui/components computeCoverTint): the 8×8
- *  average colour of the cover with HSV saturation capped at 0.8 and value
- *  clamped to 0.2–0.45, so surfaces seeded from it stay readable in both
- *  light and dark themes. */
+/** komikku-style cover seed colour: androidx Palette swatch analysis picking
+ *  the most characteristic colour of the cover (the same logic as komikku's
+ *  Palette.getBestColor in data/coil/Utils.kt), so the page theme and tinted
+ *  controls (tags, FAB, buttons) follow the cover's vibrant hue instead of a
+ *  muted average. */
 fun computeCoverTint(bitmap: Bitmap): Color? {
     val software = if (bitmap.config == Bitmap.Config.HARDWARE) {
         bitmap.copy(Bitmap.Config.ARGB_8888, false) ?: return null
     } else {
         bitmap
     }
-    val scaled = Bitmap.createScaledBitmap(software, 8, 8, true)
-    var r = 0L
-    var g = 0L
-    var b = 0L
-    for (y in 0 until 8) {
-        for (x in 0 until 8) {
-            val pixel = scaled.getPixel(x, y)
-            r += (pixel shr 16) and 0xFF
-            g += (pixel shr 8) and 0xFF
-            b += pixel and 0xFF
-        }
-    }
-    val hsv = FloatArray(3)
-    android.graphics.Color.RGBToHSV(
-        (r / 64f).toInt().coerceIn(0, 255),
-        (g / 64f).toInt().coerceIn(0, 255),
-        (b / 64f).toInt().coerceIn(0, 255),
-        hsv,
-    )
-    hsv[1] = hsv[1].coerceAtMost(0.8f)
-    hsv[2] = hsv[2].coerceIn(0.2f, 0.45f)
-    return Color.hsv(hsv[0], hsv[1], hsv[2])
+    return Palette.from(software).generate().bestColor()?.let(::Color)
+}
+
+/** Port of komikku's Palette.getBestColor (Jays2Kings): prefer a colourful,
+ *  mid-brightness dominant swatch, fall back to vibrant, then muted when it
+ *  is big and colourful enough, finally the strongest vibrant variant. */
+private fun Palette.bestColor(): Int? {
+    // How big is the vibrant color
+    val vibPopulation = vibrantSwatch?.population ?: -1
+    // Saturation of the most dominant color
+    val domSat = dominantSwatch?.hsl?.get(1) ?: 0f
+    // Brightness of the most dominant color
+    val domLum = dominantSwatch?.hsl?.get(2) ?: -1f
+    // How big is the muted color
+    val mutedPopulation = mutedSwatch?.population ?: -1
+    // Saturation of the muted color
+    val mutedSat = mutedSwatch?.hsl?.get(1) ?: 0f
+    // If muted color is 3 times bigger than vibrant color then minimum acceptable saturation
+    // for muted color is lower (more likely to use it even if it's not colorful)
+    val mutedSatMinAcceptable = if (mutedPopulation > vibPopulation * 3f) 0.1f else 0.25f
+
+    val dominantIsColorful = domSat >= .25f
+    val dominantBrightnessJustRight = domLum <= .8f && domLum > .2f
+    val vibrantIsConsiderableBigEnough = vibPopulation >= mutedPopulation * 0.75f
+    val mutedIsBig = mutedPopulation > vibPopulation * 1.5f
+    val mutedIsNotTooBoring = mutedSat > mutedSatMinAcceptable
+
+    return when {
+        dominantIsColorful && dominantBrightnessJustRight -> dominantSwatch
+        // use vibrant color even if it's only 0.75 times smaller than muted color
+        vibrantIsConsiderableBigEnough -> vibrantSwatch
+        // use muted color if it's 1.5 times bigger than vibrant color and colorful enough (above the limit)
+        mutedIsBig && mutedIsNotTooBoring -> mutedSwatch
+        // return major vibrant color variant with more favor of vibrant color (size x3)
+        else -> listOfNotNull(vibrantSwatch, lightVibrantSwatch, darkVibrantSwatch)
+            .maxByOrNull {
+                if (it === vibrantSwatch) vibPopulation * 3 else it.population
+            }
+    }?.rgb
 }

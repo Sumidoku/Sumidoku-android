@@ -427,7 +427,7 @@ fun MangaScreen(
                                     strokeWidth = 2.dp,
                                 )
                             } else {
-                                IconButton(onClick = { viewModel.refreshChaptersFromSource() }, modifier = Modifier.size(28.dp)) {
+                                IconButton(onClick = { viewModel.refreshChaptersFromSource() }) {
                                     Icon(
                                         Icons.Outlined.Refresh,
                                         contentDescription = stringResource(R.string.manga_refresh_chapters),
@@ -435,7 +435,7 @@ fun MangaScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = { showChapterFilters = true }, modifier = Modifier.size(28.dp)) {
+                            IconButton(onClick = { showChapterFilters = true }) {
                                 Icon(
                                     Icons.Outlined.FilterList,
                                     contentDescription = stringResource(R.string.manga_chapter_filters),
@@ -1216,7 +1216,10 @@ private fun ChapterRow(
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.manga_mark_unread)) },
-                        enabled = chapter.isRead,
+                        // Any reading trace counts — a half-finished chapter
+                        // (progress without isRead) must be resettable too;
+                        // the server clears the trace on a bare isRead:false.
+                        enabled = chapter.isRead || chapter.lastPageRead > 0 || chapter.lastReadAt != null,
                         onClick = {
                             showActions = false
                             onMarkUnread()
@@ -1390,7 +1393,7 @@ private fun TrackerSection(
                 }
             }
         }
-        HorizontalDivider(Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
