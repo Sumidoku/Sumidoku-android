@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,9 +66,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -354,19 +354,28 @@ fun SourceHomeScreen(
                         listingBase + state.listings.indexOfFirst { it.id == m.listing.id }.coerceAtLeast(0)
                     is SourceMode.SearchMode -> -1
                 }
-                ScrollableTabRow(selectedTabIndex = selected.coerceAtLeast(0), edgePadding = 12.dp) {
+                // Listing switcher as horizontally scrollable capsules
+                // (reader-chrome parity): the selected tab is a filled
+                // secondaryContainer pill, unselected tabs are transparent.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     if (showHomeTab) {
-                        Tab(
+                        ListingCapsule(
+                            label = stringResource(R.string.source_home_tab),
                             selected = selected == 0,
                             onClick = { viewModel.backToHome() },
-                            text = { Text(stringResource(R.string.source_home_tab)) },
                         )
                     }
                     state.listings.forEachIndexed { i, listing ->
-                        Tab(
+                        ListingCapsule(
+                            label = listing.name,
                             selected = selected == listingBase + i,
                             onClick = { viewModel.openListing(listing) },
-                            text = { Text(listing.name) },
                         )
                     }
                 }
@@ -1894,4 +1903,29 @@ private fun RemoteImage(url: String?, apiKey: String?, modifier: Modifier, conte
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
         contentScale = contentScale,
     )
+}
+
+/** Capsule tab for the home/listing switcher: a filled secondaryContainer
+ *  pill when selected, transparent otherwise (the app's capsule-chrome
+ *  language — same family as the reader controls and settings selection). */
+@Composable
+private fun ListingCapsule(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            maxLines = 1,
+        )
+    }
 }
