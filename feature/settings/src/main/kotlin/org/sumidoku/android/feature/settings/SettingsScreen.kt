@@ -5,13 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.CloudQueue
@@ -32,13 +36,14 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -53,10 +58,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -196,140 +203,133 @@ private fun SettingsHub(
         modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item { SectionHeader(stringResource(R.string.settings_section_appearance)) }
-            item { AppearanceRow() }
-            item { IncognitoRow() }
-            item {
-                SettingsRow(
-                    icon = Icons.AutoMirrored.Outlined.MenuBook,
-                    title = stringResource(R.string.settings_reader_defaults),
-                    subtitle = stringResource(R.string.settings_reader_defaults_subtitle),
-                    selected = selectedPage == SettingsPage.ReaderDefaults,
-                    onClick = { open(SettingsPage.ReaderDefaults, onOpenReaderDefaults) },
-                )
+        // komikku settings hub parity: the whole list lives inside one
+        // rounded card, rows carry no dividers, and the open pane's row is a
+        // rounded filled highlight inset from the card edge.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+            ) {
+                Column(Modifier.padding(vertical = 8.dp)) {
+                    SectionHeader(stringResource(R.string.settings_section_appearance))
+                    AppearanceRow()
+                    IncognitoRow()
+                    SettingsRow(
+                        icon = Icons.AutoMirrored.Outlined.MenuBook,
+                        title = stringResource(R.string.settings_reader_defaults),
+                        subtitle = stringResource(R.string.settings_reader_defaults_subtitle),
+                        selected = selectedPage == SettingsPage.ReaderDefaults,
+                        onClick = { open(SettingsPage.ReaderDefaults, onOpenReaderDefaults) },
+                    )
+                    SectionHeader(stringResource(R.string.settings_section_sources))
+                    SettingsRow(
+                        icon = Icons.Outlined.Extension,
+                        title = stringResource(R.string.settings_source_repos),
+                        subtitle = stringResource(R.string.settings_source_repos_subtitle),
+                        selected = selectedPage == SettingsPage.Repos,
+                        onClick = { open(SettingsPage.Repos, onOpenRepos) },
+                    )
+                    SectionHeader(stringResource(R.string.settings_section_server))
+                    SettingsRow(
+                        icon = Icons.Outlined.Dns,
+                        title = stringResource(R.string.settings_manage_servers),
+                        subtitle = stringResource(R.string.settings_manage_servers_subtitle),
+                        selected = selectedPage == SettingsPage.Servers,
+                        onClick = { open(SettingsPage.Servers, onManageServers) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Sync,
+                        title = stringResource(R.string.settings_instance_sync),
+                        subtitle = stringResource(R.string.settings_instance_sync_subtitle),
+                        enabled = false,
+                        onClick = {},
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Public,
+                        title = stringResource(R.string.settings_trackers),
+                        subtitle = stringResource(R.string.settings_trackers_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Trackers,
+                        onClick = { open(SettingsPage.Trackers, onOpenTrackers) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.CloudQueue,
+                        title = stringResource(R.string.settings_backup_restore),
+                        subtitle = stringResource(R.string.settings_backup_restore_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Backups,
+                        onClick = { open(SettingsPage.Backups, onOpenBackups) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Key,
+                        title = stringResource(R.string.settings_api_keys),
+                        subtitle = stringResource(R.string.settings_api_keys_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.ApiKeys,
+                        onClick = { open(SettingsPage.ApiKeys, onOpenApiKeys) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Storage,
+                        title = stringResource(R.string.settings_cache),
+                        subtitle = stringResource(R.string.settings_cache_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Cache,
+                        onClick = { open(SettingsPage.Cache, onOpenCache) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.PlaylistPlay,
+                        title = stringResource(R.string.settings_tasks),
+                        subtitle = stringResource(R.string.settings_tasks_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Tasks,
+                        onClick = { open(SettingsPage.Tasks, onOpenTasks) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Label,
+                        title = stringResource(R.string.settings_categories),
+                        subtitle = stringResource(R.string.settings_categories_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Categories,
+                        onClick = { open(SettingsPage.Categories, onOpenCategories) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.FilterList,
+                        title = stringResource(R.string.settings_filter_groups),
+                        subtitle = stringResource(R.string.settings_filter_groups_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.FilterGroups,
+                        onClick = { open(SettingsPage.FilterGroups, onOpenFilterGroups) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Settings,
+                        title = stringResource(R.string.settings_server_settings),
+                        subtitle = stringResource(R.string.settings_server_settings_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.ServerSettings,
+                        onClick = { open(SettingsPage.ServerSettings, onOpenServerSettings) },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.DeleteOutline,
+                        title = stringResource(R.string.settings_trash),
+                        subtitle = stringResource(R.string.settings_trash_subtitle),
+                        enabled = true,
+                        selected = selectedPage == SettingsPage.Trash,
+                        onClick = { open(SettingsPage.Trash, onOpenTrash) },
+                    )
+                    SectionHeader(stringResource(R.string.settings_section_about))
+                    VersionRow()
+                }
             }
-            item { SectionHeader(stringResource(R.string.settings_section_sources)) }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Extension,
-                    title = stringResource(R.string.settings_source_repos),
-                    subtitle = stringResource(R.string.settings_source_repos_subtitle),
-                    selected = selectedPage == SettingsPage.Repos,
-                    onClick = { open(SettingsPage.Repos, onOpenRepos) },
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_section_server)) }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Dns,
-                    title = stringResource(R.string.settings_manage_servers),
-                    subtitle = stringResource(R.string.settings_manage_servers_subtitle),
-                    selected = selectedPage == SettingsPage.Servers,
-                    onClick = { open(SettingsPage.Servers, onManageServers) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Sync,
-                    title = stringResource(R.string.settings_instance_sync),
-                    subtitle = stringResource(R.string.settings_instance_sync_subtitle),
-                    enabled = false,
-                    onClick = {},
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Public,
-                    title = stringResource(R.string.settings_trackers),
-                    subtitle = stringResource(R.string.settings_trackers_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Trackers,
-                    onClick = { open(SettingsPage.Trackers, onOpenTrackers) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.CloudQueue,
-                    title = stringResource(R.string.settings_backup_restore),
-                    subtitle = stringResource(R.string.settings_backup_restore_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Backups,
-                    onClick = { open(SettingsPage.Backups, onOpenBackups) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Key,
-                    title = stringResource(R.string.settings_api_keys),
-                    subtitle = stringResource(R.string.settings_api_keys_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.ApiKeys,
-                    onClick = { open(SettingsPage.ApiKeys, onOpenApiKeys) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Storage,
-                    title = stringResource(R.string.settings_cache),
-                    subtitle = stringResource(R.string.settings_cache_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Cache,
-                    onClick = { open(SettingsPage.Cache, onOpenCache) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.PlaylistPlay,
-                    title = stringResource(R.string.settings_tasks),
-                    subtitle = stringResource(R.string.settings_tasks_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Tasks,
-                    onClick = { open(SettingsPage.Tasks, onOpenTasks) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Label,
-                    title = stringResource(R.string.settings_categories),
-                    subtitle = stringResource(R.string.settings_categories_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Categories,
-                    onClick = { open(SettingsPage.Categories, onOpenCategories) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.FilterList,
-                    title = stringResource(R.string.settings_filter_groups),
-                    subtitle = stringResource(R.string.settings_filter_groups_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.FilterGroups,
-                    onClick = { open(SettingsPage.FilterGroups, onOpenFilterGroups) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Settings,
-                    title = stringResource(R.string.settings_server_settings),
-                    subtitle = stringResource(R.string.settings_server_settings_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.ServerSettings,
-                    onClick = { open(SettingsPage.ServerSettings, onOpenServerSettings) },
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.DeleteOutline,
-                    title = stringResource(R.string.settings_trash),
-                    subtitle = stringResource(R.string.settings_trash_subtitle),
-                    enabled = true,
-                    selected = selectedPage == SettingsPage.Trash,
-                    onClick = { open(SettingsPage.Trash, onOpenTrash) },
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_section_about)) }
-            item { VersionRow() }
         }
     }
 }
@@ -375,6 +375,7 @@ private fun VersionRow() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
 
@@ -388,19 +389,27 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
     ListItem(
         leadingContent = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
         headlineContent = { Text(stringResource(R.string.settings_theme)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(
-                        "system" to stringResource(R.string.settings_theme_system),
-                        "dark" to stringResource(R.string.settings_theme_dark),
-                        "light" to stringResource(R.string.settings_theme_light),
-                    ).forEach { (value, label) ->
-                        FilterChip(
-                            selected = theme == value || (value == "dark" && amoled),
+                // komikku parity: a full-width segmented control instead of
+                // loose filter chips (follow-system / light / dark).
+                val options = listOf(
+                    "system" to stringResource(R.string.settings_theme_system),
+                    "light" to stringResource(R.string.settings_theme_light),
+                    "dark" to stringResource(R.string.settings_theme_dark),
+                )
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, (value, label) ->
+                        val active = theme == value || (value == "dark" && amoled)
+                        SegmentedButton(
+                            selected = active,
                             onClick = { viewModel.setTheme(value) },
-                            label = { Text(label) },
-                        )
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                            icon = { SegmentedButtonDefaults.Icon(active = active) },
+                        ) {
+                            Text(label, maxLines = 1, softWrap = false)
+                        }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -420,7 +429,6 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
             }
         },
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 /** Incognito reading switch: belongs to the same General group as Appearance
@@ -450,8 +458,8 @@ private fun IncognitoRow(viewModel: IncognitoViewModel = hiltViewModel()) {
                 )
             }
         },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable
@@ -474,17 +482,25 @@ private fun SettingsRow(
     selected: Boolean = false,
     onClick: () -> Unit,
 ) {
+    // komikku hub parity: no dividers; the selected row is a rounded filled
+    // highlight inset from the card edge, everything else is transparent.
     ListItem(
         leadingContent = { Icon(icon, contentDescription = null) },
         headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        colors = if (selected) {
-            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-        } else {
-            ListItemDefaults.colors()
+        supportingContent = {
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+        colors = ListItemDefaults.colors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                Color.Transparent
+            },
+        ),
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick),
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
