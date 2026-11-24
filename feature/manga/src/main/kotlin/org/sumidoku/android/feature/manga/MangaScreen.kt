@@ -62,14 +62,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.ElevatedSuggestionChip
 import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -920,6 +924,9 @@ private fun MangaHeader(
 ) {
     val manga = state.manga!!
     val profile = state.profile
+    // Expanded state shared by the description and the tag list (komikku:
+    // tags wrap to a FlowRow once the description expands).
+    var infoExpanded by remember { mutableStateOf(false) }
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row {
             CoverImage(manga.id, manga.cover, profile, Modifier.size(108.dp, 144.dp), manga.sourceId, onCoverBitmap)
@@ -997,32 +1004,62 @@ private fun MangaHeader(
         }
         manga.description?.takeIf { it.isNotBlank() }?.let { description ->
             Spacer(Modifier.height(12.dp))
-            var expanded by remember { mutableStateOf(false) }
             Text(
                 description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                maxLines = if (infoExpanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable { expanded = !expanded },
+                modifier = Modifier.clickable { infoExpanded = !infoExpanded },
             )
         }
         manga.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
             Spacer(Modifier.height(12.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                tags.take(6).forEach { tag ->
-                    val value = searchMeta.tagFilterValue(tag)
-                    SuggestionChip(
-                        onClick = { value?.let { onFilterSearch(listOf(it)) } },
-                        label = { Text(tag) },
-                    )
+            // Komikku TagsChip parity: a single scrollable row normally,
+            // wrapping to a FlowRow once the description is expanded.
+            if (infoExpanded) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tags.forEach { tag ->
+                        TagChip(tag, searchMeta, onFilterSearch)
+                    }
+                }
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(tags) { tag ->
+                        TagChip(tag, searchMeta, onFilterSearch)
+                    }
                 }
             }
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** Komikku TagsChip (NamespaceTags.kt) parity: a compact elevated chip on
+ *  surfaceContainerHigh with bodySmall text and no minimum touch height, so
+ *  rows of tags stay slim and readable over the blurred-cover backdrop. */
+@Composable
+private fun TagChip(
+    tag: String,
+    searchMeta: SourceSearchMeta,
+    onFilterSearch: (List<FilterValue>) -> Unit,
+) {
+    val value = searchMeta.tagFilterValue(tag)
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        ElevatedSuggestionChip(
+            onClick = { value?.let { onFilterSearch(listOf(it)) } },
+            label = {
+                Text(
+                    tag,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            colors = SuggestionChipDefaults.elevatedSuggestionChipColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+        )
     }
 }
 
