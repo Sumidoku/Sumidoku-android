@@ -66,6 +66,7 @@ import org.sumidoku.android.feature.settings.CategoriesScreen
 import org.sumidoku.android.feature.settings.FilterGroupsScreen
 import org.sumidoku.android.feature.settings.ServerSettingsScreen
 import org.sumidoku.android.feature.settings.SettingsScreen
+import org.sumidoku.android.feature.settings.SettingsPage
 import org.sumidoku.android.feature.settings.TasksScreen
 import org.sumidoku.android.feature.settings.TrashScreen
 import org.sumidoku.android.feature.source.SourceHomeScreen
@@ -361,6 +362,26 @@ private fun MainTabs(
                     onOpenFilterGroups = { innerNav.navigate("filter-groups") },
                     onOpenServerSettings = { innerNav.navigate("server-settings") },
                     onOpenReaderDefaults = { innerNav.navigate("reader-defaults") },
+                    // Wide tablet: hub stays on the left, the chosen page
+                    // renders in the right pane (KMReader settings split).
+                    splitDetail = { page, onDismiss, onNavigate ->
+                        when (page) {
+                            SettingsPage.ReaderDefaults -> ReaderDefaultsScreen(onBack = onDismiss)
+                            SettingsPage.Repos -> ReposScreen(onBack = onDismiss)
+                            SettingsPage.Trackers -> TrackersScreen(onBack = onDismiss)
+                            SettingsPage.Backups -> BackupsScreen(onBack = onDismiss)
+                            SettingsPage.ApiKeys -> ApiKeysScreen(onBack = onDismiss)
+                            SettingsPage.Cache -> CacheScreen(onBack = onDismiss)
+                            SettingsPage.Tasks -> TasksScreen(onBack = onDismiss)
+                            SettingsPage.Categories -> CategoriesScreen(onBack = onDismiss)
+                            SettingsPage.FilterGroups -> FilterGroupsScreen(onBack = onDismiss)
+                            SettingsPage.ServerSettings -> ServerSettingsScreen(
+                                onBack = onDismiss,
+                                onOpenBackups = { onNavigate(SettingsPage.Backups) },
+                            )
+                            SettingsPage.Trash -> TrashScreen(onBack = onDismiss)
+                        }
+                    },
                 )
             }
             composable("categories") {

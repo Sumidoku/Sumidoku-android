@@ -1,12 +1,16 @@
 package org.sumidoku.android.feature.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
@@ -24,6 +28,7 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,26 +36,64 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
+/** Settings pages a hub row can open. On a phone a row pushes the page as
+ *  a full-screen route; on a wide tablet the row selects the page in the
+ *  detail pane beside the hub (KMReader settings split parity). */
+enum class SettingsPage {
+    ReaderDefaults,
+    Repos,
+    Trackers,
+    Backups,
+    ApiKeys,
+    Cache,
+    Tasks,
+    Categories,
+    FilterGroups,
+    ServerSettings,
+    Trash,
+}
+
+/** Smallest screen width that marks a device as a tablet (sw600dp split point). */
+private const val TabletMinWidthDp = 600
+
+/** Narrowest window that fits the hub beside a readable detail pane. */
+private const val SplitMinWidthDp = 840
+
+/** Width of the hub column in the split layout. */
+private val SidebarWidth = 360.dp
+
 /** Settings hub — static entry rows. Server-side setting groups
  *  (updates/library/download/…) land with M8; this screen only hosts
- *  entries that already have screens. Preview 12-settings. */
+ *  entries that already have screens. Preview 12-settings.
+ *
+ *  @param splitDetail detail pane of the tablet split layout; receives the
+ *  page, the callback that clears the selection, and the callback that
+ *  switches to another page without going back through the hub. When null
+ *  (or the window is too small) rows navigate full-screen instead. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -66,8 +109,90 @@ fun SettingsScreen(
     onOpenFilterGroups: () -> Unit = {},
     onOpenServerSettings: () -> Unit = {},
     onOpenReaderDefaults: () -> Unit = {},
+    splitDetail: (@Composable (page: SettingsPage, onDismiss: () -> Unit, onNavigate: (SettingsPage) -> Unit) -> Unit)? = null,
+) {
+    val configuration = LocalConfiguration.current
+    val detail = splitDetail
+    val split = detail != null &&
+        configuration.smallestScreenWidthDp >= TabletMinWidthDp &&
+        configuration.screenWidthDp >= SplitMinWidthDp
+    // The chosen pane survives a configuration change; enums are saveable.
+    var selectedPage by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
+    // In the split layout a row selects the pane beside the hub; otherwise the
+    // host navigates to the page.
+    val open: (SettingsPage, () -> Unit) -> Unit = { page, fallback ->
+        if (split) selectedPage = page else fallback()
+    }
+
+    val hub: @Composable (Modifier) -> Unit = { modifier ->
+        SettingsHub(
+            open = open,
+            selectedPage = selectedPage.takeIf { split },
+            onManageServers = onManageServers,
+            onOpenRepos = onOpenRepos,
+            onOpenTrackers = onOpenTrackers,
+            onOpenBackups = onOpenBackups,
+            onOpenApiKeys = onOpenApiKeys,
+            onOpenCache = onOpenCache,
+            onOpenTasks = onOpenTasks,
+            onOpenTrash = onOpenTrash,
+            onOpenCategories = onOpenCategories,
+            onOpenFilterGroups = onOpenFilterGroups,
+            onOpenServerSettings = onOpenServerSettings,
+            onOpenReaderDefaults = onOpenReaderDefaults,
+            modifier = modifier,
+        )
+    }
+
+    if (detail != null && split) {
+        // System back leaves the open page before it leaves the settings hub.
+        BackHandler(enabled = selectedPage != null) { selectedPage = null }
+        // Paint the whole split on the page surface so the empty pane cannot
+        // show (or leak taps to) whatever sits behind this route.
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Row(Modifier.fillMaxSize()) {
+                hub(Modifier.width(SidebarWidth))
+                VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    val page = selectedPage
+                    if (page == null) {
+                        SettingsDetailPlaceholder()
+                    } else {
+                        detail(page, { selectedPage = null }, { selectedPage = it })
+                    }
+                }
+            }
+        }
+    } else {
+        hub(Modifier.fillMaxSize())
+    }
+}
+
+/** The hub itself: a titled, scrollable list of section rows. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsHub(
+    open: (SettingsPage, () -> Unit) -> Unit,
+    selectedPage: SettingsPage?,
+    onManageServers: () -> Unit,
+    onOpenRepos: () -> Unit,
+    onOpenTrackers: () -> Unit,
+    onOpenBackups: () -> Unit,
+    onOpenApiKeys: () -> Unit,
+    onOpenCache: () -> Unit,
+    onOpenTasks: () -> Unit,
+    onOpenTrash: () -> Unit,
+    onOpenCategories: () -> Unit,
+    onOpenFilterGroups: () -> Unit,
+    onOpenServerSettings: () -> Unit,
+    onOpenReaderDefaults: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
@@ -79,7 +204,8 @@ fun SettingsScreen(
                     icon = Icons.AutoMirrored.Outlined.MenuBook,
                     title = stringResource(R.string.settings_reader_defaults),
                     subtitle = stringResource(R.string.settings_reader_defaults_subtitle),
-                    onClick = onOpenReaderDefaults,
+                    selected = selectedPage == SettingsPage.ReaderDefaults,
+                    onClick = { open(SettingsPage.ReaderDefaults, onOpenReaderDefaults) },
                 )
             }
             item { SectionHeader(stringResource(R.string.settings_section_sources)) }
@@ -88,11 +214,14 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Extension,
                     title = stringResource(R.string.settings_source_repos),
                     subtitle = stringResource(R.string.settings_source_repos_subtitle),
-                    onClick = onOpenRepos,
+                    selected = selectedPage == SettingsPage.Repos,
+                    onClick = { open(SettingsPage.Repos, onOpenRepos) },
                 )
             }
             item { SectionHeader(stringResource(R.string.settings_section_server)) }
             item {
+                // Server management is a multi-step flow (list + edit), so it
+                // keeps full-screen navigation even in the split layout.
                 SettingsRow(
                     icon = Icons.Outlined.Dns,
                     title = stringResource(R.string.settings_manage_servers),
@@ -115,7 +244,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_trackers),
                     subtitle = stringResource(R.string.settings_trackers_subtitle),
                     enabled = true,
-                    onClick = onOpenTrackers,
+                    selected = selectedPage == SettingsPage.Trackers,
+                    onClick = { open(SettingsPage.Trackers, onOpenTrackers) },
                 )
             }
             item {
@@ -124,7 +254,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_backup_restore),
                     subtitle = stringResource(R.string.settings_backup_restore_subtitle),
                     enabled = true,
-                    onClick = onOpenBackups,
+                    selected = selectedPage == SettingsPage.Backups,
+                    onClick = { open(SettingsPage.Backups, onOpenBackups) },
                 )
             }
             item {
@@ -133,7 +264,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_api_keys),
                     subtitle = stringResource(R.string.settings_api_keys_subtitle),
                     enabled = true,
-                    onClick = onOpenApiKeys,
+                    selected = selectedPage == SettingsPage.ApiKeys,
+                    onClick = { open(SettingsPage.ApiKeys, onOpenApiKeys) },
                 )
             }
             item {
@@ -142,7 +274,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_cache),
                     subtitle = stringResource(R.string.settings_cache_subtitle),
                     enabled = true,
-                    onClick = onOpenCache,
+                    selected = selectedPage == SettingsPage.Cache,
+                    onClick = { open(SettingsPage.Cache, onOpenCache) },
                 )
             }
             item {
@@ -151,7 +284,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_tasks),
                     subtitle = stringResource(R.string.settings_tasks_subtitle),
                     enabled = true,
-                    onClick = onOpenTasks,
+                    selected = selectedPage == SettingsPage.Tasks,
+                    onClick = { open(SettingsPage.Tasks, onOpenTasks) },
                 )
             }
             item {
@@ -160,7 +294,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_categories),
                     subtitle = stringResource(R.string.settings_categories_subtitle),
                     enabled = true,
-                    onClick = onOpenCategories,
+                    selected = selectedPage == SettingsPage.Categories,
+                    onClick = { open(SettingsPage.Categories, onOpenCategories) },
                 )
             }
             item {
@@ -169,7 +304,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_filter_groups),
                     subtitle = stringResource(R.string.settings_filter_groups_subtitle),
                     enabled = true,
-                    onClick = onOpenFilterGroups,
+                    selected = selectedPage == SettingsPage.FilterGroups,
+                    onClick = { open(SettingsPage.FilterGroups, onOpenFilterGroups) },
                 )
             }
             item {
@@ -178,7 +314,8 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_server_settings),
                     subtitle = stringResource(R.string.settings_server_settings_subtitle),
                     enabled = true,
-                    onClick = onOpenServerSettings,
+                    selected = selectedPage == SettingsPage.ServerSettings,
+                    onClick = { open(SettingsPage.ServerSettings, onOpenServerSettings) },
                 )
             }
             item {
@@ -187,11 +324,35 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_trash),
                     subtitle = stringResource(R.string.settings_trash_subtitle),
                     enabled = true,
-                    onClick = onOpenTrash,
+                    selected = selectedPage == SettingsPage.Trash,
+                    onClick = { open(SettingsPage.Trash, onOpenTrash) },
                 )
             }
             item { SectionHeader(stringResource(R.string.settings_section_about)) }
             item { VersionRow() }
+        }
+    }
+}
+
+/** Right pane of the split layout before a row is chosen. */
+@Composable
+private fun SettingsDetailPlaceholder(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.settings_split_placeholder),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -309,12 +470,19 @@ private fun SettingsRow(
     title: String,
     subtitle: String,
     enabled: Boolean = true,
+    /** Highlights the row as the open pane of the split layout. */
+    selected: Boolean = false,
     onClick: () -> Unit,
 ) {
     ListItem(
         leadingContent = { Icon(icon, contentDescription = null) },
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
+        colors = if (selected) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            ListItemDefaults.colors()
+        },
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     )
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

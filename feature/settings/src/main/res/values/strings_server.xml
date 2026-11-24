@@ -3,6 +3,7 @@
     <!-- SettingsScreen (settings hub) -->
     <string name="settings_title">Settings</string>
     <string name="settings_back">Back</string>
+    <string name="settings_split_placeholder">Choose a setting on the left</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_sources">Sources</string>
     <string name="settings_section_server">Server</string>
