@@ -1,8 +1,11 @@
 package org.sumidoku.android.feature.search
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -15,6 +18,8 @@ import org.sumidoku.android.core.api.model.MangaInput
 import org.sumidoku.android.core.api.model.RegisterMangaRequest
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.data.GlobalSearchFilterStore
+import org.sumidoku.android.core.data.GlobalSearchFilters
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -50,6 +55,20 @@ fun TriFilter.next(): TriFilter = when (this) {
     TriFilter.NONE -> TriFilter.INCLUDE
     TriFilter.INCLUDE -> TriFilter.EXCLUDE
     TriFilter.EXCLUDE -> TriFilter.NONE
+}
+
+/** Wire form shared with webui globalSearchPrefs: 1 include / -1 exclude. */
+fun TriFilter.wire(): Int = when (this) {
+    TriFilter.INCLUDE -> GlobalSearchFilters.INCLUDE
+    TriFilter.EXCLUDE -> GlobalSearchFilters.EXCLUDE
+    TriFilter.NONE -> 0
+}
+
+/** Unknown values (legacy/hand-edited storage) map to "no verdict". */
+private fun Int.toTriFilter(): TriFilter? = when (this) {
+    GlobalSearchFilters.INCLUDE -> TriFilter.INCLUDE
+    GlobalSearchFilters.EXCLUDE -> TriFilter.EXCLUDE
+    else -> null
 }
 
 /** Per-dimension verdict (webui triAllows): with any include selected the
@@ -93,7 +112,15 @@ data class SearchUiState(
     val participatingSourceIds: List<Long>
         get() = participatingSources.mapNotNull { it.id }
 
-    /** Language options: the multi-language sentinel first (Aidoku convention), then by display name. */
+    /** webui SearchPanel `visible`: a source with no entries and no error
+     *  takes no section at all (other sources are still streaming in, so
+     *  empty shells would flood the screen). */
+    val visibleSections: List<SourceSearchSection>
+        get() = sections.filter { it.entries.isNotEmpty() || it.error != null }
+
+    /** Language options: the multi-language sentinel first (Aidoku convention),
+     *  then a stable code order. The screen sorts the options by their
+     *  localized display name, so ordering stays alphabetical per locale. */
     val langOptions: List<String>
         get() {
             val set = linkedSetOf<String>()
@@ -103,7 +130,7 @@ data class SearchUiState(
                     if (code.isNotEmpty() && code != "multi" && code != "all") set.add(code)
                 }
             }
-            return listOf("multi") + set.sortedBy { languageLabel(it) }
+            return listOf("multi") + set.sorted()
         }
 
     val activeFilterCount: Int
@@ -112,8 +139,10 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val filterStore: GlobalSearchFilterStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
@@ -121,8 +150,17 @@ class SearchViewModel @Inject constructor(
 
     private val streamJson = Json { ignoreUnknownKeys = true }
 
+    /** Set by any tri-state cycle/reset, consumed when the filter sheet
+     *  closes (webui refetches the search when the sourceIds key changes). */
+    private var filtersDirty = false
+
+    /** Only the newest search may append sections: a filter change can
+     *  start a second search while the previous stream is still open. */
+    private var searchJob: Job? = null
+
     init {
         viewModelScope.launch {
+            restoreFilters()
             val profile = repository.activeProfile.first() ?: return@launch
             _state.value = _state.value.copy(profile = profile)
             runCatching {
@@ -137,32 +175,90 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    /** Restore the persisted tri-state filters before anything else so the
+     *  first search already honours them (webui loadGlobalSearchFilters). */
+    private suspend fun restoreFilters() {
+        val saved = runCatching { filterStore.load() }.getOrDefault(GlobalSearchFilters())
+        val ratings = saved.ratings.longKeyed()
+        val langs = saved.langs.mapNotNull { (code, state) ->
+            state.toTriFilter()?.let { code to it }
+        }.toMap()
+        val sources = saved.sources.longKeyed()
+        if (ratings.isEmpty() && langs.isEmpty() && sources.isEmpty()) return
+        _state.value = _state.value.copy(
+            ratingFilter = ratings,
+            langFilter = langs,
+            sourceFilter = sources,
+        )
+    }
+
+    private fun Map<String, Int>.longKeyed(): Map<Long, TriFilter> =
+        mapNotNull { (raw, state) -> raw.toLongOrNull()?.let { key -> state.toTriFilter()?.let { key to it } } }
+            .toMap()
+
     fun setQuery(query: String) {
         _state.value = _state.value.copy(query = query)
     }
 
     fun cycleRating(level: Long) {
-        _state.value = _state.value.copy(ratingFilter = _state.value.ratingFilter.cycle(level))
+        updateFilters { it.copy(ratingFilter = it.ratingFilter.cycle(level)) }
     }
 
     fun cycleLanguage(code: String) {
-        _state.value = _state.value.copy(langFilter = _state.value.langFilter.cycle(code))
+        updateFilters { it.copy(langFilter = it.langFilter.cycle(code)) }
     }
 
     fun cycleSource(id: Long) {
-        _state.value = _state.value.copy(sourceFilter = _state.value.sourceFilter.cycle(id))
+        updateFilters { it.copy(sourceFilter = it.sourceFilter.cycle(id)) }
     }
 
     fun resetRatings() {
-        _state.value = _state.value.copy(ratingFilter = emptyMap())
+        updateFilters { it.copy(ratingFilter = emptyMap()) }
     }
 
     fun resetLanguages() {
-        _state.value = _state.value.copy(langFilter = emptyMap())
+        updateFilters { it.copy(langFilter = emptyMap()) }
     }
 
     fun resetSources() {
-        _state.value = _state.value.copy(sourceFilter = emptyMap())
+        updateFilters { it.copy(sourceFilter = emptyMap()) }
+    }
+
+    /** Every filter mutation is persisted immediately (webui useEffect →
+     *  saveGlobalSearchFilters), regardless of whether the sheet is closed. */
+    private fun updateFilters(transform: (SearchUiState) -> SearchUiState) {
+        val next = transform(_state.value)
+        if (next == _state.value) return
+        _state.value = next
+        filtersDirty = true
+        persistFilters()
+    }
+
+    private fun persistFilters() {
+        val current = _state.value
+        val snapshot = GlobalSearchFilters(
+            ratings = current.ratingFilter.wireForm(),
+            langs = current.langFilter.filterValues { it != TriFilter.NONE }
+                .mapValues { (_, value) -> value.wire() },
+            sources = current.sourceFilter.wireForm(),
+        )
+        viewModelScope.launch { runCatching { filterStore.save(snapshot) } }
+    }
+
+    private fun Map<Long, TriFilter>.wireForm(): Map<String, Int> =
+        filterValues { it != TriFilter.NONE }
+            .map { (key, value) -> key.toString() to value.wire() }
+            .toMap()
+
+    /** Filter sheet closed: a pending change with a live query re-runs the
+     *  search against the new participating-source set. */
+    fun commitFilterChanges() {
+        if (!filtersDirty) return
+        filtersDirty = false
+        val current = _state.value
+        if (current.searched && current.query.isNotBlank() && current.participatingSourceIds.isNotEmpty()) {
+            search()
+        }
     }
 
     private fun <K> Map<K, TriFilter>.cycle(key: K): Map<K, TriFilter> {
@@ -175,9 +271,10 @@ class SearchViewModel @Inject constructor(
         val query = _state.value.query.trim()
         val ids = _state.value.participatingSourceIds
         if (query.isEmpty() || ids.isEmpty()) return
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _state.value = _state.value.copy(searching = true, searched = true, sections = emptyList(), error = null)
-            val names = _state.value.sources.associate { it.id to (it.name ?: "图源 ${it.id}") }
+            val names = _state.value.sources.associate { it.id to (it.name ?: appContext.getString(R.string.search_source_fallback, it.id)) }
             try {
                 // NDJSON opt-in (design §14): sources appear as each one
                 // finishes instead of waiting for the slowest fan-out leg.
@@ -204,7 +301,7 @@ class SearchViewModel @Inject constructor(
                             _state.value = _state.value.copy(
                                 sections = _state.value.sections + SourceSearchSection(
                                     sourceId = sourceId,
-                                    sourceName = names[sourceId] ?: "图源 $sourceId",
+                                    sourceName = names[sourceId] ?: appContext.getString(R.string.search_source_fallback, sourceId),
                                     entries = entries,
                                     hasNextPage = hasNext,
                                     page = 1,
@@ -216,11 +313,11 @@ class SearchViewModel @Inject constructor(
                             val message = (event["error"] as? kotlinx.serialization.json.JsonObject)
                                 ?.get("message")?.jsonPrimitive?.contentOrNull
                                 ?: event["message"]?.jsonPrimitive?.contentOrNull
-                                ?: "搜索失败"
+                                ?: appContext.getString(R.string.search_failed)
                             _state.value = _state.value.copy(
                                 sections = _state.value.sections + SourceSearchSection(
                                     sourceId = sourceId,
-                                    sourceName = names[sourceId] ?: "图源 $sourceId",
+                                    sourceName = names[sourceId] ?: appContext.getString(R.string.search_source_fallback, sourceId),
                                     entries = emptyList(),
                                     hasNextPage = false,
                                     page = 1,
@@ -239,7 +336,7 @@ class SearchViewModel @Inject constructor(
                         .await()
                     _state.value = _state.value.copy(
                         searching = false,
-                        sections = response.sources.map { it.toSection(names[it.sourceId] ?: "图源 ${it.sourceId}") },
+                            sections = response.sources.map { it.toSection(names[it.sourceId] ?: appContext.getString(R.string.search_source_fallback, it.sourceId)) },
                     )
                 } else {
                     _state.value = _state.value.copy(searching = false)
@@ -255,7 +352,7 @@ class SearchViewModel @Inject constructor(
                             .await()
                         _state.value = _state.value.copy(
                             searching = false,
-                            sections = response.sources.map { it.toSection(names[it.sourceId] ?: "图源 ${it.sourceId}") },
+                                sections = response.sources.map { it.toSection(names[it.sourceId] ?: appContext.getString(R.string.search_source_fallback, it.sourceId)) },
                         )
                         return@launch
                     } catch (e2: Exception) {
@@ -372,29 +469,3 @@ private fun GlobalSearchResult.toSection(sourceName: String) = SourceSearchSecti
     page = 1,
     error = error?.message,
 )
-
-/** Source-language display name (webui lib/source.ts languageLabel,
- *  Intl.DisplayNames equivalent with a fixed table for the common values). */
-fun languageLabel(code: String): String {
-    val normalized = code.trim().lowercase()
-    if (normalized == "multi" || normalized == "all") return "多语言"
-    return LANGUAGE_NAMES[normalized] ?: code
-}
-
-private val LANGUAGE_NAMES = mapOf(
-    "en" to "英语", "ja" to "日语", "zh" to "中文", "ko" to "韩语",
-    "fr" to "法语", "de" to "德语", "es" to "西班牙语", "pt" to "葡萄牙语",
-    "it" to "意大利语", "ru" to "俄语", "ar" to "阿拉伯语", "hi" to "印地语",
-    "th" to "泰语", "vi" to "越南语", "id" to "印尼语", "tr" to "土耳其语",
-    "pl" to "波兰语", "nl" to "荷兰语", "sv" to "瑞典语", "uk" to "乌克兰语",
-    "ro" to "罗马尼亚语", "cs" to "捷克语", "el" to "希腊语", "hu" to "匈牙利语",
-    "fi" to "芬兰语", "da" to "丹麦语", "no" to "挪威语", "he" to "希伯来语",
-    "fa" to "波斯语", "ms" to "马来语", "tl" to "他加禄语", "ca" to "加泰罗尼亚语",
-)
-
-/** Source-level content rating levels (webui CONTENT_RATING_LEVELS: 0 safe / 1 contains NSFW / 2 NSFW). */
-fun contentRatingLabel(level: Int): String = when (level) {
-    1 -> "含 NSFW"
-    2 -> "NSFW"
-    else -> "安全"
-}

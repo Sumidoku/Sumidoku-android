@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.servers
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,7 @@ data class ServersUiState(
 
 @HiltViewModel
 class ServersViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -95,7 +98,10 @@ class ServersViewModel @Inject constructor(
             val probe = clientFactory.probeVersionDetailed(candidate)
             val probedVersion = probe.version
             if (probedVersion == null) {
-                addError.value = "无法连接或非 Sumidoku 服务器（/api/v1/version：${probe.error}）"
+                addError.value = appContext.getString(
+                    R.string.servers_error_probe_failed,
+                    probe.error,
+                )
                 addInFlight.value = false
                 return@launch
             }
@@ -107,13 +113,19 @@ class ServersViewModel @Inject constructor(
                     api.login(LoginRequest(username.trim(), password)).await().token
                 } catch (e: retrofit2.HttpException) {
                     addError.value = when (e.code()) {
-                        401, 403 -> "用户名或密码错误"
-                        else -> "登录失败（HTTP ${e.code()}）"
+                        401, 403 -> appContext.getString(R.string.servers_error_bad_credentials)
+                        else -> appContext.getString(
+                            R.string.servers_error_login_http,
+                            e.code(),
+                        )
                     }
                     addInFlight.value = false
                     return@launch
                 } catch (e: Exception) {
-                    addError.value = "登录失败：${e.message ?: e.javaClass.simpleName}"
+                    addError.value = appContext.getString(
+                        R.string.servers_error_login,
+                        e.message ?: e.javaClass.simpleName,
+                    )
                     addInFlight.value = false
                     return@launch
                 }

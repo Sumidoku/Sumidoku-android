@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="updates_title">Updates</string>
+    <string name="updates_downloads">Download queue</string>
+    <string name="updates_refresh">Refresh</string>
+    <string name="updates_retry">Retry</string>
+    <string name="updates_empty">No new chapters</string>
+    <string name="updates_section_hint">%1$d series with new chapters</string>
+    <string name="updates_chapter_count">%1$d chapters</string>
+    <string name="updates_running_title">Updating library…</string>
+    <string name="updates_running_progress">%1$d/%2$d done · %3$d failed · %4$d skipped</string>
+    <string name="updates_summary_title">Update summary</string>
+    <string name="updates_summary_never_run">No library update has run yet.</string>
+    <string name="updates_summary_body">Last checked %1$s · %2$d series checked · %3$d done · %4$d failed · %5$d skipped.\nSkip rules (already read, series finished) and the per-source scheduling interval live on the server.</string>
+    <string name="updates_error_no_server">No server selected</string>
+</resources>

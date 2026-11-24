@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 历史页 -->
+    <string name="history_title">历史</string>
+    <string name="history_refresh">刷新</string>
+    <string name="history_retry">重试</string>
+    <string name="history_empty">还没有阅读记录</string>
+
+    <!-- 条目副标题：阅读状态、页数进度、时间 -->
+    <string name="history_progress_finished">已读完 · %1$s</string>
+    <string name="history_progress_reading">读到 %1$d / %2$d 页 · %3$s</string>
+    <string name="history_progress_reading_unknown">读到 %1$d 页 · %2$s</string>
+    <string name="history_more_entries">还有 %1$d 条</string>
+
+    <!-- 条目尾部标签 -->
+    <string name="history_tag_finished">读完</string>
+    <string name="history_tag_continue">继续</string>
+
+    <!-- ViewModel 结果与错误 -->
+    <string name="history_no_server">未选择服务器</string>
+</resources>

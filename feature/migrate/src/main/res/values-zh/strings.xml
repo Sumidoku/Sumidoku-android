@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="migrate_back">返回</string>
+    <string name="migrate_select_all">全选</string>
+    <string name="migrate_clear">清除</string>
+    <string name="migrate_running">正在迁移…</string>
+    <string name="migrate_step_source">迁移 · 选择来源源</string>
+    <string name="migrate_step_manga">迁移 · 选择漫画</string>
+    <string name="migrate_step_targets">迁移 · 目标与模式</string>
+    <string name="migrate_step_matching">迁移 · 自动匹配中</string>
+    <string name="migrate_step_confirm">迁移 · 确认匹配</string>
+    <string name="migrate_step_running">迁移 · 执行中</string>
+    <string name="migrate_step_results">迁移 · 结果</string>
+    <string name="migrate_load_sources_failed">读取迁移图源失败</string>
+    <string name="migrate_retry">重试</string>
+    <string name="migrate_no_sources">没有可迁移的图源（书库为空）</string>
+    <string name="migrate_source_fallback">图源 %1$d</string>
+    <string name="migrate_source_meta">%1$d 本在库 · v%2$d</string>
+    <string name="migrate_unread_count">%1$d 未读</string>
+    <string name="migrate_next_selected">下一步（已选 %1$d）</string>
+    <string name="migrate_targets_title">目标源（可多选）</string>
+    <string name="migrate_mode_title">迁移模式</string>
+    <string name="migrate_mode_copy">复制</string>
+    <string name="migrate_mode_migrate">迁移</string>
+    <string name="migrate_mode_migrate_with_history">迁移+历史</string>
+    <string name="migrate_start_matching">自动匹配（%1$d × %2$d）</string>
+    <string name="migrate_matching_progress">正在匹配 %1$d / %2$d</string>
+    <string name="migrate_matched_to">→ %1$s：%2$s</string>
+    <string name="migrate_not_found">→ %1$s：未找到匹配</string>
+    <string name="migrate_matching_row">→ %1$s：匹配中</string>
+    <string name="migrate_start_button">开始迁移（%1$d 条可迁移）</string>
+    <string name="migrate_results_summary">完成：%1$d / %2$d 成功</string>
+    <string name="migrate_result_success">#%1$s 迁移成功</string>
+    <string name="migrate_result_failure">#%1$s 失败：%2$s</string>
+    <string name="migrate_unknown_reason">未知原因</string>
+    <string name="migrate_done">完成</string>
+    <string name="migrate_error_no_server">未选择服务器</string>
+</resources>

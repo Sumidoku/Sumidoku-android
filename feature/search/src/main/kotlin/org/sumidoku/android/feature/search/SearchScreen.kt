@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +62,8 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.SearchManga
+import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.common.entryCoverUrl
 
 private enum class FilterGroup { RATINGS, LANGS, SOURCES }
 
@@ -73,6 +76,9 @@ private enum class FilterGroup { RATINGS, LANGS, SOURCES }
 fun SearchScreen(
     onBack: () -> Unit,
     onOpenManga: (Long) -> Unit,
+    /** "View all" in a source section: browse that source with the current
+     *  query (webui SearchPanel `navigate('/browse/{id}?q=')`). */
+    onOpenSource: (Long, String) -> Unit,
     showBack: Boolean = true,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -91,11 +97,14 @@ fun SearchScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("搜索") },
+                title = { Text(stringResource(R.string.search_title)) },
                 navigationIcon = {
                     if (showBack) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.search_back),
+                            )
                         }
                     }
                 },
@@ -110,14 +119,17 @@ fun SearchScreen(
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = viewModel::setQuery,
-                    placeholder = { Text("在所有图源中搜索…") },
+                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = { viewModel.search() }) {
-                    Icon(Icons.Outlined.Search, contentDescription = "搜索")
+                    Icon(
+                        Icons.Outlined.Search,
+                        contentDescription = stringResource(R.string.search_action),
+                    )
                 }
             }
 
@@ -127,35 +139,30 @@ fun SearchScreen(
             )
 
             when {
-                state.searching && state.sections.isEmpty() ->
+                state.participatingSources.isEmpty() ->
+                    CenteredMessage(stringResource(R.string.search_no_sources))
+                !state.searched ->
+                    CenteredMessage(
+                        stringResource(R.string.search_prompt_source_count, state.participatingSources.size),
+                    )
+                state.visibleSections.isEmpty() && state.searching ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                state.participatingSources.isEmpty() ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("当前筛选没有可用图源", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                !state.searched ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            "输入关键词，一次搜索 ${state.participatingSources.size} 个图源",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                state.sections.isEmpty() ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("没有找到结果", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                // Every streaming source finished without a single entry —
+                // webui shows the global empty state instead of empty shells.
+                state.visibleSections.isEmpty() ->
+                    CenteredMessage(stringResource(R.string.search_empty))
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     state = rememberLazyListState(),
                     contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
-                    state.sections.forEach { section ->
+                    state.visibleSections.forEach { section ->
                         item(key = "header-${section.sourceId}") {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp),
                             ) {
                                 Text(
                                     section.sourceName,
@@ -163,10 +170,19 @@ fun SearchScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Text(
-                                    "${section.entries.size} 条",
+                                    stringResource(R.string.search_entry_count, section.entries.size),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                TextButton(
+                                    onClick = { onOpenSource(section.sourceId, state.query.trim()) },
+                                    contentPadding = PaddingValues(start = 8.dp, end = 0.dp),
+                                ) {
+                                    Text(
+                                        stringResource(R.string.search_view_all),
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
                             }
                             if (section.error != null) {
                                 Row(
@@ -194,10 +210,13 @@ fun SearchScreen(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
                                     items(section.entries.size) { i ->
+                                        val entry = section.entries[i]
+                                        val entryIsLocal = state.sources.firstOrNull { it.id == entry.sourceId }?.kind == Source.Kind.LOCAL
                                         SearchResultCard(
-                                            manga = section.entries[i],
+                                            manga = entry,
                                             baseUrl = state.profile?.baseUrl.orEmpty(),
                                             apiKey = state.profile?.apiKey.orEmpty(),
+                                            isLocal = entryIsLocal,
                                             registering = state.registeringKey == section.entries[i].key,
                                             onClick = { viewModel.openResult(section.entries[i], onOpenManga) },
                                         )
@@ -212,7 +231,13 @@ fun SearchScreen(
                                         enabled = !section.loading,
                                         onClick = { viewModel.loadMore(section.sourceId) },
                                     ) {
-                                        Text(if (section.loading) "加载中…" else "加载更多")
+                                        Text(
+                                            if (section.loading) {
+                                                stringResource(R.string.search_loading)
+                                            } else {
+                                                stringResource(R.string.search_load_more)
+                                            },
+                                        )
                                     }
                                 }
                             }
@@ -230,13 +255,25 @@ fun SearchScreen(
     if (current != null) {
         TriStateSheet(
             title = when (current) {
-                FilterGroup.RATINGS -> "分级"
-                FilterGroup.LANGS -> "语言"
-                FilterGroup.SOURCES -> "图源"
+                FilterGroup.RATINGS -> stringResource(R.string.search_filter_ratings)
+                FilterGroup.LANGS -> stringResource(R.string.search_filter_languages)
+                FilterGroup.SOURCES -> stringResource(R.string.search_filter_sources)
             },
             options = when (current) {
-                FilterGroup.RATINGS -> listOf(0, 1, 2).map { it.toString() to contentRatingLabel(it) }
-                FilterGroup.LANGS -> state.langOptions.map { it to languageLabel(it) }
+                FilterGroup.RATINGS -> listOf(
+                    "0" to contentRatingLabel(0),
+                    "1" to contentRatingLabel(1),
+                    "2" to contentRatingLabel(2),
+                )
+                // Pair every language code with its localized label and sort by
+                // the label, so the sheet reads alphabetically in the active
+                // locale (the ViewModel only guarantees a stable code order).
+                FilterGroup.LANGS -> {
+                    val labeled = ArrayList<Pair<String, String>>(state.langOptions.size)
+                    for (code in state.langOptions) labeled.add(code to languageLabel(code))
+                    labeled.sortBy { it.second }
+                    labeled
+                }
                 FilterGroup.SOURCES -> state.sources.mapNotNull { s -> s.id?.let { it.toString() to (s.name ?: s.key) } }
             },
             states = when (current) {
@@ -258,8 +295,22 @@ fun SearchScreen(
                     FilterGroup.SOURCES -> viewModel.resetSources()
                 }
             },
-            onDismiss = { sheet = null },
+            onDismiss = {
+                sheet = null
+                // Auto re-search only when the tri-state filters actually
+                // changed while the sheet was open (webui refetches on the
+                // sourceIds query key).
+                viewModel.commitFilterChanges()
+            },
         )
+    }
+}
+
+/** Full-screen placeholder line (loading/idle/empty states). */
+@Composable
+private fun CenteredMessage(text: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -274,11 +325,27 @@ private fun FilterHeader(state: SearchUiState, onOpen: (FilterGroup) -> Unit) {
             .padding(horizontal = 16.dp)
             .padding(bottom = 4.dp),
     ) {
-        FilterButton("分级", state.ratingFilter.size, onClick = { onOpen(FilterGroup.RATINGS) })
-        FilterButton("语言", state.langFilter.size, onClick = { onOpen(FilterGroup.LANGS) })
-        FilterButton("图源", state.sourceFilter.size, onClick = { onOpen(FilterGroup.SOURCES) })
+        FilterButton(
+            stringResource(R.string.search_filter_ratings),
+            state.ratingFilter.size,
+            onClick = { onOpen(FilterGroup.RATINGS) },
+        )
+        FilterButton(
+            stringResource(R.string.search_filter_languages),
+            state.langFilter.size,
+            onClick = { onOpen(FilterGroup.LANGS) },
+        )
+        FilterButton(
+            stringResource(R.string.search_filter_sources),
+            state.sourceFilter.size,
+            onClick = { onOpen(FilterGroup.SOURCES) },
+        )
         Text(
-            "${state.participatingSources.size}/${state.sources.size} 个图源",
+            stringResource(
+                R.string.search_source_progress,
+                state.participatingSources.size,
+                state.sources.size,
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp),
@@ -330,8 +397,8 @@ private fun TriStateSheet(
                 .padding(horizontal = 16.dp, vertical = 4.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = onReset) { Text("重置") }
-            TextButton(onClick = onDismiss) { Text("完成") }
+            TextButton(onClick = onReset) { Text(stringResource(R.string.search_reset)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.search_done)) }
         }
         Column(
             modifier = Modifier
@@ -352,12 +419,12 @@ private fun TriStateSheet(
                         when (tri) {
                             TriFilter.INCLUDE -> Icon(
                                 Icons.Outlined.Check,
-                                contentDescription = "包含",
+                                contentDescription = stringResource(R.string.search_include),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             TriFilter.EXCLUDE -> Icon(
                                 Icons.Outlined.Close,
-                                contentDescription = "排除",
+                                contentDescription = stringResource(R.string.search_exclude),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                             TriFilter.NONE -> Unit
@@ -385,18 +452,16 @@ private fun SearchResultCard(
     manga: SearchManga,
     baseUrl: String,
     apiKey: String,
+    isLocal: Boolean,
     registering: Boolean,
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val coverUrl = manga.cover?.let { cover ->
-        if (cover.startsWith("http")) {
-            "${baseUrl.trimEnd('/')}/api/v1/sources/${manga.sourceId}/image?url=" +
-                java.net.URLEncoder.encode(cover, "UTF-8")
-        } else {
-            "${baseUrl.trimEnd('/')}$cover"
-        }
-    }
+    // Mirrors webui SourceBrowsePage entryCover: server-relative manga covers
+    // are used as-is, everything else goes through the source image proxy,
+    // and local-source entries without a cover fall back to the manga cover
+    // endpoint once the internal id is known.
+    val coverUrl = entryCoverUrl(baseUrl, manga.sourceId, manga.cover, manga.id, isLocal)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -439,4 +504,56 @@ private fun SearchResultCard(
             modifier = Modifier.padding(top = 4.dp),
         )
     }
+}
+
+/** Source-language display name (webui lib/source.ts languageLabel,
+ *  Intl.DisplayNames equivalent with a fixed table for the common values). */
+@Composable
+private fun languageLabel(code: String): String {
+    val normalized = code.trim().lowercase()
+    val resId = when (normalized) {
+        "multi", "all" -> R.string.search_lang_multi
+        "en" -> R.string.search_lang_en
+        "ja" -> R.string.search_lang_ja
+        "zh" -> R.string.search_lang_zh
+        "ko" -> R.string.search_lang_ko
+        "fr" -> R.string.search_lang_fr
+        "de" -> R.string.search_lang_de
+        "es" -> R.string.search_lang_es
+        "pt" -> R.string.search_lang_pt
+        "it" -> R.string.search_lang_it
+        "ru" -> R.string.search_lang_ru
+        "ar" -> R.string.search_lang_ar
+        "hi" -> R.string.search_lang_hi
+        "th" -> R.string.search_lang_th
+        "vi" -> R.string.search_lang_vi
+        "id" -> R.string.search_lang_id
+        "tr" -> R.string.search_lang_tr
+        "pl" -> R.string.search_lang_pl
+        "nl" -> R.string.search_lang_nl
+        "sv" -> R.string.search_lang_sv
+        "uk" -> R.string.search_lang_uk
+        "ro" -> R.string.search_lang_ro
+        "cs" -> R.string.search_lang_cs
+        "el" -> R.string.search_lang_el
+        "hu" -> R.string.search_lang_hu
+        "fi" -> R.string.search_lang_fi
+        "da" -> R.string.search_lang_da
+        "no" -> R.string.search_lang_no
+        "he" -> R.string.search_lang_he
+        "fa" -> R.string.search_lang_fa
+        "ms" -> R.string.search_lang_ms
+        "tl" -> R.string.search_lang_tl
+        "ca" -> R.string.search_lang_ca
+        else -> null
+    }
+    return resId?.let { stringResource(it) } ?: code
+}
+
+/** Source-level content rating levels (webui CONTENT_RATING_LEVELS: 0 safe / 1 contains NSFW / 2 NSFW). */
+@Composable
+private fun contentRatingLabel(level: Int): String = when (level) {
+    1 -> stringResource(R.string.search_rating_contains_nsfw)
+    2 -> stringResource(R.string.search_rating_nsfw)
+    else -> stringResource(R.string.search_rating_safe)
 }

@@ -3,12 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>阅读器 · 章节列表与失败重试 · sumidoku-android 设计稿</title>
+<title>阅读器 · 章节抽屉 · sumidoku-android 设计稿</title>
 <link rel="stylesheet" href="assets/mock.css">
+<style>
+  .drawer-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .chips { display: flex; gap: 7px; margin-bottom: 6px; }
+  .chips .chip { padding: 5px 12px; font-size: 12px; }
+  .chno { width: 26px; flex: none; text-align: right; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .chapter .t { display: flex; align-items: center; gap: 6px; }
+  .chico { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--faint); }
+  .chico svg { width: 12px; height: 12px; }
+  .gaprow { display: flex; align-items: center; gap: 9px; padding: 9px 8px; margin: 4px 0; border: 1px dashed rgba(242,201,76,.4); border-radius: 9px; background: rgba(242,201,76,.06); font-size: 12px; color: var(--warning); }
+  .gaprow .s { font-size: 10.5px; color: var(--faint); }
+  .gaprow svg { width: 15px; height: 15px; flex: none; }
+  .loc { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 10.5px; color: var(--faint); padding: 2px 0 8px; }
+  .loc svg { width: 12px; height: 12px; }
+</style>
 </head>
 <body>
-<h1 class="page-title">阅读器 · 章节列表 + 失败页重试</h1>
-<p class="page-sub">底栏章节图标唤出抽屉 · cacheRevision 版本化刷新 · 失败页状态机（重试 / 换源加载）</p>
+<h1 class="page-title">阅读器 · 章节抽屉（定位 / 缺口 / 失败三态）</h1>
+<p class="page-sub">章节抽屉三处对齐三家优点：① 打开自动滚到当前章并高亮（Aidoku ScrollViewReader / Komikku rememberLazyListState）② 缺章插警示行（Aidoku 黄三角 SKIPPING_CHAPTERS / Komikku ChapterGapWarning）③ 行内徽标补齐 已下载 / 书签 / 锁定 / 读到 P.12（webui ReaderChapterItem）。顶栏带排序切换与只用一行的筛选 chips</p>
 <div class="phone">
   <div class="reader-canvas">
     <div class="reader-page"><div class="cover g3" style="width:56%;aspect-ratio:2/3;border-radius:0;opacity:.5"><span class="ct">第 131 话 · 12/18</span></div></div>
@@ -18,31 +32,57 @@
     <span class="iconbtn back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
     <div style="flex:1;min-width:0">
       <div style="font-size:14px;font-weight:600">葬送的芙莉莲</div>
-      <div style="font-size:11px;color:var(--muted)">第 131 话</div>
+      <div style="font-size:11px;color:var(--muted)">第 131 话 · 右→左</div>
     </div>
   </div>
 
-  <div class="sheet" style="max-height:470px;overflow:hidden">
+  <div class="sheet" style="max-height:560px;overflow:hidden">
     <div class="grab"></div>
-    <div style="display:flex;align-items:center;margin-bottom:8px">
+    <div class="drawer-head">
       <b style="font-size:15px">章节</b>
-      <span style="margin-left:auto;font-size:12px;color:var(--faint)">132 章 · 44 未读</span>
-      <span class="iconbtn" title="刷新章节"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg></span>
+      <span style="font-size:11.5px;color:var(--faint)">132 章 · 44 未读</span>
+      <span style="margin-left:auto" class="iconbtn" title="倒序 / 正序"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14m0 0-3-3m3 3 3-3M16 19V5m0 0-3 3m3-3 3 3"/></svg></span>
+      <span class="iconbtn" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+    </div>
+    <div class="chips">
+      <span class="chip active">全部</span>
+      <span class="chip">未读 44</span>
+      <span class="chip">已下载 6</span>
+    </div>
+    <div class="loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v14m0 0-4-4m4 4 4-4"/></svg>已定位到当前章</div>
+
+    <div class="chapter">
+      <span class="chno">132</span>
+      <div class="grow"><div class="t">第 132 话</div><div class="s">11-08 · 18 页</div></div>
+      <span class="chico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>已下载</span>
+    </div>
+    <div class="chapter" style="background:var(--accent-soft);border-radius:8px">
+      <span class="chno" style="color:var(--accent)">131</span>
+      <div class="grow"><div class="t">第 131 话 <span class="cur">当前</span></div><div class="s">11-01 · 读到 12/18</div></div>
+      <span class="chico" style="color:var(--accent)">P.12</span>
+    </div>
+    <div class="chapter read"><span class="chno">130</span><div class="grow"><div class="t">第 130 话</div><div class="s">10-25</div></div></div>
+    <div class="chapter read"><span class="chno">129</span><div class="grow"><div class="t">第 129 话</div><div class="s">10-18</div></div></div>
+
+    <div class="gaprow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+      <div class="grow"><div>第 128–129 话之间缺 1 话</div><div class="s">源未收录 · 不静默跳章</div></div>
+      <span class="chip" style="padding:4px 10px;font-size:11px">换源</span>
     </div>
 
-    <div class="chapter"><div class="grow"><div class="t">第 132 话</div><div class="s">11-08 · 已下载</div></div><span class="tag ok">已下载</span></div>
-    <div class="chapter"><div class="grow"><div class="t">第 131 话 <span class="cur">当前</span></div><div class="s">11-01 · 读到 12/18</div></div></div>
-    <div class="chapter read"><div class="grow"><div class="t">第 130 话</div><div class="s">10-25</div></div></div>
-    <div class="chapter read"><div class="grow"><div class="t">第 129 话</div><div class="s">10-18</div></div></div>
     <div class="chapter">
+      <span class="chno" style="color:var(--error)">128</span>
       <div class="grow">
         <div class="t" style="color:var(--error)">第 128 话 · 加载失败</div>
         <div class="s">网络错误 · 已重试 2 次（指数退避）</div>
       </div>
-      <span class="chip" style="font-size:12px">重试</span>
-      <span class="chip" style="font-size:12px">换源</span>
+      <span class="chip" style="font-size:11px;padding:4px 10px">重试</span>
     </div>
-    <div class="chapter read" style="border-bottom:0"><div class="grow"><div class="t">第 127 话</div><div class="s">10-11</div></div></div>
+    <div class="chapter read" style="border-bottom:0">
+      <span class="chno">127</span>
+      <div class="grow"><div class="t">第 127 话</div><div class="s">10-11</div></div>
+      <span class="chico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v17l-6-4-6 4z"/></svg></span>
+    </div>
   </div>
 </div>
 </body>

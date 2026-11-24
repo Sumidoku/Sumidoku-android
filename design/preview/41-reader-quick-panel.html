@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阅读器 · 快捷面板 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .seg { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg span { flex: 1; text-align: center; font-size: 12px; padding: 6px 0; border-radius: 8px; color: var(--muted); }
+  .seg span.on { background: var(--surface3); color: var(--text); font-weight: 600; }
+  .hint { font-size: 10.5px; color: var(--faint); margin-top: 3px; line-height: 1.45; }
+  .sec { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; }
+  .prow { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  .prow .grow .t { font-size: 13.5px; }
+  .prow .grow .s { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1 class="page-title">阅读器 · 快捷面板（模式 / 布局 / 方向）</h1>
+<p class="page-sub">底栏「模式」图标长按或点上翻箭头唤出半高快捷面板，只放三件最常改的事；改动即时生效并写成本漫画覆盖（头部标注「本漫画」），底部一行直达完整设置——避免为改一次方向进出设置页</p>
+<div class="phone">
+  <div class="reader-canvas">
+    <div class="reader-page"><div class="cover g2" style="width:58%;aspect-ratio:2/3;border-radius:0;opacity:.55"><span class="ct">第 201 话 · 3/18</span></div></div>
+  </div>
+
+  <div class="reader-overlay-top">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"/></svg></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14.5px;font-weight:600">我独自升级</div>
+        <div style="font-size:11.5px;color:var(--muted)">第 201 话 · 分页 · 3 / 18</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" style="max-height:356px">
+    <div class="grab"></div>
+    <div style="display:flex;align-items:center;margin-bottom:10px">
+      <b style="font-size:14.5px">阅读设置</b>
+      <span class="tag acc" style="margin-left:8px">本漫画</span>
+      <span style="margin-left:auto;font-size:11.5px;color:var(--accent)">全部设置 ›</span>
+    </div>
+
+    <div class="prow" style="border-radius:10px;border:0;padding:0 0 10px">
+      <div class="grow" style="flex:1">
+        <div class="sec">模式</div>
+        <div class="seg"><span class="on">分页</span><span>条漫</span><span>连续</span></div>
+        <div class="hint">元数据 Webtoon · 当前以分页覆盖</div>
+      </div>
+    </div>
+
+    <div class="prow" style="border:0;padding:0 0 10px">
+      <div class="grow" style="flex:1">
+        <div class="sec">双页布局</div>
+        <div class="seg"><span>单页</span><span>双页</span><span class="on">自动</span></div>
+        <div class="hint">自动 = 横屏双页</div>
+      </div>
+    </div>
+
+    <div class="prow" style="border:0;padding:0 0 6px">
+      <div class="grow" style="flex:1">
+        <div class="sec">方向</div>
+        <div class="seg"><span class="on">跟随漫画</span><span>左→右</span><span>右→左</span></div>
+        <div class="hint">解析为 右→左 · 滑杆 / 按钮 / 点按区已镜像</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;font-size:10.5px;color:var(--faint);padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
+      改动即时生效 · 点回与解析值相同的选项即取消覆盖
+    </div>
+  </div>
+</div>
+</body>
+</html>

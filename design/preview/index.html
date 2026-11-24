@@ -17,22 +17,22 @@
 <div class="head">
   <h1>sumidoku-android 界面设计稿</h1>
   <p>依据 <code>docs/android-client.md</code> 绘制的静态 HTML 屏幕稿（深色 Material 3 风格，393×852 手机框）。
-  覆盖设计文档 §4 信息架构的全部功能面：服务器管理、书库（含批量模式）、浏览/图源、图源主页与 listing、
-  聚合搜索、漫画详情（含元数据/封面/迁移对话框）、阅读器（分页/条漫/设置面板/章节抽屉）、
+  覆盖设计文档 §4 信息架构的全部功能面：服务器管理、书库（Komikku 式紧凑网格默认 + 形态/密度弹层 + 批量模式 + 空态）、浏览/图源、图源主页与 listing、
+  聚合搜索、漫画详情（含元数据/封面/迁移对话框）、阅读器（分页 + RTL 章节导航器 / 条漫可拖拽滚动条 / 设置面板的解析链 / 章节抽屉的定位·缺章·失败三态 / 横屏双页 / 过渡页 / 快捷面板）、
   下载、更新、历史、设置（含更新缓存/账户同步子页）、图源设置（schema 驱动 + 三法登录）、
-  tracker、迁移向导、备份、添加图源/内部源、图源仓库、回收站，以及平板/折叠屏适配稿（31，宽画幅）。
+  tracker、迁移向导、备份、添加图源/内部源、图源仓库、回收站、主题档（AMOLED / 浅色），以及平板/折叠屏适配稿（31，宽画幅全宽网格）。
   点击任意框进入对应屏幕。纯展示稿，无交互逻辑。
   单文件打包版：<a href="sumidoku-android-preview.html" style="color:var(--accent)">sumidoku-android-preview.html</a>（全部屏幕内联，可直接分发；由 <code>build-single-file.ps1</code> 重新生成）。</p>
 </div>
 <div class="gallery">
   <div class="shot"><a href="01-servers.html"><iframe class="phone" src="01-servers.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>01 · 服务器</b>多实例列表 / 添加 / 连接状态</div></div>
-  <div class="shot"><a href="02-library.html"><iframe class="phone" src="02-library.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>02 · 书库</b>分类下拉弹层（含未读数）+ 未读/下载角标</div></div>
+  <div class="shot"><a href="02-library.html"><iframe class="phone" src="02-library.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>02 · 书库（默认）</b>紧凑网格：标题压封面渐变 + Auto 列数</div></div>
   <div class="shot"><a href="03-browse.html"><iframe class="phone" src="03-browse.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>03 · 浏览</b>对齐 Aidoku：可更新 / 置顶 / 已安装分组列表</div></div>
   <div class="shot"><a href="04-source-home.html"><iframe class="phone" src="04-source-home.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>04 · 图源页</b>listing 切换头 + HomeLayout 组件栈（对齐 Aidoku）</div></div>
   <div class="shot"><a href="05-search.html"><iframe class="phone" src="05-search.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>05 · 聚合搜索</b>跨源流式结果 + 分级/语言/图源三态筛选</div></div>
   <div class="shot"><a href="06-manga.html"><iframe class="phone" src="06-manga.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>06 · 漫画详情</b>元数据锁 / tracker / 章节列表</div></div>
-  <div class="shot"><a href="07-reader-paged.html"><iframe class="phone" src="07-reader-paged.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>07 · 阅读器 · 分页</b>页面失败态：槽位保留 + 区域之上重试</div></div>
-  <div class="shot"><a href="08-reader-webtoon.html"><iframe class="phone" src="08-reader-webtoon.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>08 · 阅读器 · 条漫</b>页面三态：正常/加载中弧/失败重试</div></div>
+  <div class="shot"><a href="07-reader-paged.html"><iframe class="phone" src="07-reader-paged.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>07 · 阅读器 · 分页</b>底栏五键（章节/模式/布局/方向/设置）+ 章节导航器，RTL 镜像</div></div>
+  <div class="shot"><a href="08-reader-webtoon.html"><iframe class="phone" src="08-reader-webtoon.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>08 · 阅读器 · 条漫</b>底栏精简三键 + 可拖拽滚动条（页码气泡 + 章节锚点 + 页面三态）</div></div>
   <div class="shot"><a href="09-downloads.html"><iframe class="phone" src="09-downloads.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>09 · 下载</b>服务端队列 / 本机离线双 tab</div></div>
   <div class="shot"><a href="10-updates.html"><iframe class="phone" src="10-updates.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>10 · 更新</b>新章时间线 + 更新摘要</div></div>
   <div class="shot"><a href="11-history.html"><iframe class="phone" src="11-history.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>11 · 历史</b>阅读历史按日分组</div></div>
@@ -48,14 +48,24 @@
   <div class="shot"><a href="21-cover-picker.html"><iframe class="phone" src="21-cover-picker.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>21 · 备选封面</b>alternates 网格选择</div></div>
   <div class="shot"><a href="22-migrate-single.html"><iframe class="phone" src="22-migrate-single.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>22 · 单条迁移</b>多目标源自动匹配 + 三种模式</div></div>
   <div class="shot"><a href="23-library-batch.html"><iframe class="phone" src="23-library-batch.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>23 · 书库批量模式</b>多选 → 设分类 / 标已读 / 移出</div></div>
-  <div class="shot"><a href="24-reader-settings.html"><iframe class="phone" src="24-reader-settings.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>24 · 阅读器设置</b>点按区域图形化热区预览（随方向联动）</div></div>
-  <div class="shot"><a href="25-reader-chapters.html"><iframe class="phone" src="25-reader-chapters.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>25 · 阅读器章节抽屉</b>章节列表 + 失败页重试态</div></div>
+  <div class="shot"><a href="24-reader-settings.html"><iframe class="phone" src="24-reader-settings.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>24 · 阅读器设置</b>方向/布局解析链 + 模式三档 + 点按区预览随解析方向联动</div></div>
+  <div class="shot"><a href="25-reader-chapters.html"><iframe class="phone" src="25-reader-chapters.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>25 · 阅读器章节抽屉</b>打开定位当前章 + 缺章警示 + 失败重试</div></div>
   <div class="shot"><a href="26-trash.html"><iframe class="phone" src="26-trash.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>26 · 回收站</b>本地源恢复 / 彻底删除 / 清空</div></div>
   <div class="shot"><a href="27-settings-updates.html"><iframe class="phone" src="27-settings-updates.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>27 · 设置 · 更新与缓存</b>跳过规则 / 排除分类 / 章节页缓存</div></div>
   <div class="shot"><a href="28-settings-account.html"><iframe class="phone" src="28-settings-account.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>28 · 设置 · 账户与同步</b>API keys / 同步 peer（无痕在 12 服务器组）</div></div>
   <div class="shot"><a href="29-source-listing.html"><iframe class="phone" src="29-source-listing.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>29 · 图源 listing</b>网格分页 + 源 filters 面板</div></div>
   <div class="shot"><a href="30-internal-source.html"><iframe class="phone" src="30-internal-source.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>30 · 添加内部源</b>本地全字段：多目录/单话/排除/扫描开关</div></div>
-  <div class="shot"><a href="31-tablet.html"><div style="width:317px;height:211px;overflow:hidden;border-radius:8px;border:1px solid var(--border)"><iframe src="31-tablet.html" scrolling="no" style="width:960px;height:640px;border:0;pointer-events:none;transform:scale(.33);transform-origin:top left"></iframe></div></a><div class="cap"><b>31 · 平板 / 折叠屏</b>导航轨 + 书库网格×详情双栏（ListDetailPaneScaffold）</div></div>
+  <div class="shot"><a href="31-tablet.html"><div style="width:317px;height:211px;overflow:hidden;border-radius:8px;border:1px solid var(--border)"><iframe src="31-tablet.html" scrolling="no" style="width:960px;height:640px;border:0;pointer-events:none;transform:scale(.33);transform-origin:top left"></iframe></div></a><div class="cap"><b>31 · 平板 / 折叠屏</b>导航轨 + 全宽自适应网格（取消双栏，点封面整页进详情）</div></div>
+  <div class="shot"><a href="32-library-comfortable.html"><iframe class="phone" src="32-library-comfortable.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>32 · 书库 · 舒适网格</b>备选形态：标题在封面下 + 副题行</div></div>
+  <div class="shot"><a href="33-library-list.html"><iframe class="phone" src="33-library-list.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>33 · 书库 · 列表</b>备选形态：小封面 + 两行标题 + 行尾徽标</div></div>
+  <div class="shot"><a href="34-library-display.html"><iframe class="phone" src="34-library-display.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>34 · 书库 · 显示弹层</b>形态三选 + 密度 Auto/2/3/4 + 徽标开关</div></div>
+  <div class="shot"><a href="35-library-empty.html"><iframe class="phone" src="35-library-empty.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>35 · 书库 · 空态</b>首次安装引导：去浏览图源</div></div>
+  <div class="shot"><a href="36-library-filtered-empty.html"><iframe class="phone" src="36-library-filtered-empty.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>36 · 书库 · 筛选无结果</b>清除筛选入口 + 漏斗激活态</div></div>
+  <div class="shot"><a href="37-theme-amoled.html"><iframe class="phone" src="37-theme-amoled.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>37 · 主题 · AMOLED</b>背景纯黑 + 近黑三级分层</div></div>
+  <div class="shot"><a href="38-theme-light.html"><iframe class="phone" src="38-theme-light.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>38 · 主题 · 浅色</b>浅色板：primary #4A55C4 / 底 #FAFAFC</div></div>
+  <div class="shot"><a href="39-reader-spread.html"><div style="position:relative;width:317px;height:146px;overflow:hidden;border-radius:8px;border:1px solid var(--border)"><iframe src="39-reader-spread.html" scrolling="no" style="position:absolute;left:0;top:-46px;width:852px;height:393px;border:0;pointer-events:none;transform:scale(.372);transform-origin:top left"></iframe></div></a><div class="cap"><b>39 · 阅读器 · 横屏双页</b>RTL 页序 / 宽页独占 / 13–14 页码胶囊</div></div>
+  <div class="shot"><a href="40-reader-transition.html"><iframe class="phone" src="40-reader-transition.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>40 · 阅读器 · 过渡页</b>同向确认 / 反向取消 / 缺章警示 / 末话出口</div></div>
+  <div class="shot"><a href="41-reader-quick-panel.html"><iframe class="phone" src="41-reader-quick-panel.html" scrolling="no" style="border:0;pointer-events:none"></iframe></a><div class="cap"><b>41 · 阅读器 · 快捷面板</b>模式/布局/方向三段即时生效并回写本漫画</div></div>
 </div>
 </body>
 </html>

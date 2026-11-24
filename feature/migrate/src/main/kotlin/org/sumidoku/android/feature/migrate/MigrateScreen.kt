@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.migrate
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -60,6 +62,9 @@ import coil3.request.ImageRequest
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.MigrateResult
+import org.sumidoku.android.core.common.coverUrl
+import org.sumidoku.android.core.common.entryCoverUrl
+import org.sumidoku.android.core.model.ServerProfile
 
 /** Batch migration wizard: source → manga → targets/mode → auto-match →
  *  confirm → results. Mirrors webui MigratePage.tsx. Preview 15-migrate. */
@@ -98,13 +103,13 @@ fun MigrateScreen(
                             else -> onBack()
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.migrate_back))
                     }
                 },
                 actions = {
                     if (state.step == MigrateStep.MANGA) {
-                        TextButton(onClick = { viewModel.selectAll() }) { Text("全选") }
-                        TextButton(onClick = { viewModel.clearSelection() }) { Text("清除") }
+                        TextButton(onClick = { viewModel.selectAll() }) { Text(stringResource(R.string.migrate_select_all)) }
+                        TextButton(onClick = { viewModel.clearSelection() }) { Text(stringResource(R.string.migrate_clear)) }
                     }
                 },
             )
@@ -124,7 +129,7 @@ fun MigrateScreen(
                     MigrateStep.RUNNING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
-                            Text("正在迁移…", modifier = Modifier.padding(top = 12.dp))
+                            Text(stringResource(R.string.migrate_running), modifier = Modifier.padding(top = 12.dp))
                         }
                     }
                     MigrateStep.RESULTS -> ResultsStep(state, onDone = onBack)
@@ -134,15 +139,18 @@ fun MigrateScreen(
     }
 }
 
-private fun stepTitle(step: MigrateStep): String = when (step) {
-    MigrateStep.SOURCE -> "迁移 · 选择来源源"
-    MigrateStep.MANGA -> "迁移 · 选择漫画"
-    MigrateStep.TARGETS -> "迁移 · 目标与模式"
-    MigrateStep.MATCHING -> "迁移 · 自动匹配中"
-    MigrateStep.CONFIRM -> "迁移 · 确认匹配"
-    MigrateStep.RUNNING -> "迁移 · 执行中"
-    MigrateStep.RESULTS -> "迁移 · 结果"
-}
+@Composable
+private fun stepTitle(step: MigrateStep): String = stringResource(
+    when (step) {
+        MigrateStep.SOURCE -> R.string.migrate_step_source
+        MigrateStep.MANGA -> R.string.migrate_step_manga
+        MigrateStep.TARGETS -> R.string.migrate_step_targets
+        MigrateStep.MATCHING -> R.string.migrate_step_matching
+        MigrateStep.CONFIRM -> R.string.migrate_step_confirm
+        MigrateStep.RUNNING -> R.string.migrate_step_running
+        MigrateStep.RESULTS -> R.string.migrate_step_results
+    },
+)
 
 @Composable
 private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
@@ -151,7 +159,7 @@ private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             if (state.error != null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "读取迁移图源失败",
+                        stringResource(R.string.migrate_load_sources_failed),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -162,10 +170,10 @@ private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
                     )
-                    TextButton(onClick = { viewModel.loadSources() }) { Text("重试") }
+                    TextButton(onClick = { viewModel.loadSources() }) { Text(stringResource(R.string.migrate_retry)) }
                 }
             } else {
-                Text("没有可迁移的图源（书库为空）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.migrate_no_sources), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         return
@@ -175,10 +183,10 @@ private fun SourceStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             val source = state.sources[i]
             Card(Modifier.fillMaxWidth().clickable { viewModel.selectFromSource(source) }) {
                 ListItem(
-                    headlineContent = { Text(source.name ?: source.key ?: "图源 ${source.id}") },
+                    headlineContent = { Text(source.name ?: source.key ?: stringResource(R.string.migrate_source_fallback, source.id)) },
                     supportingContent = {
                         Text(buildString {
-                            append("${source.mangaCount ?: 0} 本在库 · v${source.version ?: 0}")
+                            append(stringResource(R.string.migrate_source_meta, source.mangaCount ?: 0, source.version ?: 0))
                             val langs = source.languages?.joinToString(" ").orEmpty()
                             if (langs.isNotEmpty()) append(" · $langs")
                         })
@@ -208,11 +216,11 @@ private fun MangaStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         onCheckedChange = { id?.let { viewModel.toggleManga(it) } },
                     )
                     val ctx = LocalContext.current
-                    val coverModel = entry.cover?.let { cover ->
-                        val url = if (cover.startsWith("http")) cover
-                        else (state.profile?.baseUrl.orEmpty().trimEnd('/') + cover)
-                        ImageRequest.Builder(ctx).data(url).apply {
-                            state.profile?.apiKey?.let {
+                    val coverModel = state.profile?.let { profile ->
+                        // Same as webui coverUrl: the server resolves local-source
+                        // covers even when the `cover` field is null.
+                        ImageRequest.Builder(ctx).data(coverUrl(profile.baseUrl, entry.id, entry.cover)).apply {
+                            profile.apiKey?.let {
                                 httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
                             }
                         }.build()
@@ -228,7 +236,7 @@ private fun MangaStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         Text(entry.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                         val unread = entry.unreadCount
                         if (unread != null && unread > 0) {
-                            Text("$unread 未读", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.migrate_unread_count, unread), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -241,7 +249,7 @@ private fun MangaStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             onClick = { viewModel.toTargetsStep() },
             enabled = state.selectedIds.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) { Text("下一步（已选 ${state.selectedIds.size}）") }
+        ) { Text(stringResource(R.string.migrate_next_selected, state.selectedIds.size)) }
     }
 }
 
@@ -249,7 +257,7 @@ private fun MangaStep(state: MigrateUiState, viewModel: MigrateViewModel) {
 private fun TargetsStep(state: MigrateUiState, viewModel: MigrateViewModel) {
     Column(Modifier.fillMaxSize()) {
         Text(
-            "目标源（可多选）",
+            stringResource(R.string.migrate_targets_title),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
@@ -265,12 +273,12 @@ private fun TargetsStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         checked = source.id in state.targetIds,
                         onCheckedChange = { viewModel.toggleTarget(source.id) },
                     )
-                    Text(source.name ?: source.key ?: "图源 ${source.id}", style = MaterialTheme.typography.bodyMedium)
+                    Text(source.name ?: source.key ?: stringResource(R.string.migrate_source_fallback, source.id), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             item {
                 Text(
-                    "迁移模式",
+                    stringResource(R.string.migrate_mode_title),
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
@@ -282,11 +290,13 @@ private fun TargetsStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = MigrateMode.entries.size),
                         ) {
                             Text(
-                                when (mode) {
-                                    MigrateMode.COPY -> "复制"
-                                    MigrateMode.MIGRATE -> "迁移"
-                                    MigrateMode.MIGRATE_WITH_HISTORY -> "迁移+历史"
-                                },
+                                stringResource(
+                                    when (mode) {
+                                        MigrateMode.COPY -> R.string.migrate_mode_copy
+                                        MigrateMode.MIGRATE -> R.string.migrate_mode_migrate
+                                        MigrateMode.MIGRATE_WITH_HISTORY -> R.string.migrate_mode_migrate_with_history
+                                    },
+                                ),
                             )
                         }
                     }
@@ -297,7 +307,7 @@ private fun TargetsStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             onClick = { viewModel.startMatching() },
             enabled = state.targetIds.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) { Text("自动匹配（${state.selectedIds.size} × ${state.targetIds.size}）") }
+        ) { Text(stringResource(R.string.migrate_start_matching, state.selectedIds.size, state.targetIds.size)) }
     }
 }
 
@@ -307,9 +317,34 @@ private fun MatchingStep(state: MigrateUiState) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()
-            Text("正在匹配 $done / ${state.matchRows.size}", modifier = Modifier.padding(top = 12.dp))
+            Text(stringResource(R.string.migrate_matching_progress, done, state.matchRows.size), modifier = Modifier.padding(top = 12.dp))
         }
     }
+}
+
+/** Small 36×50 cover thumb for the confirm step (source entry and matched
+ *  candidate both go through the same authenticated image request). */
+@Composable
+private fun CoverThumb(profile: ServerProfile?, url: String?) {
+    val context = LocalContext.current
+    val model = if (profile != null && url != null) {
+        ImageRequest.Builder(context).data(url).apply {
+            profile.apiKey?.let { key ->
+                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+            }
+        }.build()
+    } else {
+        null
+    }
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = Modifier
+            .size(36.dp, 50.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentScale = ContentScale.Crop,
+    )
 }
 
 @Composable
@@ -323,32 +358,56 @@ private fun ConfirmStep(state: MigrateUiState, viewModel: MigrateViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(12.dp),
                     ) {
-                        Icon(
-                            imageVector = when (row.status) {
-                                MatchStatus.MATCHED -> Icons.Outlined.CheckCircle
-                                MatchStatus.NOT_FOUND -> Icons.Outlined.ErrorOutline
-                                MatchStatus.PENDING -> Icons.Outlined.CheckBoxOutlineBlank
-                            },
-                            contentDescription = null,
-                            tint = when (row.status) {
-                                MatchStatus.MATCHED -> MaterialTheme.colorScheme.primary
-                                MatchStatus.NOT_FOUND -> MaterialTheme.colorScheme.error
-                                MatchStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                        // Source side: the library entry being migrated.
+                        val sourceCoverUrl = state.profile?.let { coverUrl(it.baseUrl, row.manga.id, row.manga.cover) }
+                        CoverThumb(state.profile, sourceCoverUrl)
+                        Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
                             Text(row.mangaTitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                            Text(
-                                when (row.status) {
-                                    MatchStatus.MATCHED -> "→ ${row.target.name}：${row.candidate?.title ?: ""}"
-                                    MatchStatus.NOT_FOUND -> "→ ${row.target.name}：未找到匹配"
-                                    MatchStatus.PENDING -> "→ ${row.target.name}：匹配中"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = when (row.status) {
+                                        MatchStatus.MATCHED -> Icons.Outlined.CheckCircle
+                                        MatchStatus.NOT_FOUND -> Icons.Outlined.ErrorOutline
+                                        MatchStatus.PENDING -> Icons.Outlined.CheckBoxOutlineBlank
+                                    },
+                                    contentDescription = null,
+                                    tint = when (row.status) {
+                                        MatchStatus.MATCHED -> MaterialTheme.colorScheme.primary
+                                        MatchStatus.NOT_FOUND -> MaterialTheme.colorScheme.error
+                                        MatchStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Text(
+                                    when (row.status) {
+                                        MatchStatus.MATCHED -> stringResource(
+                                            R.string.migrate_matched_to,
+                                            row.target.name.orEmpty(),
+                                            row.candidate?.title.orEmpty(),
+                                        )
+                                        MatchStatus.NOT_FOUND -> stringResource(
+                                            R.string.migrate_not_found,
+                                            row.target.name.orEmpty(),
+                                        )
+                                        MatchStatus.PENDING -> stringResource(
+                                            R.string.migrate_matching_row,
+                                            row.target.name.orEmpty(),
+                                        )
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        }
+                        // Target side: the matched candidate on the target source.
+                        row.candidate?.let { candidate ->
+                            val isLocal = row.target.kind == org.sumidoku.android.core.api.model.MigrationSource.Kind.LOCAL
+                            val url = state.profile?.let { p ->
+                                entryCoverUrl(p.baseUrl, candidate.sourceId, candidate.cover, candidate.id, isLocal)
+                            }
+                            CoverThumb(state.profile, url)
                         }
                     }
                 }
@@ -358,7 +417,7 @@ private fun ConfirmStep(state: MigrateUiState, viewModel: MigrateViewModel) {
             onClick = { viewModel.runMigration() },
             enabled = state.matchable.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) { Text("开始迁移（${state.matchable.size} 条可迁移）") }
+        ) { Text(stringResource(R.string.migrate_start_button, state.matchable.size)) }
     }
 }
 
@@ -367,7 +426,7 @@ private fun ResultsStep(state: MigrateUiState, onDone: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         val okCount = state.results.count { it.ok }
         Text(
-            "完成：$okCount / ${state.results.size} 成功",
+            stringResource(R.string.migrate_results_summary, okCount, state.results.size),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(16.dp),
         )
@@ -383,8 +442,12 @@ private fun ResultsStep(state: MigrateUiState, onDone: () -> Unit) {
                     )
                     Text(
                         text = when {
-                            result.ok -> "#${result.fromMangaId} 迁移成功"
-                            else -> "#${result.fromMangaId} 失败：${result.message ?: result.reason?.value ?: "未知原因"}"
+                            result.ok -> stringResource(R.string.migrate_result_success, result.fromMangaId)
+                            else -> stringResource(
+                                R.string.migrate_result_failure,
+                                result.fromMangaId,
+                                result.message ?: result.reason?.value ?: stringResource(R.string.migrate_unknown_reason),
+                            )
                         },
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(start = 8.dp),
@@ -401,7 +464,7 @@ private fun ResultsStep(state: MigrateUiState, onDone: () -> Unit) {
             }
         }
         OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("完成")
+            Text(stringResource(R.string.migrate_done))
         }
     }
 }

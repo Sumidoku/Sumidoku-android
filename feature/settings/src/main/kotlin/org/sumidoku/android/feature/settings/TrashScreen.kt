@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,12 +35,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -73,6 +76,7 @@ data class TrashUiState(
 
 @HiltViewModel
 class TrashViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -87,7 +91,7 @@ class TrashViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = TrashUiState(loading = false, error = "未选择服务器")
+                _state.value = TrashUiState(loading = false, error = appContext.getString(R.string.misc_no_server_selected))
                 return@launch
             }
             try {
@@ -105,7 +109,7 @@ class TrashViewModel @Inject constructor(
             val profile = repository.activeProfile.first() ?: return@launch
             try {
                 clientFactory.create<SourcesApi>(profile).restoreLocalTrash(id.toLong()).await()
-                _state.value = _state.value.copy(message = "已恢复")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.trash_restored))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -119,7 +123,7 @@ class TrashViewModel @Inject constructor(
             val profile = repository.activeProfile.first() ?: return@launch
             try {
                 clientFactory.create<SourcesApi>(profile).purgeLocalTrash(id.toLong()).await()
-                _state.value = _state.value.copy(message = "已彻底删除")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.trash_deleted_permanently))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -135,7 +139,7 @@ class TrashViewModel @Inject constructor(
             val profile = repository.activeProfile.first() ?: return@launch
             try {
                 clientFactory.create<TrashOpsApi>(profile).emptyTrash().await()
-                _state.value = _state.value.copy(message = "清空回收站任务已排队（见任务队列）")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.trash_empty_queued))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -172,17 +176,17 @@ fun TrashScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("本地回收站") },
+                title = { Text(stringResource(R.string.trash_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
                 actions = {
                     TextButton(
                         enabled = state.propertyEntries.isNotEmpty(),
                         onClick = { confirmEmpty = true },
-                    ) { Text("清空") }
+                    ) { Text(stringResource(R.string.trash_empty_action)) }
                 },
             )
         },
@@ -192,7 +196,7 @@ fun TrashScreen(
                 CircularProgressIndicator()
             }
             state.propertyEntries.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("回收站为空", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.trash_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -205,22 +209,23 @@ fun TrashScreen(
                         },
                         supportingContent = {
                             Text(
-                                buildString {
-                                    append("回收章节 ${entry.trashedChapters} · ")
-                                    append("删除于 ${relativeEpochMs(entry.trashedAt)}")
-                                },
+                                stringResource(
+                                    R.string.trash_entry_summary,
+                                    entry.trashedChapters,
+                                    relativeEpochMs(entry.trashedAt),
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
                         trailingContent = {
                             Row {
                                 IconButton(onClick = { viewModel.restore(entry.manga.id) }) {
-                                    Icon(Icons.Outlined.Restore, contentDescription = "恢复")
+                                    Icon(Icons.Outlined.Restore, contentDescription = stringResource(R.string.trash_restore))
                                 }
                                 IconButton(onClick = { confirmDeleteId = entry.manga.id }) {
                                     Icon(
                                         Icons.Outlined.DeleteForever,
-                                        contentDescription = "彻底删除",
+                                        contentDescription = stringResource(R.string.trash_delete_forever),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -235,16 +240,16 @@ fun TrashScreen(
     if (confirmEmpty) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
-            title = { Text("清空回收站") },
-            text = { Text("将排队服务器任务彻底删除全部 ${state.propertyEntries.size} 个条目，无法撤销。确定继续？") },
+            title = { Text(stringResource(R.string.trash_empty_dialog_title)) },
+            text = { Text(stringResource(R.string.trash_empty_dialog_text, state.propertyEntries.size)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmEmpty = false
                     viewModel.emptyTrash()
-                }) { Text("清空") }
+                }) { Text(stringResource(R.string.trash_empty_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmEmpty = false }) { Text("取消") }
+                TextButton(onClick = { confirmEmpty = false }) { Text(stringResource(R.string.misc_cancel)) }
             },
         )
     }
@@ -253,16 +258,16 @@ fun TrashScreen(
     if (deleteId != null) {
         AlertDialog(
             onDismissRequest = { confirmDeleteId = null },
-            title = { Text("彻底删除") },
-            text = { Text("文件将立即删除，无法撤销。确定继续？") },
+            title = { Text(stringResource(R.string.trash_delete_forever)) },
+            text = { Text(stringResource(R.string.trash_delete_dialog_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDeleteId = null
                     viewModel.delete(deleteId)
-                }) { Text("删除") }
+                }) { Text(stringResource(R.string.misc_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteId = null }) { Text("取消") }
+                TextButton(onClick = { confirmDeleteId = null }) { Text(stringResource(R.string.misc_cancel)) }
             },
         )
     }

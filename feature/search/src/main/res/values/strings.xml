@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Search screen -->
+    <string name="search_title">Search</string>
+    <string name="search_back">Back</string>
+    <string name="search_placeholder">Search across all sources…</string>
+    <string name="search_action">Search</string>
+    <string name="search_no_sources">No sources available with the current filters</string>
+    <string name="search_prompt_source_count">Type a keyword to search %1$d sources at once</string>
+    <string name="search_empty">No results found</string>
+    <string name="search_entry_count">%1$d entries</string>
+    <string name="search_view_all">View all</string>
+    <string name="search_loading">Loading…</string>
+    <string name="search_load_more">Load more</string>
+    <string name="search_filter_ratings">Rating</string>
+    <string name="search_filter_languages">Language</string>
+    <string name="search_filter_sources">Sources</string>
+    <string name="search_source_progress">%1$d/%2$d sources</string>
+    <string name="search_reset">Reset</string>
+    <string name="search_done">Done</string>
+    <string name="search_include">Include</string>
+    <string name="search_exclude">Exclude</string>
+
+    <!-- Content rating levels -->
+    <string name="search_rating_safe">Safe</string>
+    <string name="search_rating_contains_nsfw">Contains NSFW</string>
+    <string name="search_rating_nsfw">NSFW</string>
+
+    <!-- Language labels -->
+    <string name="search_lang_multi">Multi-language</string>
+    <string name="search_lang_en">English</string>
+    <string name="search_lang_ja">Japanese</string>
+    <string name="search_lang_zh">Chinese</string>
+    <string name="search_lang_ko">Korean</string>
+    <string name="search_lang_fr">French</string>
+    <string name="search_lang_de">German</string>
+    <string name="search_lang_es">Spanish</string>
+    <string name="search_lang_pt">Portuguese</string>
+    <string name="search_lang_it">Italian</string>
+    <string name="search_lang_ru">Russian</string>
+    <string name="search_lang_ar">Arabic</string>
+    <string name="search_lang_hi">Hindi</string>
+    <string name="search_lang_th">Thai</string>
+    <string name="search_lang_vi">Vietnamese</string>
+    <string name="search_lang_id">Indonesian</string>
+    <string name="search_lang_tr">Turkish</string>
+    <string name="search_lang_pl">Polish</string>
+    <string name="search_lang_nl">Dutch</string>
+    <string name="search_lang_sv">Swedish</string>
+    <string name="search_lang_uk">Ukrainian</string>
+    <string name="search_lang_ro">Romanian</string>
+    <string name="search_lang_cs">Czech</string>
+    <string name="search_lang_el">Greek</string>
+    <string name="search_lang_hu">Hungarian</string>
+    <string name="search_lang_fi">Finnish</string>
+    <string name="search_lang_da">Danish</string>
+    <string name="search_lang_no">Norwegian</string>
+    <string name="search_lang_he">Hebrew</string>
+    <string name="search_lang_fa">Persian</string>
+    <string name="search_lang_ms">Malay</string>
+    <string name="search_lang_tl">Tagalog</string>
+    <string name="search_lang_ca">Catalan</string>
+
+    <!-- ViewModel results and errors -->
+    <string name="search_failed">Search failed</string>
+    <string name="search_source_fallback">Source %1$d</string>
+</resources>

@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.updates
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +41,7 @@ data class UpdatesUiState(
 
 @HiltViewModel
 class UpdatesViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val eventsStream: EventsStream,
@@ -60,7 +63,10 @@ class UpdatesViewModel @Inject constructor(
         refreshJob = viewModelScope.launch {
             val profile = repository.activeProfile.first()
             if (profile == null) {
-                _state.value = UpdatesUiState(loading = false, error = "未选择服务器")
+                _state.value = UpdatesUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.updates_error_no_server),
+                )
                 return@launch
             }
             _state.value = _state.value.copy(profile = profile, loading = true, error = null)

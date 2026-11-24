@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.sumidoku.android.core.api.model.SuwayomiImportResponse
 import org.sumidoku.android.core.api.model.SuwayomiSourceReport
@@ -48,9 +49,16 @@ internal fun TachibkWizardSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("导入 Mihon 备份（预览）", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.tachibk_preview_title), style = MaterialTheme.typography.titleMedium)
             Text(
-                "将导入：漫画 ${report.imported.library}、进度 ${report.imported.progress}、分类 ${report.imported.categories}、追踪绑定 ${report.imported.trackers}（跳过 ${report.skipped.size} 条）。请确认每个图源的映射：",
+                stringResource(
+                    R.string.tachibk_preview_message,
+                    report.imported.library,
+                    report.imported.progress,
+                    report.imported.categories,
+                    report.imported.trackers,
+                    report.skipped.size,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -60,7 +68,7 @@ internal fun TachibkWizardSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(source.mihonSourceName, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "${source.mangaCount} 部漫画",
+                        stringResource(R.string.tachibk_manga_count, source.mangaCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -68,14 +76,14 @@ internal fun TachibkWizardSheet(
                         SuwayomiSourceReport.Match.MAPPED,
                         SuwayomiSourceReport.Match.AUTO,
                         -> Text(
-                            "✓ ${source.aidokuSourceName ?: source.aidokuSourceKey ?: "已匹配"}",
+                            "✓ ${source.aidokuSourceName ?: source.aidokuSourceKey ?: stringResource(R.string.tachibk_matched_fallback)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
                         SuwayomiSourceReport.Match.UNMATCHED -> {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "未自动匹配",
+                                    stringResource(R.string.tachibk_unmatched),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.weight(1f),
@@ -93,8 +101,8 @@ internal fun TachibkWizardSheet(
 
             HorizontalDivider()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("取消") }
-                Button(onClick = onImport, modifier = Modifier.weight(1f)) { Text("导入") }
+                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.backups_cancel)) }
+                Button(onClick = onImport, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.backups_import)) }
             }
         }
     }
@@ -110,10 +118,10 @@ private fun SourceMappingPicker(
     val selectedName = candidates.firstOrNull { it.first == selectedKey }?.second
     Box {
         OutlinedButton(onClick = { open = true }) {
-            Text(selectedName ?: "选择映射…")
+            Text(selectedName ?: stringResource(R.string.tachibk_select_mapping))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("跳过该源") }, onClick = {
+            DropdownMenuItem(text = { Text(stringResource(R.string.tachibk_skip_source)) }, onClick = {
                 open = false
                 onSelect(null)
             })

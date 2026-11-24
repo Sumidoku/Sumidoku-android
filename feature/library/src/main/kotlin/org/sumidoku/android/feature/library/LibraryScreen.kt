@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -167,14 +168,14 @@ fun LibraryScreen(
                 TopAppBar(
                     navigationIcon = {
                         IconButton(onClick = { viewModel.exitSelection() }) {
-                            Icon(Icons.Outlined.Close, contentDescription = "退出批量模式")
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.library_exit_batch_mode))
                         }
                     },
-                    title = { Text("已选 ${state.selected.size} 项") },
+                    title = { Text(stringResource(R.string.library_selected_count, state.selected.size)) },
                     actions = {
                         val allSelected = state.entries.isNotEmpty() && state.selected.size >= state.entries.size
                         TextButton(onClick = { viewModel.selectAll(!allSelected) }) {
-                            Text(if (allSelected) "取消全选" else "全选")
+                            Text(stringResource(if (allSelected) R.string.library_deselect_all else R.string.library_select_all))
                         }
                     },
                 )
@@ -185,20 +186,21 @@ fun LibraryScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable { showCategorySheet = true },
                     ) {
-                        Text("书库", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Icon(Icons.Outlined.ArrowDropDown, contentDescription = "选择分类")
+                        Text(stringResource(R.string.library_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Icon(Icons.Outlined.ArrowDropDown, contentDescription = stringResource(R.string.library_choose_category))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDisplaySheet = true }) {
-                        Icon(Icons.Outlined.GridView, contentDescription = "显示")
+                        Icon(Icons.Outlined.GridView, contentDescription = stringResource(R.string.library_display))
                     }
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Outlined.Sort, contentDescription = "排序")
+                            Icon(Icons.Outlined.Sort, contentDescription = stringResource(R.string.library_sort))
                         }
                         DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                            sortLabels.forEach { (sort, label) ->
+                            sortOrder.forEach { sort ->
+                                val label = sortLabel(sort)
                                 DropdownMenuItem(
                                     text = { Text(if (sort == state.sort) "✓ $label" else label) },
                                     onClick = {
@@ -217,11 +219,11 @@ fun LibraryScreen(
                                 }
                             },
                         ) {
-                            Icon(Icons.Outlined.FilterList, contentDescription = "筛选")
+                            Icon(Icons.Outlined.FilterList, contentDescription = stringResource(R.string.library_filter))
                         }
                     }
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "刷新")
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.library_refresh))
                     }
                 },
                 )
@@ -254,7 +256,7 @@ fun LibraryScreen(
                             trailingIcon = {
                                 Icon(
                                     Icons.Outlined.Close,
-                                    contentDescription = "移除 ${chip.label}",
+                                    contentDescription = stringResource(R.string.library_remove_chip, chip.label),
                                     modifier = Modifier.size(16.dp),
                                 )
                             },
@@ -276,7 +278,7 @@ fun LibraryScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(state.error!!, color = MaterialTheme.colorScheme.error)
                                 Spacer(Modifier.height(8.dp))
-                                TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                                TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.library_retry)) }
                             }
                         }
                     state.entries.isEmpty() -> LibraryEmptyState(
@@ -373,30 +375,39 @@ fun LibraryScreen(
     if (showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { showRemoveDialog = false },
-            title = { Text("移出书库") },
-            text = { Text("将 ${state.selected.size} 部漫画移出书库，漫画本身的章节与下载不受影响。") },
+            title = { Text(stringResource(R.string.library_remove_from_library)) },
+            text = { Text(stringResource(R.string.library_remove_confirm_message, state.selected.size)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showRemoveDialog = false
                         viewModel.batchRemove()
                     },
-                ) { Text("移出", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.library_remove), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showRemoveDialog = false }) { Text("取消") }
+                TextButton(onClick = { showRemoveDialog = false }) { Text(stringResource(R.string.library_cancel)) }
             },
         )
     }
 }
 
-private val sortLabels: List<Pair<LibrarySort, String>> = listOf(
-    LibrarySort.ADDED to "最近入库",
-    LibrarySort.TITLE to "标题",
-    LibrarySort.LAST_READ to "最近阅读",
-    LibrarySort.LATEST_CHAPTER to "最新章节",
-    LibrarySort.UNREAD to "未读最多",
+private val sortOrder: List<LibrarySort> = listOf(
+    LibrarySort.ADDED,
+    LibrarySort.TITLE,
+    LibrarySort.LAST_READ,
+    LibrarySort.LATEST_CHAPTER,
+    LibrarySort.UNREAD,
 )
+
+@Composable
+private fun sortLabel(sort: LibrarySort): String = when (sort) {
+    LibrarySort.ADDED -> stringResource(R.string.library_sort_added)
+    LibrarySort.TITLE -> stringResource(R.string.library_sort_title)
+    LibrarySort.LAST_READ -> stringResource(R.string.library_sort_last_read)
+    LibrarySort.LATEST_CHAPTER -> stringResource(R.string.library_sort_latest_chapter)
+    LibrarySort.UNREAD -> stringResource(R.string.library_sort_unread)
+}
 
 /** webui FILTER_OPTIONS order. */
 private val statusFilterKeys: List<LibraryFilter> = listOf(
@@ -407,28 +418,31 @@ private val statusFilterKeys: List<LibraryFilter> = listOf(
     LibraryFilter.DOWNLOADED,
 )
 
+@Composable
 private fun statusLabel(key: String): String = when (key) {
-    LibraryFilter.UNREAD.value -> "未读"
-    LibraryFilter.COMPLETED.value -> "已完结"
-    LibraryFilter.TRACKED.value -> "已追踪"
-    LibraryFilter.BOOKMARKED.value -> "书签"
-    LibraryFilter.DOWNLOADED.value -> "已下载"
+    LibraryFilter.UNREAD.value -> stringResource(R.string.library_status_unread)
+    LibraryFilter.COMPLETED.value -> stringResource(R.string.library_status_completed)
+    LibraryFilter.TRACKED.value -> stringResource(R.string.library_status_tracked)
+    LibraryFilter.BOOKMARKED.value -> stringResource(R.string.library_status_bookmarked)
+    LibraryFilter.DOWNLOADED.value -> stringResource(R.string.library_status_downloaded)
     else -> key
 }
 
 /** Manga content rating levels (1/2/3) — not the source-level 0/1/2 scale. */
+@Composable
 private fun ratingLabel(key: String): String = when (key) {
-    "1" -> "安全"
-    "2" -> "建议"
-    "3" -> "NSFW"
+    "1" -> stringResource(R.string.library_rating_safe)
+    "2" -> stringResource(R.string.library_rating_suggestive)
+    "3" -> stringResource(R.string.library_rating_nsfw)
     else -> key
 }
 
+@Composable
 private fun dimensionTitle(dimension: LibraryFilterDimension): String = when (dimension) {
-    LibraryFilterDimension.RATINGS -> "分级"
-    LibraryFilterDimension.SOURCES -> "图源"
-    LibraryFilterDimension.AUTHORS -> "作者"
-    LibraryFilterDimension.TAGS -> "标签"
+    LibraryFilterDimension.RATINGS -> stringResource(R.string.library_dimension_ratings)
+    LibraryFilterDimension.SOURCES -> stringResource(R.string.library_dimension_sources)
+    LibraryFilterDimension.AUTHORS -> stringResource(R.string.library_dimension_authors)
+    LibraryFilterDimension.TAGS -> stringResource(R.string.library_dimension_tags)
 }
 
 private fun dimensionSelection(
@@ -443,14 +457,15 @@ private fun dimensionSelection(
 
 private data class TriOption(val key: String, val label: String, val count: Long? = null)
 
+@Composable
 private fun dimensionOptions(
     dimension: LibraryFilterDimension,
     state: LibraryUiState,
 ): List<TriOption> = when (dimension) {
     LibraryFilterDimension.RATINGS -> listOf(
-        TriOption("1", "安全"),
-        TriOption("2", "建议"),
-        TriOption("3", "NSFW"),
+        TriOption("1", stringResource(R.string.library_rating_safe)),
+        TriOption("2", stringResource(R.string.library_rating_suggestive)),
+        TriOption("3", stringResource(R.string.library_rating_nsfw)),
     )
     LibraryFilterDimension.SOURCES -> {
         val counts = state.sourceCounts.associate { it.sourceId.toString() to it.count }
@@ -496,27 +511,27 @@ private fun activeFilterChips(
             })
         }
         state.ratings.forEach { (key, _) ->
-            add(ActiveFilterChip("rating-$key", "分级：${ratingLabel(key)}") {
+            add(ActiveFilterChip("rating-$key", stringResource(R.string.library_chip_rating, ratingLabel(key))) {
                 viewModel.removeSelection(LibraryFilterDimension.RATINGS, key)
             })
         }
         state.sources.forEach { (key, _) ->
-            add(ActiveFilterChip("source-$key", "图源：${sourceNames[key] ?: key}") {
+            add(ActiveFilterChip("source-$key", stringResource(R.string.library_chip_source, sourceNames[key] ?: key)) {
                 viewModel.removeSelection(LibraryFilterDimension.SOURCES, key)
             })
         }
         state.authors.forEach { (key, _) ->
-            add(ActiveFilterChip("author-$key", "作者：$key") {
+            add(ActiveFilterChip("author-$key", stringResource(R.string.library_chip_author, key)) {
                 viewModel.removeSelection(LibraryFilterDimension.AUTHORS, key)
             })
         }
         state.tags.forEach { (key, _) ->
-            add(ActiveFilterChip("tag-$key", "标签：$key") {
+            add(ActiveFilterChip("tag-$key", stringResource(R.string.library_chip_tag, key)) {
                 viewModel.removeSelection(LibraryFilterDimension.TAGS, key)
             })
         }
         groupName?.let { name ->
-            add(ActiveFilterChip("group", "筛选组：$name") { viewModel.setGroupId(null) })
+            add(ActiveFilterChip("group", stringResource(R.string.library_chip_group, name)) { viewModel.setGroupId(null) })
         }
     }
 }
@@ -556,16 +571,22 @@ private fun LibraryEmptyState(
             }
             Spacer(Modifier.height(18.dp))
             Text(
-                text = if (filtered) "没有符合筛选的漫画" else "书库还是空的",
+                text = stringResource(
+                    if (filtered) R.string.library_empty_filtered_title else R.string.library_empty_title,
+                ),
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = if (filtered) {
                     val labels = filterLabels.joinToString(" · ")
-                    if (labels.isBlank()) "放宽筛选条件试试" else "当前筛选：$labels"
+                    if (labels.isBlank()) {
+                        stringResource(R.string.library_empty_filtered_hint)
+                    } else {
+                        stringResource(R.string.library_empty_active_filters, labels)
+                    }
                 } else {
-                    "去浏览页逛逛，把喜欢的漫画加入书库，\n新章节更新会出现在「更新」里"
+                    stringResource(R.string.library_empty_hint)
                 },
                 style = MaterialTheme.typography.bodySmall.copy(lineHeight = 20.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -580,10 +601,10 @@ private fun LibraryEmptyState(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 ) {
-                    Text("清除筛选")
+                    Text(stringResource(R.string.library_clear_filters))
                 }
             } else {
-                Button(onClick = onBrowseSources) { Text("去浏览图源") }
+                Button(onClick = onBrowseSources) { Text(stringResource(R.string.library_browse_sources)) }
             }
         }
     }
@@ -595,7 +616,7 @@ private fun SheetHeader(
     title: String,
     onReset: () -> Unit,
     onDone: () -> Unit,
-    resetLabel: String = "重置",
+    resetLabel: String? = null,
     resetEnabled: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
@@ -605,7 +626,7 @@ private fun SheetHeader(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.library_back))
             }
         }
         Text(
@@ -617,8 +638,10 @@ private fun SheetHeader(
                 .padding(start = if (onBack == null) 12.dp else 0.dp)
                 .weight(1f),
         )
-        TextButton(onClick = onReset, enabled = resetEnabled) { Text(resetLabel) }
-        TextButton(onClick = onDone) { Text("完成") }
+        TextButton(onClick = onReset, enabled = resetEnabled) {
+            Text(resetLabel ?: stringResource(R.string.library_reset))
+        }
+        TextButton(onClick = onDone) { Text(stringResource(R.string.library_done)) }
     }
 }
 
@@ -646,19 +669,19 @@ private fun TriRow(label: String, count: String?, state: LibraryTri, onClick: ()
             when (state) {
                 LibraryTri.INCLUDE -> Icon(
                     Icons.Outlined.Check,
-                    contentDescription = "包含",
+                    contentDescription = stringResource(R.string.library_tri_include),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
                 LibraryTri.EXCLUDE -> Icon(
                     Icons.Outlined.Close,
-                    contentDescription = "排除",
+                    contentDescription = stringResource(R.string.library_tri_exclude),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(20.dp),
                 )
                 LibraryTri.NONE -> Icon(
                     Icons.Outlined.Circle,
-                    contentDescription = "未筛选",
+                    contentDescription = stringResource(R.string.library_tri_none),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                     modifier = Modifier.size(14.dp),
                 )
@@ -697,26 +720,30 @@ private fun FilterPanelContent(
             .navigationBarsPadding(),
     ) {
         SheetHeader(
-            title = "筛选",
+            title = stringResource(R.string.library_filter),
             onReset = onClear,
             onDone = onDone,
-            resetLabel = "清除筛选",
+            resetLabel = stringResource(R.string.library_clear_filters),
             resetEnabled = state.activeFilterCount > 0,
         )
         HorizontalDivider()
-        SectionLabel("状态")
+        SectionLabel(stringResource(R.string.library_section_status))
         statusFilterKeys.forEach { filter ->
             val key = filter.value
             TriRow(statusLabel(key), null, state.filters[key] ?: LibraryTri.NONE) {
                 onCycleStatus(key)
             }
         }
-        SectionLabel("更多筛选")
+        SectionLabel(stringResource(R.string.library_more_filters))
         LibraryFilterDimension.entries.forEach { dimension ->
             val selected = dimensionSelection(dimension, state)
             DimensionRow(
                 label = dimensionTitle(dimension),
-                summary = if (selected.isEmpty()) "未选择" else "已选 ${selected.size} 项",
+                summary = if (selected.isEmpty()) {
+                    stringResource(R.string.library_none_selected)
+                } else {
+                    stringResource(R.string.library_selected_count, selected.size)
+                },
                 active = selected.isNotEmpty(),
                 onClick = { onOpenDimension(dimension) },
             )
@@ -781,7 +808,7 @@ private fun DimensionSheetContent(
         HorizontalDivider()
         if (options.isEmpty()) {
             Text(
-                "暂无可选项",
+                stringResource(R.string.library_no_options),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
@@ -790,7 +817,7 @@ private fun DimensionSheetContent(
             options.forEach { option ->
                 TriRow(
                     label = option.label,
-                    count = option.count?.let { "$it 部" },
+                    count = option.count?.let { stringResource(R.string.library_manga_count, it) },
                     state = selection[option.key] ?: LibraryTri.NONE,
                 ) { onCycle(option.key) }
             }
@@ -817,14 +844,14 @@ private fun CategorySheetContent(
             .navigationBarsPadding(),
     ) {
         SheetHeader(
-            title = "分类",
+            title = stringResource(R.string.library_categories),
             onReset = onReset,
             onDone = onDone,
             resetEnabled = state.categories.isNotEmpty(),
         )
         HorizontalDivider()
         TriRow(
-            label = "未分类",
+            label = stringResource(R.string.library_uncategorized),
             count = null,
             state = state.categories[UNCATEGORIZED_CATEGORY] ?: LibraryTri.NONE,
         ) { onCycleCategory(UNCATEGORIZED_CATEGORY) }
@@ -832,13 +859,13 @@ private fun CategorySheetContent(
             val key = category.id.toString()
             TriRow(
                 label = category.name,
-                count = "${category.mangaCount} 部",
+                count = stringResource(R.string.library_manga_count, category.mangaCount),
                 state = state.categories[key] ?: LibraryTri.NONE,
             ) { onCycleCategory(key) }
         }
         if (state.filterGroups.isNotEmpty()) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            SectionLabel("筛选组")
+            SectionLabel(stringResource(R.string.library_filter_groups))
             state.filterGroups.forEach { group ->
                 val selected = state.groupId == group.id
                 Row(
@@ -858,7 +885,7 @@ private fun CategorySheetContent(
                     if (selected) {
                         Icon(
                             Icons.Outlined.Check,
-                            contentDescription = "已选择",
+                            contentDescription = stringResource(R.string.library_selected),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
                         )
@@ -1131,7 +1158,7 @@ private fun ListRow(entry: LibraryEntry, ctx: CellContext) {
                 if (ctx.display.badgeDownload && entry.id in ctx.downloads) {
                     Icon(
                         Icons.Outlined.Download,
-                        contentDescription = "已下载",
+                        contentDescription = stringResource(R.string.library_downloaded),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(15.dp),
                     )
@@ -1159,7 +1186,7 @@ private fun SelectionMark(selected: Boolean, modifier: Modifier = Modifier) {
         if (selected) {
             Icon(
                 Icons.Outlined.Check,
-                contentDescription = "已选择",
+                contentDescription = stringResource(R.string.library_selected),
                 tint = Color(0xFF10131F),
                 modifier = Modifier.size(14.dp),
             )
@@ -1195,7 +1222,7 @@ private fun BoxScope.CoverMarks(entry: LibraryEntry, ctx: CellContext) {
             Surface(color = Color.Black.copy(alpha = 0.55f), shape = RoundedCornerShape(6.dp)) {
                 Icon(
                     Icons.Outlined.Download,
-                    contentDescription = "已下载",
+                    contentDescription = stringResource(R.string.library_downloaded),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp).size(13.dp),
                 )
@@ -1215,13 +1242,18 @@ private fun BoxScope.CoverMarks(entry: LibraryEntry, ctx: CellContext) {
 }
 
 /** Subtitle from the fields the library payload carries: latest chapter number
- *  plus the unread count (design 33's "第 148 话 · 9 条未读"). */
+ *  plus the unread count (design 33's "Ch. 148 · 9 unread"). */
+@Composable
 private fun librarySubtitle(entry: LibraryEntry): String {
     val latest = entry.chapters?.mapNotNull { it.chapterNumber }?.maxOrNull()
-    val chapter = latest?.let { "第 ${formatChapterNumber(it)} 话" }
+    val chapter = latest?.let { stringResource(R.string.library_chapter_number, formatChapterNumber(it)) }
         ?: entry.chapters?.firstOrNull()?.title
-        ?: "${entry.chapterCount} 话"
-    val unread = if (entry.unreadCount > 0) "${entry.unreadCount} 条未读" else "已读完"
+        ?: stringResource(R.string.library_chapter_count, entry.chapterCount)
+    val unread = if (entry.unreadCount > 0) {
+        stringResource(R.string.library_unread_count, entry.unreadCount)
+    } else {
+        stringResource(R.string.library_all_read)
+    }
     return "$chapter · $unread"
 }
 
@@ -1247,9 +1279,9 @@ private fun BatchActionBar(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            BatchAction(Icons.Outlined.Category, "设置分类", busy, Modifier.weight(1f), onCategories)
-            BatchAction(Icons.Outlined.Check, "标为已读", busy, Modifier.weight(1f), onMarkRead)
-            BatchAction(Icons.Outlined.Delete, "移出书库", busy, Modifier.weight(1f), onRemove, danger = true)
+            BatchAction(Icons.Outlined.Category, stringResource(R.string.library_set_categories), busy, Modifier.weight(1f), onCategories)
+            BatchAction(Icons.Outlined.Check, stringResource(R.string.library_mark_read), busy, Modifier.weight(1f), onMarkRead)
+            BatchAction(Icons.Outlined.Delete, stringResource(R.string.library_remove_from_library), busy, Modifier.weight(1f), onRemove, danger = true)
         }
     }
 }
@@ -1291,9 +1323,9 @@ private fun BatchCategorySheet(
 ) {
     var picked by remember { mutableStateOf(emptySet<Long>()) }
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
-        Text("设置分类", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.library_set_categories), style = MaterialTheme.typography.titleMedium)
         Text(
-            "会替换选中漫画的分类，不是追加。",
+            stringResource(R.string.library_batch_categories_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -1323,11 +1355,19 @@ private fun BatchCategorySheet(
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) }
             TextButton(
                 onClick = { onApply(picked) },
                 modifier = Modifier.weight(1f),
-            ) { Text(if (picked.isEmpty()) "清空分类" else "应用 · ${picked.size} 个分类") }
+            ) {
+                Text(
+                    if (picked.isEmpty()) {
+                        stringResource(R.string.library_clear_categories)
+                    } else {
+                        stringResource(R.string.library_apply_categories, picked.size)
+                    },
+                )
+            }
         }
     }
 }
@@ -1341,33 +1381,33 @@ private fun DisplaySheet(
     onBadge: (LibraryBadge, Boolean) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp)) {
-        Text("显示", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.library_display), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FormOption("紧凑", FORM_COMPACT, display.form, onForm) { CompactPreview() }
-            FormOption("舒适", FORM_COMFORTABLE, display.form, onForm) { ComfortablePreview() }
-            FormOption("列表", FORM_LIST, display.form, onForm) { ListPreview() }
+            FormOption(stringResource(R.string.library_form_compact), FORM_COMPACT, display.form, onForm) { CompactPreview() }
+            FormOption(stringResource(R.string.library_form_comfortable), FORM_COMFORTABLE, display.form, onForm) { ComfortablePreview() }
+            FormOption(stringResource(R.string.library_form_list), FORM_LIST, display.form, onForm) { ListPreview() }
         }
-        SectionLabel("列数")
+        SectionLabel(stringResource(R.string.library_columns))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIBRARY_COLUMN_CHOICES.forEach { choice ->
                 FilterChip(
                     selected = display.columns(landscape) == choice,
                     onClick = { onColumns(choice) },
-                    label = { Text(choice?.let { "$it 列" } ?: "Auto") },
+                    label = { Text(choice?.let { stringResource(R.string.library_column_count, it) } ?: "Auto") },
                 )
             }
         }
         Text(
-            "Auto 按最小封面宽 100dp 自适应；竖屏与横屏的列数分别记忆。",
+            stringResource(R.string.library_columns_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 6.dp),
         )
-        SectionLabel("封面徽标")
-        SwitchRow("未读数角标", display.badgeUnread) { onBadge(LibraryBadge.UNREAD, it) }
-        SwitchRow("已下载标记", display.badgeDownload) { onBadge(LibraryBadge.DOWNLOAD, it) }
-        SwitchRow("来源标记", display.badgeSource) { onBadge(LibraryBadge.SOURCE, it) }
+        SectionLabel(stringResource(R.string.library_cover_badges))
+        SwitchRow(stringResource(R.string.library_badge_unread), display.badgeUnread) { onBadge(LibraryBadge.UNREAD, it) }
+        SwitchRow(stringResource(R.string.library_badge_download), display.badgeDownload) { onBadge(LibraryBadge.DOWNLOAD, it) }
+        SwitchRow(stringResource(R.string.library_badge_source), display.badgeSource) { onBadge(LibraryBadge.SOURCE, it) }
     }
 }
 

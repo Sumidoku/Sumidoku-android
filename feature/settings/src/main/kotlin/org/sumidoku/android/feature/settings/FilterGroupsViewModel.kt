@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +44,7 @@ data class FilterGroupsUiState(
  *  and an exclude flag. */
 @HiltViewModel
 class FilterGroupsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val factory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -91,19 +94,19 @@ class FilterGroupsViewModel @Inject constructor(
         }
     }
 
-    fun create(name: String) = mutate("已创建过滤组") { api ->
+    fun create(name: String) = mutate(appContext.getString(R.string.filter_groups_created)) { api ->
         api.createFilterGroup(CreateFilterGroupRequest(name = name, rules = emptyList())).await()
     }
 
-    fun rename(group: FilterGroup, name: String) = mutate("已重命名") { api ->
+    fun rename(group: FilterGroup, name: String) = mutate(appContext.getString(R.string.filter_groups_renamed)) { api ->
         api.updateFilterGroup(group.id, UpdateFilterGroupRequest(name = name)).await()
     }
 
-    fun delete(group: FilterGroup) = mutate("已删除过滤组") { api ->
+    fun delete(group: FilterGroup) = mutate(appContext.getString(R.string.filter_groups_deleted)) { api ->
         api.deleteFilterGroup(group.id).await()
     }
 
-    fun saveRules(group: FilterGroup, rules: List<FilterRuleInput>) = mutate("已保存规则") { api ->
+    fun saveRules(group: FilterGroup, rules: List<FilterRuleInput>) = mutate(appContext.getString(R.string.filter_groups_rules_saved)) { api ->
         api.updateFilterGroup(group.id, UpdateFilterGroupRequest(rules = rules)).await()
     }
 
@@ -114,7 +117,7 @@ class FilterGroupsViewModel @Inject constructor(
         if (from < 0 || to !in groups.indices) return
         val item = groups.removeAt(from)
         groups.add(to, item)
-        mutate("顺序已保存") { api ->
+        mutate(appContext.getString(R.string.filter_groups_order_saved)) { api ->
             api.reorderFilterGroups(ReorderRequest(ids = groups.map { it.id })).await()
         }
     }

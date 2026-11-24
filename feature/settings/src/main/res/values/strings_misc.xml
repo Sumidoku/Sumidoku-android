@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared across the screens covered by this file. -->
+    <string name="misc_back">Back</string>
+    <string name="misc_cancel">Cancel</string>
+    <string name="misc_no_server_selected">No server selected</string>
+    <string name="misc_move_up">Move up</string>
+    <string name="misc_move_down">Move down</string>
+    <string name="misc_rename">Rename</string>
+    <string name="misc_delete">Delete</string>
+    <string name="misc_save">Save</string>
+    <string name="misc_name">Name</string>
+    <string name="misc_create">Create</string>
+
+    <!-- Filter groups screen + view model -->
+    <string name="filter_groups_title">Filter groups</string>
+    <string name="filter_groups_new">New filter group</string>
+    <string name="filter_groups_empty">No filter groups yet.\nFilter groups apply saved filter rules to the library.</string>
+    <string name="filter_groups_rule_count">%1$d rules</string>
+    <string name="filter_groups_edit_rules">Edit rules</string>
+    <string name="filter_groups_rename_title">Rename "%1$s"</string>
+    <string name="filter_groups_delete_title">Delete filter group</string>
+    <string name="filter_groups_delete_text">Delete "%1$s"? Library entries are not affected.</string>
+    <string name="filter_groups_rules_title">Rules · %1$s</string>
+    <string name="filter_groups_exclude">Exclude</string>
+    <string name="filter_groups_remove_rule">Remove rule</string>
+    <string name="filter_groups_add_rule">+ Add rule</string>
+    <string name="filter_groups_select_value">Select…</string>
+    <string name="filter_groups_rating_safe">Safe</string>
+    <string name="filter_rule_type_downloaded">Downloaded</string>
+    <string name="filter_rule_type_has_unread">Has unread</string>
+    <string name="filter_rule_type_started">Started</string>
+    <string name="filter_rule_type_completed">Completed</string>
+    <string name="filter_rule_type_source">Source</string>
+    <string name="filter_rule_type_content_rating">Content rating</string>
+    <string name="filter_rule_type_category">Category</string>
+    <string name="filter_rule_type_author">Author</string>
+    <string name="filter_rule_type_tag">Tag</string>
+    <string name="filter_rule_value_source">Source = %1$s</string>
+    <string name="filter_rule_value_content_rating">Rating = %1$s</string>
+    <string name="filter_rule_value_category">Category = %1$s</string>
+    <string name="filter_rule_value_author">Author = %1$s</string>
+    <string name="filter_rule_value_tag">Tag = %1$s</string>
+    <string name="filter_rule_exclude_prefix">Exclude: %1$s</string>
+    <string name="filter_groups_created">Filter group created</string>
+    <string name="filter_groups_renamed">Renamed</string>
+    <string name="filter_groups_deleted">Filter group deleted</string>
+    <string name="filter_groups_rules_saved">Rules saved</string>
+    <string name="filter_groups_order_saved">Order saved</string>
+
+    <!-- Trash screen + view model -->
+    <string name="trash_title">Local trash</string>
+    <string name="trash_empty">Trash is empty</string>
+    <string name="trash_empty_action">Empty</string>
+    <string name="trash_restored">Restored</string>
+    <string name="trash_deleted_permanently">Permanently deleted</string>
+    <string name="trash_empty_queued">Empty-trash task queued (see the task queue)</string>
+    <string name="trash_entry_summary">Trashed %1$d chapters · deleted %2$s</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_delete_forever">Delete permanently</string>
+    <string name="trash_empty_dialog_title">Empty trash</string>
+    <string name="trash_empty_dialog_text">This queues a server task to permanently delete all %1$d entries and cannot be undone. Continue?</string>
+    <string name="trash_delete_dialog_text">Files will be deleted immediately and this cannot be undone. Continue?</string>
+
+    <!-- API keys screen + view model -->
+    <string name="api_keys_title">API keys</string>
+    <string name="api_keys_change_password">Change password</string>
+    <string name="api_keys_new_key">New key</string>
+    <string name="api_keys_empty">No API keys yet — tap the button in the lower-right to create one</string>
+    <string name="api_keys_dates">Created %1$s</string>
+    <string name="api_keys_dates_with_last_used">Created %1$s · last used %2$s</string>
+    <string name="api_keys_revoke">Revoke</string>
+    <string name="api_keys_create_title">New API key</string>
+    <string name="api_keys_name_label">Name (e.g. phone, tablet)</string>
+    <string name="api_keys_save_key_title">Save this key</string>
+    <string name="api_keys_save_key_text">The key is shown only this once; the server stores only its fingerprint. Copy and save it now:</string>
+    <string name="api_keys_saved_confirm">I\'ve saved it</string>
+    <string name="api_keys_current_password">Current password</string>
+    <string name="api_keys_new_password">New password</string>
+    <string name="api_keys_change_confirm">Change</string>
+    <string name="api_keys_revoked">Revoked</string>
+    <string name="api_keys_password_updated">Password updated</string>
+
+    <!-- Categories screen + view model -->
+    <string name="categories_title">Categories</string>
+    <string name="categories_new">New category</string>
+    <string name="categories_empty">No categories yet</string>
+    <string name="categories_manga_count">%1$d manga</string>
+    <string name="categories_manga_count_default">%1$d manga · default</string>
+    <string name="categories_rename_title">Rename category</string>
+    <string name="categories_created">Created</string>
+    <string name="categories_renamed">Renamed</string>
+    <string name="categories_deleted">Deleted</string>
+    <string name="categories_order_saved">Order saved</string>
+
+    <!-- Cache screen + view model -->
+    <string name="cache_title">Cache</string>
+    <string name="cache_chapter_title">Chapter page cache</string>
+    <string name="cache_chapter_usage">%1$s / %2$s · %3$d chapters</string>
+    <string name="cache_last_error">Last error: %1$s</string>
+    <string name="cache_clear_chapters">Clear chapter cache</string>
+    <string name="cache_cover_title">Cover cache</string>
+    <string name="cache_cover_usage">%1$d entries · %2$s</string>
+    <string name="cache_clear_covers">Clear cover cache</string>
+    <string name="cache_cleared_bytes">Freed %1$s</string>
+    <string name="cache_cleared_covers">Cleared %1$d cover cache entries</string>
+
+    <!-- Tasks screen + view model -->
+    <string name="tasks_title">Task queue</string>
+    <string name="tasks_filter_all">All</string>
+    <string name="tasks_filter_pending">Pending</string>
+    <string name="tasks_filter_running">Running</string>
+    <string name="tasks_filter_done">Done</string>
+    <string name="tasks_filter_failed">Failed</string>
+    <string name="tasks_empty">No tasks</string>
+    <string name="tasks_source_number">Source #%1$s</string>
+    <string name="tasks_cancel_task">Cancel task</string>
+    <string name="tasks_cancelled">Cancelled</string>
+</resources>

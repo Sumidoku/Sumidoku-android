@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backups_title">备份与恢复</string>
+    <string name="backups_back">返回</string>
+    <string name="backups_export_title">导出完整备份</string>
+    <string name="backups_export_desc">导出当前服务器的完整备份 JSON（书库、进度、分类、设置、图源设置），保存到本机存储。</string>
+    <string name="backups_export_button">导出到文件…</string>
+    <string name="backups_restore_title">从文件恢复</string>
+    <string name="backups_restore_desc">选择本机上的 Sumidoku 备份 JSON 恢复；也可以导入 Aidoku (.aib) 备份。恢复会合并进现有数据。</string>
+    <string name="backups_restore_json_button">恢复备份 JSON…</string>
+    <string name="backups_import_aidoku_button">导入 Aidoku .aib…</string>
+    <string name="backups_import_tachibk_button">导入 Mihon/Suwayomi .tachibk…</string>
+    <string name="backups_server_backups_title">服务器定时备份</string>
+    <string name="backups_no_scheduled_backups">还没有定时备份文件（在服务器配置 backup 计划后自动生成）。</string>
+    <string name="backups_restore">恢复</string>
+    <string name="backups_restore_dialog_title">恢复服务器备份</string>
+    <string name="backups_restore_dialog_message">将用 %1$s 合并恢复书库、进度、分类与设置。确定继续？</string>
+    <string name="backups_cancel">取消</string>
+    <string name="backups_restore_done_title">恢复完成</string>
+    <string name="backups_restore_result_counts">漫画 %1$d · 进度 %2$d · 分类 %3$d · 设置 %4$d · 图源设置 %5$d</string>
+    <string name="backups_ok">好</string>
+    <string name="backups_aidoku_preview_title">导入 Aidoku 备份（预览）</string>
+    <string name="backups_aidoku_preview_message">将导入：漫画 %1$d、进度 %2$d、分类 %3$d、追踪绑定 %4$d（跳过 %5$d 条）。确定导入？</string>
+    <string name="backups_import">导入</string>
+    <string name="backups_error_no_server">未选择服务器</string>
+    <string name="backups_aidoku_import_summary">已导入：漫画 %1$d、进度 %2$d、分类 %3$d、追踪绑定 %4$d（跳过 %5$d 条）</string>
+    <string name="backups_tachibk_import_summary">已导入：漫画 %1$d、进度 %2$d、分类 %3$d、追踪绑定 %4$d（跳过 %5$d 条）</string>
+    <string name="tachibk_preview_title">导入 Mihon 备份（预览）</string>
+    <string name="tachibk_preview_message">将导入：漫画 %1$d、进度 %2$d、分类 %3$d、追踪绑定 %4$d（跳过 %5$d 条）。请确认每个图源的映射：</string>
+    <string name="tachibk_manga_count">%1$d 部漫画</string>
+    <string name="tachibk_matched_fallback">已匹配</string>
+    <string name="tachibk_unmatched">未自动匹配</string>
+    <string name="tachibk_select_mapping">选择映射…</string>
+    <string name="tachibk_skip_source">跳过该源</string>
+</resources>

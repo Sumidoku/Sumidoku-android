@@ -32,11 +32,9 @@ import javax.inject.Singleton
 @Singleton
 class SumidokuClientFactory @Inject constructor() {
 
-    val json: Json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-        explicitNulls = false
-    }
+    // Shared with the decode tests via core:api — includes the contextual
+    // java.net.URI serializer the generated models require.
+    val json: Json = org.sumidoku.android.core.api.sumidokuJson()
 
     fun okHttp(profile: ServerProfile): OkHttpClient =
         OkHttpClient.Builder()
@@ -69,13 +67,38 @@ class SumidokuClientFactory @Inject constructor() {
         profile: ServerProfile,
         path: String,
         body: JsonObject,
-    ): Flow<JsonObject> = flow {
+    ): Flow<JsonObject> {
         val url = profile.baseUrl.trimEnd('/') + "/api/v1" + path
         val request = Request.Builder()
             .url(url)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody("application/json".toMediaType()))
             .header("Accept", "application/x-ndjson")
             .build()
+        return ndjsonStream(profile, request)
+    }
+
+    /** NDJSON streaming over GET — the read endpoints (source home) use the
+     *  same wire protocol as [ndjsonCall] but without a request body.
+     *  Partial-result sources (zh.picacomic, zh.wnacg) return an empty
+     *  HomeLayout on the buffered path and only send content through the
+     *  stream, so the home screen must consume it. */
+    fun ndjsonGet(
+        profile: ServerProfile,
+        path: String,
+    ): Flow<JsonObject> {
+        val url = profile.baseUrl.trimEnd('/') + "/api/v1" + path
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .header("Accept", "application/x-ndjson")
+            .build()
+        return ndjsonStream(profile, request)
+    }
+
+    private fun ndjsonStream(
+        profile: ServerProfile,
+        request: Request,
+    ): Flow<JsonObject> = flow {
         okHttp(profile).newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("NDJSON call failed: ${response.code}")
             val reader = response.body.byteStream().bufferedReader()
@@ -124,14 +147,29 @@ class SumidokuClientFactory @Inject constructor() {
                     val element = json.parseToJsonElement(body).jsonObjectOrNull()
                     val version = element?.get("version")?.toString()?.trim('"')
                     if (!version.isNullOrBlank()) return@withContext ProbeResult(version, null)
-                    lastError = "响应不是 Sumidoku 服务器"
+                    lastError = probeErrorNotSumidoku()
                 }
             } catch (e: Exception) {
                 lastError = e.message ?: e.javaClass.simpleName
             }
         }
-        return@withContext ProbeResult(null, lastError ?: "无可用地址")
+        return@withContext ProbeResult(null, lastError ?: probeErrorNoAddress())
     }
+
+    /**
+     * Probe failure reasons are shown in the add-server dialog. This class is
+     * created without a Context (plain OkHttp factory), so the wording
+     * switches on the default locale: Chinese keeps the original text, every
+     * other locale gets English.
+     */
+    private fun isZhLocale(): Boolean =
+        java.util.Locale.getDefault().language == java.util.Locale.CHINESE.language
+
+    private fun probeErrorNotSumidoku(): String =
+        if (isZhLocale()) "响应不是 Sumidoku 服务器" else "Not a Sumidoku server"
+
+    private fun probeErrorNoAddress(): String =
+        if (isZhLocale()) "无可用地址" else "No reachable address"
 
     private fun String.ensureTrailingSlash(): String = if (endsWith("/")) this else "$this/"
 

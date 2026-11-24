@@ -57,7 +57,8 @@ class ServerSettingsViewModel @Inject constructor(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
             }
-            // 分类列表只用于排除规则的展示，失败时保持空列表（不阻断编辑）
+            // The category list is only used to render exclusion rules; keep it
+            // empty on failure instead of blocking the edit screen.
             try {
                 val categories = factory.create<CategoriesApi>(p).listCategories().await()
                 _state.value = _state.value.copy(categories = categories)

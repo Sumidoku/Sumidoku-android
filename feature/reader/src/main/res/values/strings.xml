@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reader chrome -->
+    <string name="reader_back">Back</string>
+    <string name="reader_close">Close</string>
+    <string name="reader_retry">Retry</string>
+    <string name="reader_settings">Settings</string>
+    <string name="reader_incognito">Incognito reading</string>
+    <string name="reader_page_progress">%1$d / %2$d</string>
+
+    <!-- Chapters -->
+    <string name="reader_chapter">Chapter</string>
+    <string name="reader_chapters">Chapters</string>
+    <string name="reader_next_chapter">Next chapter</string>
+    <string name="reader_prev_chapter">Previous chapter</string>
+    <string name="reader_next_chapter_desc">Next chapter</string>
+    <string name="reader_previous_chapter_desc">Previous chapter</string>
+    <string name="reader_chapter_fallback">Chapter %1$s</string>
+    <string name="reader_chapter_stats">%1$d chapters · %2$d read · %3$d unread</string>
+    <string name="reader_chapters_missing">⚠ %1$d chapters missing · non-consecutive chapter list</string>
+    <string name="reader_chapters_load_failed">Failed to load chapter list: %1$s</string>
+    <string name="reader_continue_reading">Continue reading</string>
+    <string name="reader_back_to_previous">Back to previous chapter</string>
+    <string name="reader_stay_here">Stay on this chapter</string>
+    <string name="reader_next_chapter_label">Next chapter · %1$s</string>
+    <string name="reader_release_next_chapter">Release to open the next chapter</string>
+    <string name="reader_keep_pulling_next">Keep dragging to open the next chapter</string>
+    <string name="reader_end_of_chapter">End of this chapter</string>
+    <string name="reader_located_current">Located at the current chapter</string>
+    <string name="reader_no_chapters">No chapters yet</string>
+    <string name="reader_no_unread_chapters">No unread chapters</string>
+    <string name="reader_no_downloaded_chapters">No downloaded chapters</string>
+
+    <!-- Chapter metadata -->
+    <string name="reader_page_count">%1$d pages</string>
+    <string name="reader_read_badge">Read</string>
+    <string name="reader_downloaded_badge">Downloaded</string>
+    <string name="reader_read_to_page">Read to p.%1$d</string>
+    <string name="reader_bookmarked">Bookmarked</string>
+    <string name="reader_locked">Locked</string>
+
+    <!-- Chapter drawer -->
+    <string name="reader_sort_ascending">Sort ascending</string>
+    <string name="reader_sort_descending">Sort descending</string>
+    <string name="reader_filter_all">All</string>
+    <string name="reader_filter_unread">Unread %1$d</string>
+    <string name="reader_filter_downloaded">Downloaded %1$d</string>
+
+    <!-- Page loading -->
+    <string name="reader_page_load_failed">Page failed to load</string>
+
+    <!-- Tap zone preview legend -->
+    <string name="reader_legend_prev_page">◼ Previous page</string>
+    <string name="reader_legend_menu">◼ Menu</string>
+    <string name="reader_legend_next_page">◼ Next page</string>
+
+    <!-- Quick panel / settings -->
+    <string name="reader_reading_mode">Reading mode</string>
+    <string name="reader_reading_settings">Reading settings</string>
+    <string name="reader_mode">Mode</string>
+    <string name="reader_mode_paged">Paged</string>
+    <string name="reader_mode_continuous">Continuous</string>
+    <string name="reader_mode_webtoon">Webtoon</string>
+    <string name="reader_layout">Layout</string>
+    <string name="reader_layout_single">Single page</string>
+    <string name="reader_layout_double">Double page</string>
+    <string name="reader_layout_auto">Auto</string>
+    <string name="reader_double_page_layout">Double-page layout</string>
+    <string name="reader_layout_auto_hint">Auto = double page in landscape, single page in portrait</string>
+    <string name="reader_direction">Direction</string>
+    <string name="reader_dir_ltr">Left to right</string>
+    <string name="reader_dir_rtl">Right to left</string>
+    <string name="reader_dir_follow_manga">Follow manga</string>
+    <string name="reader_dir_rtl_hint">When resolved to right-to-left: the slider reverses, previous/next chapters swap, and tap zones mirror</string>
+    <string name="reader_overrides_hint">Changes apply immediately · overrides that match the resolved value are removed automatically</string>
+    <string name="reader_chain_overridden">Manga override</string>
+    <string name="reader_chain_resolved">Follows resolved values</string>
+    <string name="reader_reset_defaults">Reset to defaults</string>
+    <string name="reader_resolution_chain">Resolution chain: manga override › manga.viewer metadata › global default</string>
+    <string name="reader_mode_value">Mode %1$s</string>
+    <string name="reader_direction_value">Direction %1$s</string>
+    <string name="reader_cover_first">First page on its own</string>
+    <string name="reader_cover_first_hint">The cover never pairs into a spread (webui doubleNoCover parity)</string>
+    <string name="reader_tap_zones">Tap zones</string>
+    <string name="reader_tap_lr">Left-right</string>
+    <string name="reader_tap_rl">Right-left</string>
+    <string name="reader_tap_edge">Edge</string>
+    <string name="reader_tap_off">Off</string>
+    <string name="reader_page_scale">Page scale</string>
+    <string name="reader_scale_fit">Fit</string>
+    <string name="reader_scale_width">Width</string>
+    <string name="reader_scale_height">Height</string>
+    <string name="reader_scale_original">Original</string>
+    <string name="reader_split_wide">Split wide pages</string>
+    <string name="reader_split_wide_hint">Landscape pages split in half along the reading direction; progress still tracks real page numbers</string>
+    <string name="reader_background">Background</string>
+    <string name="reader_bg_dark">Pure black</string>
+    <string name="reader_bg_gray">Dark gray</string>
+    <string name="reader_bg_light">White</string>
+    <string name="reader_bg_auto">Follow theme</string>
+    <string name="reader_filters_global">Filters · Global</string>
+    <string name="reader_brightness">Brightness</string>
+    <string name="reader_grayscale">Grayscale</string>
+    <string name="reader_sepia">Sepia</string>
+
+    <!-- Reader defaults screen (global defaults) -->
+    <string name="reader_defaults_title">Reader defaults</string>
+    <string name="reader_defaults_intro">These values are the global defaults. Reading resolves the per-manga override first, then the manga.viewer metadata provided by the source, and only then falls back to here.</string>
+    <string name="reader_defaults_mode_continuous">Continuous scroll</string>
+    <string name="reader_defaults_mode_hint">Webtoon = seamless vertical pages within a chapter; continuous scroll = a long strip without headers (Aidoku continuous equivalent).</string>
+    <string name="reader_defaults_layout">Single/double page layout</string>
+    <string name="reader_defaults_layout_hint">Auto = side-by-side double pages in landscape (tablet on its side / unfolded foldable); rebuilt on rotation.</string>
+    <string name="reader_defaults_cover_hint">The cover is not split out to the outside of a spread (webui doubleNoCover parity)</string>
+    <string name="reader_defaults_dir_hint">Follow manga = use the manga.viewer metadata; right → left reverses the slider, swaps previous/next chapter and mirrors the tap zones.</string>
+    <string name="reader_defaults_tap_zones">Tap zones</string>
+    <string name="reader_defaults_tap_lr">Left/right</string>
+    <string name="reader_defaults_tap_rl">Right/left</string>
+    <string name="reader_defaults_tap_off">Off</string>
+    <string name="reader_defaults_scale_fit">Fit screen</string>
+    <string name="reader_defaults_scale_width">Fit width</string>
+    <string name="reader_defaults_scale_height">Fit height</string>
+    <string name="reader_defaults_scale_original">Original size</string>
+    <string name="reader_defaults_background_filters">Background &amp; filters</string>
+    <string name="reader_defaults_bg_dark">Dark</string>
+    <string name="reader_defaults_bg_gray">Gray</string>
+    <string name="reader_defaults_bg_light">Light</string>
+    <string name="reader_defaults_bg_auto">Auto</string>
+    <string name="reader_defaults_brightness_hint">Brightness only affects the reader, not the system brightness.</string>
+
+    <!-- ViewModel errors -->
+    <string name="reader_no_server">No server selected</string>
+</resources>

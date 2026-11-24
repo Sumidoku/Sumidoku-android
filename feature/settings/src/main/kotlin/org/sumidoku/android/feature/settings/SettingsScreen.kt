@@ -1,11 +1,15 @@
 package org.sumidoku.android.feature.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -35,11 +39,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.hilt.navigation.compose.hiltViewModel
 
 /** Settings hub — static entry rows. Server-side setting groups
@@ -59,38 +65,46 @@ fun SettingsScreen(
     onOpenCategories: () -> Unit = {},
     onOpenFilterGroups: () -> Unit = {},
     onOpenServerSettings: () -> Unit = {},
+    onOpenReaderDefaults: () -> Unit = {},
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("设置") }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item { SectionHeader("外观") }
+            item { SectionHeader(stringResource(R.string.settings_section_appearance)) }
             item { AppearanceRow() }
-            item { SectionHeader("通用") }
             item { IncognitoRow() }
-            item { SectionHeader("图源") }
+            item {
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Outlined.MenuBook,
+                    title = stringResource(R.string.settings_reader_defaults),
+                    subtitle = stringResource(R.string.settings_reader_defaults_subtitle),
+                    onClick = onOpenReaderDefaults,
+                )
+            }
+            item { SectionHeader(stringResource(R.string.settings_section_sources)) }
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Extension,
-                    title = "图源仓库",
-                    subtitle = "添加、刷新与删除来源列表",
+                    title = stringResource(R.string.settings_source_repos),
+                    subtitle = stringResource(R.string.settings_source_repos_subtitle),
                     onClick = onOpenRepos,
                 )
             }
-            item { SectionHeader("服务器") }
+            item { SectionHeader(stringResource(R.string.settings_section_server)) }
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Dns,
-                    title = "服务器管理",
-                    subtitle = "切换或添加 Sumidoku 实例",
+                    title = stringResource(R.string.settings_manage_servers),
+                    subtitle = stringResource(R.string.settings_manage_servers_subtitle),
                     onClick = onManageServers,
                 )
             }
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Sync,
-                    title = "实例间同步（M8）",
-                    subtitle = "多实例 peer 同步，即将支持",
+                    title = stringResource(R.string.settings_instance_sync),
+                    subtitle = stringResource(R.string.settings_instance_sync_subtitle),
                     enabled = false,
                     onClick = {},
                 )
@@ -98,8 +112,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Public,
-                    title = "追踪器账号",
-                    subtitle = "AniList / MAL / Bangumi / MangaBaka 绑定与默认提供方",
+                    title = stringResource(R.string.settings_trackers),
+                    subtitle = stringResource(R.string.settings_trackers_subtitle),
                     enabled = true,
                     onClick = onOpenTrackers,
                 )
@@ -107,8 +121,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.CloudQueue,
-                    title = "备份与恢复",
-                    subtitle = "导出完整备份、从文件恢复、服务器定时备份、Aidoku .aib 导入",
+                    title = stringResource(R.string.settings_backup_restore),
+                    subtitle = stringResource(R.string.settings_backup_restore_subtitle),
                     enabled = true,
                     onClick = onOpenBackups,
                 )
@@ -116,8 +130,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Key,
-                    title = "API 密钥与密码",
-                    subtitle = "管理访问密钥（新建/吊销）、修改密码",
+                    title = stringResource(R.string.settings_api_keys),
+                    subtitle = stringResource(R.string.settings_api_keys_subtitle),
                     enabled = true,
                     onClick = onOpenApiKeys,
                 )
@@ -125,8 +139,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Storage,
-                    title = "缓存管理",
-                    subtitle = "章节页缓存与封面缓存的占用与清理",
+                    title = stringResource(R.string.settings_cache),
+                    subtitle = stringResource(R.string.settings_cache_subtitle),
                     enabled = true,
                     onClick = onOpenCache,
                 )
@@ -134,8 +148,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.PlaylistPlay,
-                    title = "任务队列",
-                    subtitle = "服务器后台任务（扫描/分析/清空回收站）",
+                    title = stringResource(R.string.settings_tasks),
+                    subtitle = stringResource(R.string.settings_tasks_subtitle),
                     enabled = true,
                     onClick = onOpenTasks,
                 )
@@ -143,8 +157,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Label,
-                    title = "分类管理",
-                    subtitle = "书库分类的新建、重命名、删除与排序",
+                    title = stringResource(R.string.settings_categories),
+                    subtitle = stringResource(R.string.settings_categories_subtitle),
                     enabled = true,
                     onClick = onOpenCategories,
                 )
@@ -152,8 +166,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.FilterList,
-                    title = "过滤组",
-                    subtitle = "保存的书库筛选规则集",
+                    title = stringResource(R.string.settings_filter_groups),
+                    subtitle = stringResource(R.string.settings_filter_groups_subtitle),
                     enabled = true,
                     onClick = onOpenFilterGroups,
                 )
@@ -161,8 +175,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Settings,
-                    title = "服务器设置",
-                    subtitle = "书库更新、下载、计划备份与缓存上限",
+                    title = stringResource(R.string.settings_server_settings),
+                    subtitle = stringResource(R.string.settings_server_settings_subtitle),
                     enabled = true,
                     onClick = onOpenServerSettings,
                 )
@@ -170,39 +184,76 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.DeleteOutline,
-                    title = "本地回收站",
-                    subtitle = "恢复或彻底删除被回收的本地漫画与章节",
+                    title = stringResource(R.string.settings_trash),
+                    subtitle = stringResource(R.string.settings_trash_subtitle),
                     enabled = true,
                     onClick = onOpenTrash,
                 )
             }
-            item { SectionHeader("关于") }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Info,
-                    title = "关于",
-                    subtitle = "Sumidoku Android（M5 构建中）",
-                    enabled = false,
-                    onClick = {},
-                )
-            }
+            item { SectionHeader(stringResource(R.string.settings_section_about)) }
+            item { VersionRow() }
         }
     }
+}
+
+/** Version — preview 12-settings.html bottom group: `app 0.1.0 · server …`. */
+@Composable
+private fun VersionRow() {
+    val context = LocalContext.current
+    val version = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty().ifBlank { "—" }
+    }
+    ListItem(
+        leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+        headlineContent = { Text(stringResource(R.string.settings_version_title)) },
+        supportingContent = {
+            Text(
+                stringResource(R.string.settings_version_detail, version),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    )
 }
 
 @Composable
 private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
     val theme by viewModel.theme.collectAsState()
+    // Design 37: the three chips pick the palette family, the switch lifts the
+    // dark palette's background to true black. Turning the switch off always
+    // lands on Dark so the user never sits on an empty state.
+    val amoled = theme == "amoled"
     ListItem(
         leadingContent = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
-        headlineContent = { Text("主题") },
+        headlineContent = { Text(stringResource(R.string.settings_theme)) },
         supportingContent = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("system" to "跟随系统", "dark" to "深色", "light" to "浅色").forEach { (value, label) ->
-                    FilterChip(
-                        selected = theme == value,
-                        onClick = { viewModel.setTheme(value) },
-                        label = { Text(label) },
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        "system" to stringResource(R.string.settings_theme_system),
+                        "dark" to stringResource(R.string.settings_theme_dark),
+                        "light" to stringResource(R.string.settings_theme_light),
+                    ).forEach { (value, label) ->
+                        FilterChip(
+                            selected = theme == value || (value == "dark" && amoled),
+                            onClick = { viewModel.setTheme(value) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_theme_amoled), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.settings_theme_amoled_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = amoled,
+                        onCheckedChange = { on -> viewModel.setTheme(if (on) "amoled" else "dark") },
                     )
                 }
             }
@@ -211,17 +262,19 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
-/** 无痕阅读开关：webui 的常规组设置，放在首页而不是服务器设置里；
- *  开/关立即 PUT 服务器设置（详情页仍可按单部覆盖）。 */
+/** Incognito reading switch: belongs to the same General group as Appearance
+ *  in the webui (SettingsPage.tsx:2532-2537), so it lives under the Appearance
+ *  section here rather than in server settings; toggling immediately PUTs the
+ *  server setting (detail pages can still override per manga). */
 @Composable
 private fun IncognitoRow(viewModel: IncognitoViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     ListItem(
         leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
-        headlineContent = { Text("无痕阅读") },
+        headlineContent = { Text(stringResource(R.string.settings_incognito)) },
         supportingContent = {
             Text(
-                state.error ?: "全局暂停记录阅读历史；漫画详情页可按单部覆盖",
+                state.error ?: stringResource(R.string.settings_incognito_subtitle),
                 color = if (state.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -266,3 +319,4 @@ private fun SettingsRow(
     )
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
+

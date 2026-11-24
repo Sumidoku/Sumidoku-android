@@ -32,6 +32,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    lint {
+        // The PropertyEscape check flags every valid sdk.dir form in
+        // local.properties (escaped backslashes, forward slashes, colon-escaped),
+        // so it cannot be satisfied on Windows; disable it.
+        disable += "PropertyEscape"
+    }
 }
 
 kotlin {

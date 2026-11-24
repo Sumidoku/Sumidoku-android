@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="updates_title">更新</string>
+    <string name="updates_downloads">下载队列</string>
+    <string name="updates_refresh">刷新</string>
+    <string name="updates_retry">重试</string>
+    <string name="updates_empty">没有新章节</string>
+    <string name="updates_section_hint">%1$d 部有新章</string>
+    <string name="updates_chapter_count">%1$d 话</string>
+    <string name="updates_running_title">正在更新书库…</string>
+    <string name="updates_running_progress">%1$d/%2$d 完成 · 失败 %3$d · 跳过 %4$d</string>
+    <string name="updates_summary_title">更新摘要</string>
+    <string name="updates_summary_never_run">还没有运行过书库更新。</string>
+    <string name="updates_summary_body">上次检查 %1$s · 共检查 %2$d 部 · 完成 %3$d · 失败 %4$d · 跳过 %5$d。\n跳过规则（已读完、连载已完结）与每源调度间隔均在服务端。</string>
+    <string name="updates_error_no_server">未选择服务器</string>
+</resources>

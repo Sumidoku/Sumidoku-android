@@ -1,6 +1,10 @@
 package org.sumidoku.android.core.common
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -11,6 +15,14 @@ import java.util.Locale
  */
 fun normalizeEpochMs(v: Long): Long = if (v < 1_000_000_000_000L) v * 1000 else v
 
+/**
+ * True when the device locale is Chinese. This module is pure Kotlin/JVM (no
+ * Android resources), so user-facing labels switch on the default locale:
+ * Chinese keeps the original wording, every other locale gets English.
+ */
+private val isZhLocale: Boolean
+    get() = Locale.getDefault().language == Locale.CHINESE.language
+
 /** Server timestamps are epoch milliseconds. */
 fun formatEpochMs(ms: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(normalizeEpochMs(ms)))
@@ -20,11 +32,51 @@ fun relativeEpochMs(ms: Long, now: Long = System.currentTimeMillis()): String {
     val minute = 60_000L
     val hour = 60 * minute
     val day = 24 * hour
+    val minutes = delta / minute
+    val hours = delta / hour
+    val days = delta / day
     return when {
-        delta < minute -> "刚刚"
-        delta < hour -> "${delta / minute} 分钟前"
-        delta < day -> "${delta / hour} 小时前"
-        delta < 30 * day -> "${delta / day} 天前"
+        delta < minute -> if (isZhLocale) "刚刚" else "just now"
+        delta < hour -> if (isZhLocale) "$minutes 分钟前" else "$minutes min ago"
+        delta < day -> if (isZhLocale) "$hours 小时前" else "$hours hr ago"
+        delta < 30 * day -> if (isZhLocale) "$days 天前" else "$days d ago"
         else -> formatEpochMs(ms)
     }
 }
+
+/** Local calendar day of a server timestamp — the bucket key feeds are grouped by. */
+fun dayBucket(ms: Long): LocalDate =
+    Instant.ofEpochMilli(normalizeEpochMs(ms)).atZone(ZoneId.systemDefault()).toLocalDate()
+
+/** `今天`/`昨天`/`11 月 9 日` (zh) or `Today`/`Yesterday`/`Nov 9` (else), matching
+ *  the preview 10/11 section headers. */
+fun dayLabel(ms: Long, now: Long = System.currentTimeMillis()): String {
+    val day = dayBucket(ms)
+    val today = dayBucket(now)
+    return when (day) {
+        today -> if (isZhLocale) "今天" else "Today"
+        today.minusDays(1) -> if (isZhLocale) "昨天" else "Yesterday"
+        else -> shortDate(day)
+    }
+}
+
+/** `今天 · 11 月 11 日` (zh) / `Today · Nov 11` (else) — today/yesterday keep
+ *  the date for orientation. */
+fun dayHeader(ms: Long, now: Long = System.currentTimeMillis()): String {
+    val day = dayBucket(ms)
+    val today = dayBucket(now)
+    val label = dayLabel(ms, now)
+    return if (day == today || day == today.minusDays(1)) "$label · ${shortDate(day)}" else label
+}
+
+/** Month-day date without year: `11 月 9 日` for zh, `Nov 9` otherwise. */
+private fun shortDate(day: LocalDate): String =
+    if (isZhLocale) {
+        "${day.monthValue} 月 ${day.dayOfMonth} 日"
+    } else {
+        day.format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+    }
+
+/** `21:12` — wall clock inside a day group. */
+fun clockEpochMs(ms: Long): String =
+    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(normalizeEpochMs(ms)))

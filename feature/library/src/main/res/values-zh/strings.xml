@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 顶部应用栏 -->
+    <string name="library_title">书库</string>
+    <string name="library_choose_category">选择分类</string>
+    <string name="library_display">显示</string>
+    <string name="library_sort">排序</string>
+    <string name="library_filter">筛选</string>
+    <string name="library_refresh">刷新</string>
+    <string name="library_retry">重试</string>
+
+    <!-- 排序菜单 -->
+    <string name="library_sort_added">最近入库</string>
+    <string name="library_sort_title">标题</string>
+    <string name="library_sort_last_read">最近阅读</string>
+    <string name="library_sort_latest_chapter">最新章节</string>
+    <string name="library_sort_unread">未读最多</string>
+
+    <!-- 批量模式 -->
+    <string name="library_exit_batch_mode">退出批量模式</string>
+    <string name="library_selected_count">已选 %1$d 项</string>
+    <string name="library_select_all">全选</string>
+    <string name="library_deselect_all">取消全选</string>
+    <string name="library_set_categories">设置分类</string>
+    <string name="library_mark_read">标为已读</string>
+    <string name="library_remove_from_library">移出书库</string>
+    <string name="library_remove_confirm_message">将 %1$d 部漫画移出书库，漫画本身的章节与下载不受影响。</string>
+    <string name="library_remove">移出</string>
+    <string name="library_cancel">取消</string>
+    <string name="library_batch_categories_hint">会替换选中漫画的分类，不是追加。</string>
+    <string name="library_clear_categories">清空分类</string>
+    <string name="library_apply_categories">应用 · %1$d 个分类</string>
+
+    <!-- 筛选摘要 chips -->
+    <string name="library_remove_chip">移除 %1$s</string>
+    <string name="library_chip_rating">分级：%1$s</string>
+    <string name="library_chip_source">图源：%1$s</string>
+    <string name="library_chip_author">作者：%1$s</string>
+    <string name="library_chip_tag">标签：%1$s</string>
+    <string name="library_chip_group">筛选组：%1$s</string>
+
+    <!-- 空状态 -->
+    <string name="library_empty_filtered_title">没有符合筛选的漫画</string>
+    <string name="library_empty_title">书库还是空的</string>
+    <string name="library_empty_filtered_hint">放宽筛选条件试试</string>
+    <string name="library_empty_active_filters">当前筛选：%1$s</string>
+    <string name="library_empty_hint">去浏览页逛逛，把喜欢的漫画加入书库，\n新章节更新会出现在「更新」里</string>
+    <string name="library_clear_filters">清除筛选</string>
+    <string name="library_browse_sources">去浏览图源</string>
+
+    <!-- 底部弹层标题栏 -->
+    <string name="library_back">返回</string>
+    <string name="library_reset">重置</string>
+    <string name="library_done">完成</string>
+
+    <!-- 筛选面板 -->
+    <string name="library_section_status">状态</string>
+    <string name="library_more_filters">更多筛选</string>
+    <string name="library_none_selected">未选择</string>
+    <string name="library_no_options">暂无可选项</string>
+    <string name="library_manga_count">%1$d 部</string>
+
+    <!-- 分类弹层 -->
+    <string name="library_categories">分类</string>
+    <string name="library_uncategorized">未分类</string>
+    <string name="library_filter_groups">筛选组</string>
+    <string name="library_selected">已选择</string>
+
+    <!-- 三态行 -->
+    <string name="library_tri_include">包含</string>
+    <string name="library_tri_exclude">排除</string>
+    <string name="library_tri_none">未筛选</string>
+
+    <!-- 状态筛选 -->
+    <string name="library_status_unread">未读</string>
+    <string name="library_status_completed">已完结</string>
+    <string name="library_status_tracked">已追踪</string>
+    <string name="library_status_bookmarked">书签</string>
+    <string name="library_status_downloaded">已下载</string>
+
+    <!-- 内容分级 -->
+    <string name="library_rating_safe">安全</string>
+    <string name="library_rating_suggestive">建议</string>
+    <string name="library_rating_nsfw">NSFW</string>
+
+    <!-- 筛选维度 -->
+    <string name="library_dimension_ratings">分级</string>
+    <string name="library_dimension_sources">图源</string>
+    <string name="library_dimension_authors">作者</string>
+    <string name="library_dimension_tags">标签</string>
+
+    <!-- 显示弹层 -->
+    <string name="library_form_compact">紧凑</string>
+    <string name="library_form_comfortable">舒适</string>
+    <string name="library_form_list">列表</string>
+    <string name="library_columns">列数</string>
+    <string name="library_column_count">%1$d 列</string>
+    <string name="library_columns_hint">Auto 按最小封面宽 100dp 自适应；竖屏与横屏的列数分别记忆。</string>
+    <string name="library_cover_badges">封面徽标</string>
+    <string name="library_badge_unread">未读数角标</string>
+    <string name="library_badge_download">已下载标记</string>
+    <string name="library_badge_source">来源标记</string>
+
+    <!-- 条目行 -->
+    <string name="library_downloaded">已下载</string>
+    <string name="library_chapter_number">第 %1$s 话</string>
+    <string name="library_chapter_count">%1$d 话</string>
+    <string name="library_unread_count">%1$d 条未读</string>
+    <string name="library_all_read">已读完</string>
+
+    <!-- ViewModel 提示 -->
+    <string name="library_batch_marked_read">已标为已读 · %1$d 部</string>
+    <string name="library_batch_categories_set">已设置分类 · %1$d 部</string>
+    <string name="library_batch_removed">已移出书库 · %1$d 部</string>
+    <string name="library_no_server">未选择服务器</string>
+    <string name="library_batch_failed">批量操作失败：%1$s</string>
+</resources>

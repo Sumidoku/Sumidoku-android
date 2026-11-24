@@ -129,11 +129,21 @@ p.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 }
 .dlbadge svg { width: 13px; height: 13px; }
 
-/* 书库网格 */
+/* 书库网格（舒适形态：标题在封面下方） */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 12px; }
 .grid .cover { aspect-ratio: 2/3; width: 100%; }
 .grid .name { font-size: 12px; margin-top: 5px; line-height: 1.3; }
 .grid .sub { font-size: 10.5px; color: var(--faint); }
+
+/* 紧凑网格（默认形态，对齐 Komikku MangaCompactGridItem：
+   标题压封面底部渐变 + 文字描影，列数 Auto 自适应、横竖屏分别记忆） */
+.cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px 8px; }
+.cgrid.cols4 { grid-template-columns: repeat(4, 1fr); }
+.cgrid .cover { aspect-ratio: 2/3; width: 100%; border-radius: 10px; }
+.cgrid .cover .ct {
+  font-size: 11.5px; line-height: 1.35; padding: 22px 7px 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 /* 横滑行（图源主页/聚合搜索） */
 .hscroll-title { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; }
@@ -249,6 +259,23 @@ p.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .slider .track { flex: 1; height: 4px; border-radius: 99px; background: var(--surface3); position: relative; }
 .slider .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 99px; }
 .slider .track u { position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); }
+
+/* 阅读器章节导航器（07 / 08 / 39 / 40 共用） */
+.chapnav { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.navpill {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  background: rgba(38,38,51,.92); border: 1px solid var(--border);
+  border-radius: 99px; padding: 7px 12px; font-size: 12px; color: var(--muted);
+}
+.navpill .cur { color: var(--text); font-weight: 700; min-width: 14px; text-align: center; }
+.navpill .track { flex: 1; height: 4px; border-radius: 99px; background: var(--surface3); position: relative; }
+.navpill .track i { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 99px; }
+.navpill .track u { position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); }
+.chapnav .iconbtn { background: rgba(38,38,51,.92); border: 1px solid var(--border); width: 40px; height: 40px; color: var(--text); flex: none; }
+.chapnav .iconbtn svg { width: 18px; height: 18px; }
+/* RTL：进度从右向左填充，按钮与填充镜像 */
+.chapnav.rtl .navpill .track i { left: auto; right: 0; }
+.chapnav.rtl .navpill .track u { left: auto; transform: translate(50%, -50%); }
 
 /* 图库页（index） */
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 36px; max-width: 1500px; }

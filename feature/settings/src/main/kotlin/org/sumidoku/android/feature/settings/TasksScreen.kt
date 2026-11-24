@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,12 +36,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -65,6 +68,7 @@ data class TasksUiState(
 
 @HiltViewModel
 class TasksViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -84,7 +88,10 @@ class TasksViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = TasksUiState(loading = false, error = "未选择服务器")
+                _state.value = TasksUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.misc_no_server_selected),
+                )
                 return@launch
             }
             try {
@@ -104,7 +111,7 @@ class TasksViewModel @Inject constructor(
             val profile = repository.activeProfile.first() ?: return@launch
             try {
                 clientFactory.create<TasksApi>(profile).cancelTask(id).await()
-                _state.value = _state.value.copy(message = "已取消")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.tasks_cancelled))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -125,15 +132,21 @@ fun TasksScreen(
     viewModel: TasksViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    val filters = listOf(null to "全部", "pending" to "排队", "running" to "运行中", "done" to "完成", "failed" to "失败")
+    val filters = listOf(
+        null to stringResource(R.string.tasks_filter_all),
+        "pending" to stringResource(R.string.tasks_filter_pending),
+        "running" to stringResource(R.string.tasks_filter_running),
+        "done" to stringResource(R.string.tasks_filter_done),
+        "failed" to stringResource(R.string.tasks_filter_failed),
+    )
 
     androidx.compose.material3.Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("任务队列") },
+                title = { Text(stringResource(R.string.tasks_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
             )
@@ -158,7 +171,7 @@ fun TasksScreen(
                     CircularProgressIndicator()
                 }
                 state.tasks.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("没有任务", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.tasks_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
                     items(state.tasks, key = { it.id }) { task ->
@@ -168,11 +181,18 @@ fun TasksScreen(
                                 Text(task.kind, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
                             supportingContent = {
+                                val sourceId = task.sourceId
+                                val sourceLabel = if (sourceId != null) {
+                                    stringResource(R.string.tasks_source_number, sourceId)
+                                } else {
+                                    null
+                                }
+                                val errorLabel = task.error
                                 Text(
                                     buildString {
                                         append(relativeEpochMs(task.createdAt))
-                                        task.sourceId?.let { append(" · 源 #$it") }
-                                        task.error?.let { append(" · $it") }
+                                        sourceLabel?.let { append(" · $it") }
+                                        errorLabel?.let { append(" · $it") }
                                     },
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
@@ -182,7 +202,7 @@ fun TasksScreen(
                             trailingContent = {
                                 if (task.status == Task.Status.PENDING || task.status == Task.Status.RUNNING) {
                                     IconButton(onClick = { viewModel.cancel(task.id) }) {
-                                        Icon(Icons.Outlined.Cancel, contentDescription = "取消任务")
+                                        Icon(Icons.Outlined.Cancel, contentDescription = stringResource(R.string.tasks_cancel_task))
                                     }
                                 }
                             },

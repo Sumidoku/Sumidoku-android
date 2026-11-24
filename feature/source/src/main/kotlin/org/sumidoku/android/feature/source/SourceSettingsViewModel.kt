@@ -1,9 +1,11 @@
 package org.sumidoku.android.feature.source
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -14,10 +16,12 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.sumidoku.android.core.api.SourcesApi
+import org.sumidoku.android.core.api.TasksApi
 import org.sumidoku.android.core.api.model.BasicLoginRequest
 import org.sumidoku.android.core.api.model.NotifyRequest
 import org.sumidoku.android.core.api.model.OAuthCompleteRequest
 import org.sumidoku.android.core.api.model.OAuthStartRequest
+import org.sumidoku.android.core.api.model.ScanLocalSourcesRequest
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourceLogoutRequest
 import org.sumidoku.android.core.api.model.SourceSetting
@@ -52,6 +56,7 @@ data class SourceSettingsUiState(
 
 @HiltViewModel
 class SourceSettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
@@ -70,7 +75,10 @@ class SourceSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null, saved = false)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = SourceSettingsUiState(loading = false, error = "未选择服务器")
+                _state.value = SourceSettingsUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.source_no_server),
+                )
                 return@launch
             }
             try {
@@ -222,7 +230,27 @@ class SourceSettingsViewModel @Inject constructor(
                 clientFactory.create<SourcesApi>(profile)
                     .notifySource(sourceId, NotifyRequest(notification))
                     .await()
-                _state.value = _state.value.copy(actionMessage = "已通知图源")
+                _state.value = _state.value.copy(
+                    actionMessage = appContext.getString(R.string.source_notify_sent),
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(actionError = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Local sources only: kick off a filesystem scan (webui LocalSourcePanel
+     *  "Scan"). The server queues a task; progress shows on the tasks page. */
+    fun scanLocal() {
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                clientFactory.create<TasksApi>(profile)
+                    .scanLocalSources(ScanLocalSourcesRequest(sourceId))
+                    .await()
+                _state.value = _state.value.copy(
+                    actionMessage = appContext.getString(R.string.source_scan_started),
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(actionError = e.message ?: e.toString())
             }

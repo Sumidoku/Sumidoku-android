@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trackers_title">追踪器账号</string>
+    <string name="trackers_back">返回</string>
+    <string name="trackers_action_link">绑定</string>
+    <string name="trackers_action_unlink">解绑</string>
+    <string name="trackers_action_cancel">取消</string>
+    <string name="trackers_status_linked">已绑定：%1$s</string>
+    <string name="trackers_status_unlinked">未绑定</string>
+    <string name="trackers_unknown_account">未知账号</string>
+    <string name="trackers_sync_strategy_title">同步策略（服务端执行）</string>
+    <string name="trackers_strategy_push_title">读完自动推送进度</string>
+    <string name="trackers_strategy_push_detail">按 decide() 纯函数比较远端进度，只前进不回退；客户端无需保持前台。</string>
+    <string name="trackers_strategy_pull_title">从 tracker 拉取进度镜像</string>
+    <string name="trackers_strategy_pull_detail">对齐 Aidoku getChaptersToSyncProgressFromTracker：远端更靠前时以远端为准。</string>
+    <string name="trackers_strategy_binding_title">绑定状态与账号解绑</string>
+    <string name="trackers_strategy_binding_detail">OAuth 在官方面板完成，令牌只存在服务器；本页的绑定/解绑立即生效。</string>
+    <string name="trackers_default_label">默认追踪器</string>
+    <string name="trackers_default_detail">搜索元数据时默认选中的提供方</string>
+    <string name="trackers_default_none">无</string>
+    <string name="tracker_oauth_sheet_title">绑定 %1$s</string>
+    <string name="trackers_error_no_server">未选择服务器</string>
+    <string name="trackers_message_linked">已绑定</string>
+    <string name="trackers_message_unlinked">已解绑</string>
+    <string name="trackers_message_saved">已保存</string>
+</resources>

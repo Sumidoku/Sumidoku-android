@@ -1,15 +1,19 @@
 package org.sumidoku.android.feature.downloads
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.sumidoku.android.core.api.CacheApi
 import org.sumidoku.android.core.api.DownloadsApi
 import org.sumidoku.android.core.api.model.DeleteDownloadsRequest
+import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.Download
 import org.sumidoku.android.core.api.model.DownloadStatus
 import org.sumidoku.android.core.data.ServerProfileRepository
@@ -40,10 +44,16 @@ data class DownloadsUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val message: String? = null,
+    /** Design 09 bottom card: server-side chapter page cache. */
+    val cacheChapters: Long = 0,
+    val cacheUsedBytes: Long = 0,
+    val cacheMaxBytes: Long = 0,
+    val cacheEnabled: Boolean = true,
 )
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val eventsStream: EventsStream,
@@ -58,6 +68,7 @@ class DownloadsViewModel @Inject constructor(
 
     init {
         refresh()
+        loadCacheStats()
         viewModelScope.launch {
             localDownloads.init()
             localDownloads.observeAll().collect { rows ->
@@ -98,7 +109,10 @@ class DownloadsViewModel @Inject constructor(
         streamJob = viewModelScope.launch {
             val profile = repository.activeProfile.first()
             if (profile == null) {
-                _state.value = DownloadsUiState(loading = false, error = "未选择服务器")
+                _state.value = DownloadsUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.downloads_error_no_server),
+                )
                 return@launch
             }
             _state.value = _state.value.copy(profile = profile)
@@ -205,7 +219,9 @@ class DownloadsViewModel @Inject constructor(
     fun clearFinished() = viewModelScope.launch {
         try {
             val result = api()?.deleteDownloads(DeleteDownloadsRequest(finishedOnly = true))?.await()
-            _state.value = _state.value.copy(message = "已清理 ${result?.deleted ?: 0} 项")
+            _state.value = _state.value.copy(
+                message = appContext.getString(R.string.downloads_msg_cleared, result?.deleted ?: 0),
+            )
         } catch (e: Exception) {
             _state.value = _state.value.copy(message = e.message)
         }
@@ -213,6 +229,36 @@ class DownloadsViewModel @Inject constructor(
 
     fun delete(id: Long) = viewModelScope.launch {
         runCatching { api()?.deleteDownloads(DeleteDownloadsRequest(chapterIds = listOf(id)))?.await() }
+    }
+
+    /** Design 09: a failed row offers "tap to retry" — re-enqueue just that chapter. */
+    fun retry(chapterId: Long) = viewModelScope.launch {
+        try {
+            api()?.enqueueDownloads(EnqueueDownloadsRequest(chapterIds = listOf(chapterId)))?.await()
+            _state.value = _state.value.copy(message = appContext.getString(R.string.downloads_msg_requeued))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            _state.value = _state.value.copy(
+                message = appContext.getString(
+                    R.string.downloads_msg_retry_failed,
+                    e.message ?: e.toString(),
+                ),
+            )
+        }
+    }
+
+    /** Design 09 bottom card: chapter page cache accounting (server side). */
+    fun loadCacheStats() = viewModelScope.launch {
+        val stats = runCatching {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@runCatching null
+            clientFactory.create<CacheApi>(profile).chapterCacheStats().await()
+        }.getOrNull() ?: return@launch
+        _state.value = _state.value.copy(
+            cacheChapters = stats.chapterCount,
+            cacheUsedBytes = stats.usedBytes,
+            cacheMaxBytes = stats.maxBytes,
+            cacheEnabled = stats.enabled,
+        )
     }
 
     fun consumeMessage() {

@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.trackers
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -29,6 +31,7 @@ data class TrackersUiState(
 
 @HiltViewModel
 class TrackersViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -44,7 +47,10 @@ class TrackersViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = _state.value.statuses.isEmpty(), error = null)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = TrackersUiState(loading = false, error = "未选择服务器")
+                _state.value = TrackersUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.trackers_error_no_server),
+                )
                 return@launch
             }
             try {
@@ -77,7 +83,7 @@ class TrackersViewModel @Inject constructor(
                 clientFactory.create<TrackersApi>(profile)
                     .trackerOauthCallback(provider, code, state)
                     .await()
-                _state.value = _state.value.copy(message = "已绑定")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.trackers_message_linked))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -92,7 +98,7 @@ class TrackersViewModel @Inject constructor(
             _state.value = _state.value.copy(busyProvider = provider)
             try {
                 clientFactory.create<TrackersApi>(profile).trackerOauthLogout(provider).await()
-                _state.value = _state.value.copy(message = "已解绑")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.trackers_message_unlinked))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -108,7 +114,10 @@ class TrackersViewModel @Inject constructor(
                 clientFactory.create<TrackersApi>(profile)
                     .putTrackerPreferences(TrackerPreferences(defaultTracker = provider))
                     .await()
-                _state.value = _state.value.copy(defaultTracker = provider, message = "已保存")
+                _state.value = _state.value.copy(
+                    defaultTracker = provider,
+                    message = appContext.getString(R.string.trackers_message_saved),
+                )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(error = e.message ?: e.toString())

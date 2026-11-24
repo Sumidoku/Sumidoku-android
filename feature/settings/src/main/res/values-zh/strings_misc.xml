@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 本文件覆盖的各设置页共用。 -->
+    <string name="misc_back">返回</string>
+    <string name="misc_cancel">取消</string>
+    <string name="misc_no_server_selected">未选择服务器</string>
+    <string name="misc_move_up">上移</string>
+    <string name="misc_move_down">下移</string>
+    <string name="misc_rename">重命名</string>
+    <string name="misc_delete">删除</string>
+    <string name="misc_save">保存</string>
+    <string name="misc_name">名称</string>
+    <string name="misc_create">创建</string>
+
+    <!-- 过滤组页面 + 视图模型 -->
+    <string name="filter_groups_title">过滤组</string>
+    <string name="filter_groups_new">新建过滤组</string>
+    <string name="filter_groups_empty">还没有过滤组。\n过滤组把保存的筛选规则应用在书库上。</string>
+    <string name="filter_groups_rule_count">%1$d 条规则</string>
+    <string name="filter_groups_edit_rules">编辑规则</string>
+    <string name="filter_groups_rename_title">重命名「%1$s」</string>
+    <string name="filter_groups_delete_title">删除过滤组</string>
+    <string name="filter_groups_delete_text">确定删除「%1$s」？书库条目不受影响。</string>
+    <string name="filter_groups_rules_title">规则 · %1$s</string>
+    <string name="filter_groups_exclude">排除</string>
+    <string name="filter_groups_remove_rule">移除规则</string>
+    <string name="filter_groups_add_rule">＋ 添加规则</string>
+    <string name="filter_groups_select_value">选择…</string>
+    <string name="filter_groups_rating_safe">安全</string>
+    <string name="filter_rule_type_downloaded">已下载</string>
+    <string name="filter_rule_type_has_unread">有未读</string>
+    <string name="filter_rule_type_started">已开始阅读</string>
+    <string name="filter_rule_type_completed">已完结</string>
+    <string name="filter_rule_type_source">图源</string>
+    <string name="filter_rule_type_content_rating">分级</string>
+    <string name="filter_rule_type_category">分类</string>
+    <string name="filter_rule_type_author">作者</string>
+    <string name="filter_rule_type_tag">标签</string>
+    <string name="filter_rule_value_source">图源 = %1$s</string>
+    <string name="filter_rule_value_content_rating">分级 = %1$s</string>
+    <string name="filter_rule_value_category">分类 = %1$s</string>
+    <string name="filter_rule_value_author">作者 = %1$s</string>
+    <string name="filter_rule_value_tag">标签 = %1$s</string>
+    <string name="filter_rule_exclude_prefix">排除：%1$s</string>
+    <string name="filter_groups_created">已创建过滤组</string>
+    <string name="filter_groups_renamed">已重命名</string>
+    <string name="filter_groups_deleted">已删除过滤组</string>
+    <string name="filter_groups_rules_saved">已保存规则</string>
+    <string name="filter_groups_order_saved">顺序已保存</string>
+
+    <!-- 回收站页面 + 视图模型 -->
+    <string name="trash_title">本地回收站</string>
+    <string name="trash_empty">回收站为空</string>
+    <string name="trash_empty_action">清空</string>
+    <string name="trash_restored">已恢复</string>
+    <string name="trash_deleted_permanently">已彻底删除</string>
+    <string name="trash_empty_queued">清空回收站任务已排队（见任务队列）</string>
+    <string name="trash_entry_summary">回收章节 %1$d · 删除于 %2$s</string>
+    <string name="trash_restore">恢复</string>
+    <string name="trash_delete_forever">彻底删除</string>
+    <string name="trash_empty_dialog_title">清空回收站</string>
+    <string name="trash_empty_dialog_text">将排队服务器任务彻底删除全部 %1$d 个条目，无法撤销。确定继续？</string>
+    <string name="trash_delete_dialog_text">文件将立即删除，无法撤销。确定继续？</string>
+
+    <!-- API 密钥页面 + 视图模型 -->
+    <string name="api_keys_title">API 密钥</string>
+    <string name="api_keys_change_password">修改密码</string>
+    <string name="api_keys_new_key">新建密钥</string>
+    <string name="api_keys_empty">还没有 API 密钥，点右下角新建</string>
+    <string name="api_keys_dates">创建于 %1$s</string>
+    <string name="api_keys_dates_with_last_used">创建于 %1$s · 最近使用 %2$s</string>
+    <string name="api_keys_revoke">吊销</string>
+    <string name="api_keys_create_title">新建 API 密钥</string>
+    <string name="api_keys_name_label">名称（如：手机、平板）</string>
+    <string name="api_keys_save_key_title">保存好这个密钥</string>
+    <string name="api_keys_save_key_text">密钥只显示这一次，服务器只保存指纹。请立即复制保存：</string>
+    <string name="api_keys_saved_confirm">我已保存</string>
+    <string name="api_keys_current_password">当前密码</string>
+    <string name="api_keys_new_password">新密码</string>
+    <string name="api_keys_change_confirm">修改</string>
+    <string name="api_keys_revoked">已吊销</string>
+    <string name="api_keys_password_updated">密码已更新</string>
+
+    <!-- 分类页面 + 视图模型 -->
+    <string name="categories_title">分类管理</string>
+    <string name="categories_new">新建分类</string>
+    <string name="categories_empty">还没有分类</string>
+    <string name="categories_manga_count">%1$d 部漫画</string>
+    <string name="categories_manga_count_default">%1$d 部漫画 · 默认</string>
+    <string name="categories_rename_title">重命名分类</string>
+    <string name="categories_created">已创建</string>
+    <string name="categories_renamed">已重命名</string>
+    <string name="categories_deleted">已删除</string>
+    <string name="categories_order_saved">已保存顺序</string>
+
+    <!-- 缓存页面 + 视图模型 -->
+    <string name="cache_title">缓存管理</string>
+    <string name="cache_chapter_title">章节页缓存</string>
+    <string name="cache_chapter_usage">%1$s / %2$s · %3$d 个章节</string>
+    <string name="cache_last_error">最近错误：%1$s</string>
+    <string name="cache_clear_chapters">清空章节缓存</string>
+    <string name="cache_cover_title">封面缓存</string>
+    <string name="cache_cover_usage">%1$d 个条目 · %2$s</string>
+    <string name="cache_clear_covers">清空封面缓存</string>
+    <string name="cache_cleared_bytes">已释放 %1$s</string>
+    <string name="cache_cleared_covers">已清空 %1$d 个封面缓存</string>
+
+    <!-- 任务队列页面 + 视图模型 -->
+    <string name="tasks_title">任务队列</string>
+    <string name="tasks_filter_all">全部</string>
+    <string name="tasks_filter_pending">排队</string>
+    <string name="tasks_filter_running">运行中</string>
+    <string name="tasks_filter_done">完成</string>
+    <string name="tasks_filter_failed">失败</string>
+    <string name="tasks_empty">没有任务</string>
+    <string name="tasks_source_number">源 #%1$s</string>
+    <string name="tasks_cancel_task">取消任务</string>
+    <string name="tasks_cancelled">已取消</string>
+</resources>

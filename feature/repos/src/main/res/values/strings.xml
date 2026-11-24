@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="repos_title">Source repositories</string>
+    <string name="repos_back">Back</string>
+    <string name="repos_add_repo">Add repository</string>
+    <string name="repos_retry">Retry</string>
+    <string name="repos_empty_title">No source repositories yet</string>
+    <string name="repos_empty_desc">Add a repository to browse and install third-party sources</string>
+    <string name="repos_added_header">Added</string>
+    <string name="repos_index_cache_hint">The index is cached on the server; refresh to fetch it again</string>
+    <string name="repos_index_url_label">Repository index URL</string>
+    <string name="repos_fetching_index">Fetching the index…</string>
+    <string name="repos_add">Add</string>
+    <string name="repos_cancel">Cancel</string>
+    <string name="repos_delete_dialog_title">Delete repository?</string>
+    <string name="repos_delete_dialog_message">Installed sources are unaffected, but this repository will no longer deliver updates.</string>
+    <string name="repos_delete">Delete</string>
+    <string name="repos_not_refreshed">Never refreshed</string>
+    <string name="repos_stale_warning">Last refresh failed (using stale cache) · %1$s</string>
+    <string name="repos_source_count_refreshed">%1$d sources · refreshed %2$s</string>
+    <string name="repos_refresh">Refresh</string>
+    <string name="repos_error_no_server">No server selected</string>
+    <string name="repos_error_unknown">Unknown error</string>
+    <string name="repos_msg_index_refreshed">Index refreshed</string>
+    <string name="repos_msg_refresh_failed">Refresh failed: %1$s</string>
+    <string name="repos_msg_deleted">Repository deleted</string>
+    <string name="repos_msg_delete_failed">Delete failed: %1$s</string>
+    <string name="repos_validation_url_empty">Enter an index URL</string>
+    <string name="repos_validation_url_invalid">Invalid URL format</string>
+    <string name="repos_validation_url_scheme">Only http/https URLs are supported</string>
+    <string name="repos_validation_url_no_host">The URL is missing a host name</string>
+    <string name="repos_validation_url_not_json">Paste the URL of an index.json file</string>
+</resources>

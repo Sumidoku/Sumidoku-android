@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="migrate_back">Back</string>
+    <string name="migrate_select_all">Select all</string>
+    <string name="migrate_clear">Clear</string>
+    <string name="migrate_running">Migrating…</string>
+    <string name="migrate_step_source">Migrate · Select source</string>
+    <string name="migrate_step_manga">Migrate · Select manga</string>
+    <string name="migrate_step_targets">Migrate · Targets &amp; mode</string>
+    <string name="migrate_step_matching">Migrate · Matching</string>
+    <string name="migrate_step_confirm">Migrate · Confirm matches</string>
+    <string name="migrate_step_running">Migrate · Running</string>
+    <string name="migrate_step_results">Migrate · Results</string>
+    <string name="migrate_load_sources_failed">Failed to load migration sources</string>
+    <string name="migrate_retry">Retry</string>
+    <string name="migrate_no_sources">No migratable sources (library is empty)</string>
+    <string name="migrate_source_fallback">Source %1$d</string>
+    <string name="migrate_source_meta">%1$d in library · v%2$d</string>
+    <string name="migrate_unread_count">%1$d unread</string>
+    <string name="migrate_next_selected">Next (%1$d selected)</string>
+    <string name="migrate_targets_title">Target sources (multiple selection)</string>
+    <string name="migrate_mode_title">Migration mode</string>
+    <string name="migrate_mode_copy">Copy</string>
+    <string name="migrate_mode_migrate">Migrate</string>
+    <string name="migrate_mode_migrate_with_history">Migrate+History</string>
+    <string name="migrate_start_matching">Auto-match (%1$d × %2$d)</string>
+    <string name="migrate_matching_progress">Matching %1$d / %2$d</string>
+    <string name="migrate_matched_to">→ %1$s: %2$s</string>
+    <string name="migrate_not_found">→ %1$s: no match found</string>
+    <string name="migrate_matching_row">→ %1$s: matching</string>
+    <string name="migrate_start_button">Start migration (%1$d migratable)</string>
+    <string name="migrate_results_summary">Done: %1$d / %2$d succeeded</string>
+    <string name="migrate_result_success">#%1$s migrated</string>
+    <string name="migrate_result_failure">#%1$s failed: %2$s</string>
+    <string name="migrate_unknown_reason">unknown reason</string>
+    <string name="migrate_done">Done</string>
+    <string name="migrate_error_no_server">No server selected</string>
+</resources>

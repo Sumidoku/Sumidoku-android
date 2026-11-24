@@ -1,15 +1,31 @@
 package org.sumidoku.android.feature.manga
 
+import org.sumidoku.android.core.common.chapterLabel
+
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
+import java.io.IOException
 import org.sumidoku.android.core.api.LibraryApi
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.DownloadsApi
@@ -18,9 +34,9 @@ import org.sumidoku.android.core.api.MigrationApi
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.TrackersApi
 import org.sumidoku.android.core.api.model.AddToLibraryRequest
-import org.sumidoku.android.core.api.model.ChapterSort
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.ContentRating
+import org.sumidoku.android.core.api.model.DeleteDownloadsRequest
 import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.FilterValueOneOf4MultiSelect
@@ -35,13 +51,18 @@ import org.sumidoku.android.core.api.model.MetadataApplyRequest
 import org.sumidoku.android.core.api.model.MetadataField
 import org.sumidoku.android.core.api.model.MetadataPreview
 import org.sumidoku.android.core.api.model.MetadataRestoreRequest
+import org.sumidoku.android.core.api.MangaSeedStore
+import org.sumidoku.android.core.api.model.RegisterMangaRequest
+import org.sumidoku.android.core.api.model.RemoteState
+import org.sumidoku.android.core.api.model.TrackStatus
 import org.sumidoku.android.core.api.model.SearchManga
+import org.sumidoku.android.core.api.model.SourceChapter
 import org.sumidoku.android.core.api.model.SelectCoverRequest
-import org.sumidoku.android.core.api.model.SortOrder
 import org.sumidoku.android.core.api.model.SourceConfig
 import org.sumidoku.android.core.api.model.SourceFilter
 import org.sumidoku.android.core.api.model.TrackSearchItem
 import org.sumidoku.android.core.api.model.TrackerLink
+import org.sumidoku.android.core.api.model.TrackerUpdateRequest
 import org.sumidoku.android.core.api.model.TrackerLinkUpsert
 import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.api.model.TrackerSyncRequest
@@ -120,29 +141,57 @@ data class MangaUiState(
     val profile: ServerProfile? = null,
     val manga: Manga? = null,
     val chapters: List<ChapterWithDownload> = emptyList(),
+    /** Per-manga chapter list prefs (webui chapterPrefs parity); [chapters]
+     *  stays the raw API order, [visibleChapters] is the filtered/sorted
+     *  view the list actually renders. */
+    val chapterPrefs: ChapterPrefs = ChapterPrefs(),
+    val visibleChapters: List<ChapterWithDownload> = emptyList(),
     /** Tier B local offline status per chapter: queued/downloading/done/error. */
     val localStatus: Map<Long, String> = emptyMap(),
     val error: String? = null,
+    /** Explicit "refresh from source" actions (webui refreshDetails/refreshChapters parity). */
+    val refreshingDetails: Boolean = false,
+    val refreshingChapters: Boolean = false,
+    /** Live progress line while a chapter refresh streams partials. */
+    val refreshNote: String? = null,
+    /** True while an unregistered source entry is registering in the
+     *  background: the header already renders the browse entry (Aidoku
+     *  parity) and the chapter section shows an inline loading row. */
+    val resolving: Boolean = false,
 ) {
-    /** First unread chapter, else the latest one — the "继续阅读" target. */
+    /** First unread chapter, else the latest one — the "resume reading" target. */
     val resumeChapter: ChapterWithDownload?
         get() = chapters.firstOrNull { !it.isRead } ?: chapters.lastOrNull()
 }
 
 @HiltViewModel(assistedFactory = MangaViewModel.Factory::class)
 class MangaViewModel @AssistedInject constructor(
-    @Assisted val mangaId: Long,
+    @ApplicationContext private val appContext: Context,
+    @Assisted("mangaId") requestedMangaId: Long,
+    @Assisted("sourceId") private val requestedSourceId: Long,
+    @Assisted("mangaKey") private val requestedMangaKey: String?,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val localDownloads: LocalDownloadEngine,
+    private val chapterPrefsStore: ChapterPrefsStore,
 ) : ViewModel() {
 
     /** Assisted factory so the screen works both inside a nav route and
-     *  inside the expanded-width list-detail pane (design §17). */
+     *  inside the expanded-width list-detail pane (design §17). sourceId +
+     *  mangaKey describe an unregistered source entry (Aidoku open-first:
+     *  navigate immediately, register in the background). */
     @AssistedFactory
     interface Factory {
-        fun create(mangaId: Long): MangaViewModel
+        fun create(
+            @Assisted("mangaId") mangaId: Long,
+            @Assisted("sourceId") sourceId: Long,
+            @Assisted("mangaKey") mangaKey: String?,
+        ): MangaViewModel
     }
+
+    /** Resolved server manga id. -1 while an unregistered source entry is
+     *  still registering in the background. */
+    private var mangaId: Long = requestedMangaId
 
     private val _state = MutableStateFlow(MangaUiState())
     val state: StateFlow<MangaUiState> = _state
@@ -162,7 +211,15 @@ class MangaViewModel @AssistedInject constructor(
     fun tagFilterValue(tag: String): FilterValue? = _searchMeta.value.tagFilterValue(tag)
 
     init {
-        refresh()
+        if (mangaId > 0) {
+            refresh()
+            observeLocalDownloads()
+        } else {
+            resolveUnregistered()
+        }
+    }
+
+    private fun observeLocalDownloads() {
         viewModelScope.launch {
             localDownloads.init()
             localDownloads.observeForManga(mangaId).collect { rows ->
@@ -173,66 +230,320 @@ class MangaViewModel @AssistedInject constructor(
         }
     }
 
+    /** Aidoku-style open: the detail page is already on screen while the
+     *  source entry registers in the background (webui's register-then-
+     *  navigate gate is exactly what this avoids). The tapped browse entry
+     *  renders instantly (title/cover from [MangaSeedStore]); NDJSON
+     *  partial `manga` snapshots progressively refine it — header first,
+     *  chapter rows as the source discovers them — until the `final`
+     *  payload resolves the server id and the authoritative refresh runs.
+     *  An already-registered hit — and local/opds sources — answer a
+     *  buffered `{"id": n}` object with no type tag (terminal). */
+    private fun resolveUnregistered() {
+        val key = requestedMangaKey
+        if (requestedSourceId <= 0 || key.isNullOrBlank()) {
+            _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_invalid_entry))
+            return
+        }
+        viewModelScope.launch {
+            val profile = repository.activeProfile.first() ?: run {
+                _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_no_server))
+                return@launch
+            }
+            val seed = MangaSeedStore.take(requestedSourceId, key)
+            _state.value = _state.value.copy(
+                profile = profile,
+                loading = seed == null,
+                error = null,
+                resolving = true,
+                manga = seed?.toPlaceholderManga(requestedSourceId),
+            )
+            try {
+                var resultId: Long? = null
+                var sawEvent = false
+                clientFactory.ndjsonCall(
+                    profile,
+                    "/manga",
+                    buildJsonObject {
+                        put("sourceId", requestedSourceId)
+                        put("mangaKey", key)
+                    },
+                ).collect { ev ->
+                    sawEvent = true
+                    when (ev["type"]?.jsonPrimitive?.contentOrNull) {
+                        "final" -> resultId =
+                            ev["payload"]?.jsonObject?.get("id")?.jsonPrimitive?.longOrNull
+                        "error" -> throw IOException(
+                            ev["error"]?.jsonObject?.get("msg")?.jsonPrimitive?.contentOrNull
+                                ?: appContext.getString(R.string.error_register_failed),
+                        )
+                        // Partial manga snapshot (source still working):
+                        // full snapshot per partial.rs — replace wholesale
+                        // so the header/chapters update live, Aidoku-style.
+                        "manga" -> ev["manga"]?.let { partial ->
+                            val entry = clientFactory.json.decodeFromJsonElement(
+                                SearchManga.serializer(), partial,
+                            )
+                            _state.value = _state.value.copy(
+                                loading = false,
+                                manga = entry.toPlaceholderManga(requestedSourceId),
+                            )
+                            entry.chapters?.takeIf { it.isNotEmpty() }?.let { source ->
+                                setChapters(
+                                    source.mapIndexed { i, ch -> ch.toPlaceholderChapter(i) },
+                                )
+                            }
+                        }
+                        // Buffered terminal (already registered / local /
+                        // opds / old server): bare {"id": n}, no type tag.
+                        else -> if (ev.containsKey("id")) {
+                            resultId = ev["id"]?.jsonPrimitive?.longOrNull
+                        }
+                    }
+                }
+                val resolved = resultId ?: run {
+                    if (sawEvent) throw IOException(appContext.getString(R.string.error_register_incomplete))
+                    clientFactory.create<MangaApi>(profile)
+                        .registerManga(
+                            RegisterMangaRequest(sourceId = requestedSourceId, mangaKey = key),
+                        )
+                        .await().id
+                }
+                mangaId = resolved
+                _state.value = _state.value.copy(resolving = false)
+                observeLocalDownloads()
+                refresh()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _state.value = _state.value.copy(
+                    loading = false,
+                    resolving = false,
+                    error = e.message ?: e.toString(),
+                )
+            }
+        }
+    }
+
     /** Tier B enqueue: download the chapter's CBZ to device storage for
      *  offline reading (design §6 Tier B). */
     fun enqueueLocal(chapterId: Long) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
         val profile = _state.value.profile ?: return
         val manga = _state.value.manga ?: return
         val chapter = _state.value.chapters.firstOrNull { it.id == chapterId } ?: return
-        val label = chapter.title?.takeIf { it.isNotBlank() }
-            ?: chapter.chapterNumber?.let { "第 $it 话" }
-            ?: "第 ${chapterId} 章"
+        val label = chapterLabel(chapter.volumeNumber, chapter.chapterNumber, chapter.title)
         viewModelScope.launch {
             localDownloads.enqueue(profile, chapterId, mangaId, manga.title, label)
         }
     }
 
-    /** Chapter listing order for the header sort toggle (design §14
-     *  M2): newest-first (DESC) vs oldest-first (ASC). */
-    var chapterOrder: SortOrder = SortOrder.DESC
-        private set
+    /** Replace the raw chapter list and re-derive the visible view. */
+    private fun setChapters(chapters: List<ChapterWithDownload>) {
+        _state.value = _state.value.copy(
+            chapters = chapters,
+            visibleChapters = _state.value.chapterPrefs.applyTo(chapters),
+        )
+    }
 
-    fun toggleChapterOrder() {
-        chapterOrder = if (chapterOrder == SortOrder.DESC) SortOrder.ASC else SortOrder.DESC
-        val manga = _state.value.manga ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
-            try {
-                val chapters = clientFactory.create<MangaApi>(profile)
-                    .getMangaChapters(manga.id, sort = ChapterSort.CHAPTER, order = chapterOrder)
-                    .await()
-                _state.value = _state.value.copy(chapters = chapters)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-            }
-        }
+    /** Placeholder detail page while registration streams in (Aidoku
+     *  parity): the search entry carries every display field, only the
+     *  server-side bookkeeping is stubbed. id = -1 marks the entry as
+     *  unresolved — mutating actions no-op until [refresh] lands. */
+    private fun SearchManga.toPlaceholderManga(sourceId: Long): Manga = Manga(
+        key = key,
+        title = title,
+        cover = cover,
+        artists = artists,
+        authors = authors,
+        description = description,
+        url = url,
+        tags = tags,
+        status = status,
+        contentRating = contentRating,
+        viewer = viewer,
+        updateStrategy = updateStrategy,
+        id = -1L,
+        sourceId = sourceId,
+        initialized = false,
+        trashed = false,
+        chapterCount = chapters?.size?.toLong() ?: 0L,
+        inLibrary = false,
+        incognito = false,
+        categoryIds = emptyList(),
+        trackerProviders = emptyList(),
+    )
+
+    /** Streaming chapter placeholder: negative index ids (unique, clearly
+     *  not server ids) and zeroed reading/download state; the registered
+     *  refresh replaces them with real rows. */
+    private fun SourceChapter.toPlaceholderChapter(index: Int): ChapterWithDownload =
+        ChapterWithDownload(
+            key = key,
+            title = title,
+            chapterNumber = chapterNumber,
+            volumeNumber = volumeNumber,
+            dateUploaded = dateUploaded,
+            scanlators = scanlators,
+            url = url,
+            language = language,
+            thumbnail = thumbnail,
+            locked = locked,
+            id = -(index + 1).toLong(),
+            trashed = false,
+            pageCount = 0L,
+            lastPageRead = 0L,
+            isRead = false,
+            isBookmarked = false,
+            lastReadAt = null,
+            isDownloaded = false,
+            hasFinishedDownload = false,
+        )
+
+    /** Chapter list prefs changed from the filter sheet: apply locally and
+     *  persist per manga (webui chapterPrefs.ts parity — everything is
+     *  client-side, the server default order stays the fetch order). */
+    fun setChapterPrefs(prefs: ChapterPrefs) {
+        _state.value = _state.value.copy(
+            chapterPrefs = prefs,
+            visibleChapters = prefs.applyTo(_state.value.chapters),
+        )
+        viewModelScope.launch { chapterPrefsStore.save(mangaId, prefs) }
     }
 
     fun refresh() {
+        // Retry on the unregistered path must re-run the registration
+        // resolve, not fetch with the -1 placeholder id.
+        if (mangaId <= 0) {
+            resolveUnregistered()
+            return
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = MangaUiState(loading = false, error = "未选择服务器")
+                _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_no_server))
                 return@launch
             }
             try {
                 val api = clientFactory.create<MangaApi>(profile)
-                val manga = api.getManga(mangaId).await()
-                val chapters = api.getMangaChapters(
-                    mangaId,
-                    sort = ChapterSort.CHAPTER,
-                    order = chapterOrder,
-                ).await()
-                _state.value = MangaUiState(
+                // Fetch details + chapters in parallel: the two requests run
+                // against separate source calls server-side, and sequential
+                // awaits doubled the detail-screen latency (webui fires both
+                // queries independently as well).
+                val mangaDeferred = async { api.getManga(mangaId).await() }
+                val chaptersDeferred = async { api.getMangaChapters(mangaId).await() }
+                val manga = mangaDeferred.await()
+                _state.value = _state.value.copy(
                     loading = false,
                     profile = profile,
                     manga = manga,
-                    chapters = chapters,
                 )
                 loadSearchMeta(profile, manga.sourceId)
                 loadLinks()
+                val chapters = chaptersDeferred.await()
+                val prefs = chapterPrefsStore.load(mangaId) ?: _state.value.chapterPrefs
+                _state.value = _state.value.copy(
+                    chapterPrefs = prefs,
+                    chapters = chapters,
+                    visibleChapters = prefs.applyTo(chapters),
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, profile = profile, error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** "Refresh details from source" (webui refreshDetails parity). The server streams
+     *  partial manga snapshots over NDJSON so a slow source keeps the
+     *  connection alive past the read timeout; local/opds sources (and old
+     *  servers) answer buffered, which shows up as zero events and falls
+     *  back to the plain refresh call. The terminal state overwrites the
+     *  detail, mirroring the webui mutation. */
+    fun refreshDetailsFromSource() {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        if (_state.value.refreshingDetails) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            _state.value = _state.value.copy(refreshingDetails = true, refreshNote = null)
+            try {
+                var result: Manga? = null
+                var sawEvent = false
+                clientFactory.ndjsonGet(profile, "/manga/$mangaId?refresh").collect { ev ->
+                    sawEvent = true
+                    when (ev["type"]?.jsonPrimitive?.contentOrNull) {
+                        "final" -> result = ev["payload"]?.let {
+                            clientFactory.json.decodeFromJsonElement(Manga.serializer(), it)
+                        }
+                        "error" -> throw IOException(
+                            ev["error"]?.jsonObject?.get("msg")?.jsonPrimitive?.contentOrNull
+                                ?: appContext.getString(R.string.error_refresh_details_failed),
+                        )
+                    }
+                }
+                val manga = result ?: run {
+                    if (sawEvent) throw IOException(appContext.getString(R.string.error_refresh_details_incomplete))
+                    clientFactory.create<MangaApi>(profile).getManga(mangaId, refresh = "1").await()
+                }
+                _state.value = _state.value.copy(manga = manga, refreshingDetails = false)
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_details_refreshed))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.value = _state.value.copy(refreshingDetails = false, refreshNote = null)
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** "Refresh chapters from source" (webui refreshChapters parity). Partial snapshots
+     *  carry source-side chapters without library ids, so they drive the
+     *  progress note instead of the list; the terminal chapter array
+     *  overwrites everything, same as the webui cache write. */
+    fun refreshChaptersFromSource() {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        if (_state.value.refreshingChapters) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+            _state.value = _state.value.copy(refreshingChapters = true, refreshNote = appContext.getString(R.string.msg_refreshing_chapters))
+            try {
+                var result: List<ChapterWithDownload>? = null
+                var sawEvent = false
+                clientFactory.ndjsonGet(profile, "/manga/$mangaId/chapters?refresh").collect { ev ->
+                    sawEvent = true
+                    when (ev["type"]?.jsonPrimitive?.contentOrNull) {
+                        "manga" -> {
+                            val count = (ev["manga"]?.jsonObject?.get("chapters") as? JsonArray)?.size
+                            if (count != null) {
+                                _state.value = _state.value.copy(refreshNote = appContext.getString(R.string.msg_chapters_found, count))
+                            }
+                        }
+                        "final" -> result = ev["payload"]?.let {
+                            clientFactory.json.decodeFromJsonElement(
+                                ListSerializer(ChapterWithDownload.serializer()),
+                                it,
+                            )
+                        }
+                        "error" -> throw IOException(
+                            ev["error"]?.jsonObject?.get("msg")?.jsonPrimitive?.contentOrNull
+                                ?: appContext.getString(R.string.error_refresh_chapters_failed),
+                        )
+                    }
+                }
+                val chapters = result ?: run {
+                    if (sawEvent) throw IOException(appContext.getString(R.string.error_refresh_chapters_incomplete))
+                    clientFactory.create<MangaApi>(profile).getMangaChapters(mangaId, refresh = "1").await()
+                }
+                setChapters(chapters)
+                _state.value = _state.value.copy(
+                    refreshingChapters = false,
+                    refreshNote = null,
+                )
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_chapters_refreshed))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.value = _state.value.copy(refreshingChapters = false, refreshNote = null)
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
             }
         }
     }
@@ -254,6 +565,8 @@ class MangaViewModel @AssistedInject constructor(
     }
 
     fun toggleLibrary() {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
         val manga = _state.value.manga ?: return
         viewModelScope.launch {
             val profile = _state.value.profile ?: return@launch
@@ -267,12 +580,14 @@ class MangaViewModel @AssistedInject constructor(
                     _state.value = _state.value.copy(manga = updated)
                 }
             } catch (_: Exception) {
-                // 保持原状，下一次 refresh 纠偏
+                // Leave the state as-is; the next refresh corrects any drift.
             }
         }
     }
 
     fun toggleIncognito() {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
         val manga = _state.value.manga ?: return
         viewModelScope.launch {
             val profile = _state.value.profile ?: return@launch
@@ -287,6 +602,8 @@ class MangaViewModel @AssistedInject constructor(
 
     /** M2: whole-manga read/unread via the batch progress endpoint. */
     fun markAllChapters(read: Boolean) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
         viewModelScope.launch {
             val profile = _state.value.profile ?: return@launch
             try {
@@ -299,6 +616,139 @@ class MangaViewModel @AssistedInject constructor(
                 ).await()
                 refresh()
             } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** Re-fetch the chapter list after a batch mutation (webui invalidates
+     *  the chapters query; the prefs-derived visible view follows). */
+    private suspend fun reloadChapters() {
+        val profile = _state.value.profile ?: return
+        val chapters = clientFactory.create<MangaApi>(profile).getMangaChapters(mangaId).await()
+        setChapters(chapters)
+    }
+
+    /** Batch read/unread over explicit ids (webui applyRead parity): marking
+     *  read only touches readable chapters (unlocked or downloaded); marking
+     *  unread wipes the reading trace server-side, progress included. */
+    fun batchMarkRead(chapterIds: List<Long>, read: Boolean) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            val targets = if (read) {
+                chapterIds.filter { id ->
+                    _state.value.chapters.firstOrNull { it.id == id }
+                        ?.let { !it.locked || it.isDownloaded } == true
+                }
+            } else {
+                chapterIds
+            }
+            if (targets.isEmpty()) {
+                _meta.value = _meta.value.copy(
+                    error = if (read) {
+                        appContext.getString(R.string.error_locked_need_download)
+                    } else {
+                        appContext.getString(R.string.error_no_actionable_chapters)
+                    },
+                )
+                return@launch
+            }
+            try {
+                val res = clientFactory.create<MangaApi>(profile).batchUpdateChapters(
+                    org.sumidoku.android.core.api.model.BatchProgressRequest(
+                        isRead = read,
+                        chapterIds = targets,
+                    ),
+                ).await()
+                _meta.value = _meta.value.copy(
+                    message = if (read) {
+                        appContext.getString(R.string.msg_marked_read, res.updated)
+                    } else {
+                        appContext.getString(R.string.msg_marked_unread, res.updated)
+                    },
+                )
+                reloadChapters()
+            } catch (e: Exception) {
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Aidoku MARK_PREVIOUS: everything displayed below the tapped row in the
+     *  current (filtered/sorted) visible list. */
+    fun markPrevious(chapter: ChapterWithDownload, read: Boolean) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        val visible = _state.value.visibleChapters
+        val idx = visible.indexOfFirst { it.id == chapter.id }
+        if (idx < 0) return
+        val ids = visible.drop(idx + 1).map { it.id }
+        if (ids.isEmpty()) return
+        batchMarkRead(ids, read)
+    }
+
+    fun batchBookmark(chapterIds: List<Long>, bookmarked: Boolean) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val res = clientFactory.create<MangaApi>(profile).batchUpdateChapters(
+                    org.sumidoku.android.core.api.model.BatchProgressRequest(
+                        isBookmarked = bookmarked,
+                        chapterIds = chapterIds,
+                    ),
+                ).await()
+                _meta.value = _meta.value.copy(
+                    message = if (bookmarked) {
+                        appContext.getString(R.string.msg_bookmarked, res.updated)
+                    } else {
+                        appContext.getString(R.string.msg_unbookmarked, res.updated)
+                    },
+                )
+                reloadChapters()
+            } catch (e: Exception) {
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Tier A batch enqueue — POST /downloads {chapterIds}. */
+    fun downloadChapters(chapterIds: List<Long>) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val res = clientFactory.create<DownloadsApi>(profile)
+                    .enqueueDownloads(EnqueueDownloadsRequest(chapterIds = chapterIds)).await()
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_enqueued, res.queued.size))
+            } catch (e: Exception) {
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
+            }
+        }
+    }
+
+    /** Remove finished downloads for the given chapters (webui
+     *  deleteFinished parity: POST /downloads/delete {finishedOnly: true}). */
+    fun deleteDownloadsFor(chapterIds: List<Long>) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
+        val finished = chapterIds.filter { id ->
+            _state.value.chapters.firstOrNull { it.id == id }?.hasFinishedDownload == true
+        }
+        if (finished.isEmpty()) return
+        viewModelScope.launch {
+            val profile = _state.value.profile ?: return@launch
+            try {
+                val res = clientFactory.create<DownloadsApi>(profile).deleteDownloads(
+                    DeleteDownloadsRequest(chapterIds = finished, finishedOnly = true),
+                ).await()
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_downloads_deleted, res.deleted))
+                reloadChapters()
+            } catch (e: Exception) {
+                _meta.value = _meta.value.copy(error = e.message ?: e.toString())
             }
         }
     }
@@ -336,6 +786,8 @@ class MangaViewModel @AssistedInject constructor(
     /** Tier A enqueue: server downloads the chapter — POST /downloads.
      *  The row's cloud icon flips to the downloaded state on next refresh. */
     fun enqueueChapter(chapterId: Long) {
+        // Unregistered placeholder page: no server ids yet, so no-op.
+        if (mangaId <= 0) return
         viewModelScope.launch {
             val profile = _state.value.profile ?: return@launch
             try {
@@ -387,12 +839,12 @@ class MangaViewModel @AssistedInject constructor(
                     ),
                 ).await()
                 _state.value = _state.value.copy(manga = updated)
-                _meta.value = _meta.value.copy(editBusy = false, message = "已保存")
+                _meta.value = _meta.value.copy(editBusy = false, message = appContext.getString(R.string.msg_saved))
             } catch (e: Exception) { fail(e) }
         }
     }
 
-    /** Restore source metadata and drop locks (webui "恢复图源元数据"). */
+    /** Restore source metadata and drop locks (webui "restore source metadata"). */
     fun restoreMetadata() {
         val profile = _state.value.profile ?: return
         viewModelScope.launch {
@@ -404,7 +856,7 @@ class MangaViewModel @AssistedInject constructor(
                 _state.value = _state.value.copy(manga = result.manga)
                 _meta.value = _meta.value.copy(
                     editBusy = false,
-                    message = "已恢复图源元数据，解锁 ${result.unlockedFields.size} 个字段",
+                    message = appContext.getString(R.string.msg_metadata_restored, result.unlockedFields.size),
                 )
             } catch (e: Exception) { fail(e) }
         }
@@ -432,7 +884,7 @@ class MangaViewModel @AssistedInject constructor(
                     .selectMangaCover(mangaId, SelectCoverRequest(url = java.net.URI(url)))
                     .await()
                 _state.value = _state.value.copy(manga = updated)
-                _meta.value = _meta.value.copy(coverBusy = false, message = "已更换封面")
+                _meta.value = _meta.value.copy(coverBusy = false, message = appContext.getString(R.string.msg_cover_updated))
             } catch (e: Exception) { fail(e) }
         }
     }
@@ -518,7 +970,7 @@ class MangaViewModel @AssistedInject constructor(
                 _state.value = _state.value.copy(manga = result.manga)
                 _meta.value = _meta.value.copy(
                     applyBusy = false, preview = null, matchResults = null,
-                    message = "已应用 ${result.appliedFields.size} 个字段",
+                    message = appContext.getString(R.string.msg_fields_applied, result.appliedFields.size),
                 )
                 loadLinks()
             } catch (e: Exception) { fail(e) }
@@ -536,7 +988,209 @@ class MangaViewModel @AssistedInject constructor(
                     .listTrackerLinks(mangaId)
                     .await()
                 _meta.value = _meta.value.copy(linkBusy = false, links = links)
+                loadRemoteStates(links)
             } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** Remote progress/status per bound provider — shown on the detail-page
+     *  pills (webui TrackerSection's trackerState query). A provider whose
+     *  state cannot be read is flagged instead of failing the whole list. */
+    private fun loadRemoteStates(links: List<TrackerLink>) {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            if (links.isEmpty()) {
+                _meta.value = _meta.value.copy(remoteStates = emptyMap())
+                return@launch
+            }
+            _meta.value = _meta.value.copy(
+                remoteStates = links.associate { it.provider to TrackerRemote(loading = true) },
+            )
+            val api = clientFactory.create<TrackersApi>(profile)
+            val loaded = LinkedHashMap<TrackerProvider, TrackerRemote>()
+            links.forEach { link ->
+                val remote = try {
+                    TrackerRemote(state = api.trackerState(link.provider, link.trackId).await())
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    android.util.Log.w("MangaVM", "trackerState ${link.provider} failed", e)
+                    TrackerRemote(failed = true)
+                }
+                loaded[link.provider] = remote
+                _meta.value = _meta.value.copy(remoteStates = loaded.toMap())
+                // Reseed the editor's remote fields when its provider's state
+                // arrives, unless the user already typed (webui initialState).
+                if (_meta.value.editingLink?.provider == link.provider && !_meta.value.editRemoteTouched) {
+                    val s = remote.state
+                    _meta.value = _meta.value.copy(
+                        editStatus = s?.status,
+                        editScore = s?.score?.toString() ?: "",
+                        editChapterProgress = formatProgress(s?.lastReadChapter),
+                        editVolumeProgress = s?.lastReadVolume?.toString() ?: "",
+                    )
+                }
+            }
+        }
+    }
+
+    /** Open the tracker-link editor for a pill. Local track mode/offset and
+     *  the remote status/score/progress fields are all editable; the remote
+     *  fields seed from the last loaded state (reseeded when it arrives,
+     *  unless the user already typed — webui TrackerEditForm initialState). */
+    fun openLinkEditor(link: TrackerLink) {
+        val initial = _meta.value.remoteStates[link.provider]?.state
+        _meta.value = _meta.value.copy(
+            editingLink = link,
+            editTrackMode = link.trackMode,
+            editChapterOffset = link.chapterOffset.toString(),
+            editStatus = initial?.status,
+            editScore = initial?.score?.toString() ?: "",
+            editChapterProgress = formatProgress(initial?.lastReadChapter),
+            editVolumeProgress = initial?.lastReadVolume?.toString() ?: "",
+            editRemoteTouched = false,
+        )
+        if (_meta.value.remoteStates[link.provider]?.state == null) {
+            loadRemoteStates(listOf(link))
+        }
+    }
+
+    fun closeLinkEditor() {
+        _meta.value = _meta.value.copy(editingLink = null)
+    }
+
+    fun setEditTrackMode(mode: TrackerLink.TrackMode) {
+        _meta.value = _meta.value.copy(editTrackMode = mode)
+    }
+
+    fun setEditChapterOffset(text: String) {
+        _meta.value = _meta.value.copy(editChapterOffset = text)
+    }
+
+    fun setEditStatus(status: TrackStatus) {
+        _meta.value = _meta.value.copy(editStatus = status, editRemoteTouched = true)
+    }
+
+    fun setEditScore(text: String) {
+        _meta.value = _meta.value.copy(editScore = text, editRemoteTouched = true)
+    }
+
+    fun setEditChapterProgress(text: String) {
+        _meta.value = _meta.value.copy(editChapterProgress = text, editRemoteTouched = true)
+    }
+
+    fun setEditVolumeProgress(text: String) {
+        _meta.value = _meta.value.copy(editVolumeProgress = text, editRemoteTouched = true)
+    }
+
+    /** "12" / "12.5" rendering of a remote progress number ("" when null). */
+    private fun formatProgress(value: Double?): String =
+        value?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() } ?: ""
+
+    /** Save through webui buildTrackerSave semantics: PUT the link only when
+     *  trackMode/chapterOffset changed, then POST the remote fields that
+     *  differ from the loaded remote state to /trackers/{provider}/update. */
+    fun saveLinkSettings() {
+        val profile = _state.value.profile ?: return
+        val meta = _meta.value
+        val link = meta.editingLink ?: return
+        val offset = meta.editChapterOffset.trim().toIntOrNull() ?: link.chapterOffset
+        val linkChanged = meta.editTrackMode != link.trackMode || offset != link.chapterOffset
+        val initial = meta.remoteStates[link.provider]?.state
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkBusy = true)
+            try {
+                val api = clientFactory.create<TrackersApi>(profile)
+                if (linkChanged) {
+                    api.putTrackerLink(
+                        mangaId,
+                        TrackerLinkUpsert(
+                            provider = link.provider,
+                            trackId = link.trackId,
+                            title = link.title,
+                            // The generated models nest two distinct enums.
+                            trackMode = when (meta.editTrackMode) {
+                                TrackerLink.TrackMode.AUTO -> TrackerLinkUpsert.TrackMode.AUTO
+                                TrackerLink.TrackMode.CHAPTER -> TrackerLinkUpsert.TrackMode.CHAPTER
+                                TrackerLink.TrackMode.VOLUME -> TrackerLinkUpsert.TrackMode.VOLUME
+                            },
+                            chapterOffset = offset,
+                        ),
+                    ).await()
+                }
+                // webui: remote update only when the initial state is known.
+                if (initial != null) {
+                    buildRemoteUpdate(meta, initial)?.let { update ->
+                        api.trackerUpdate(link.provider, update.copy(trackId = link.trackId)).await()
+                    }
+                }
+                _meta.value = _meta.value.copy(
+                    linkBusy = false, editingLink = null, message = appContext.getString(R.string.msg_link_settings_saved),
+                )
+                loadLinks()
+            } catch (e: Exception) { fail(e) }
+        }
+    }
+
+    /** webui buildTrackUpdate: only edited fields are pushed. A blank number
+     *  counts as 0 when the field was changed; unparsable input is skipped. */
+    private fun buildRemoteUpdate(meta: MetaUiState, initial: RemoteState): TrackerUpdateRequest? {
+        val status = meta.editStatus?.takeIf { it != initial.status }
+        val score = editedInt(meta.editScore, initial.score?.toString() ?: "")
+            ?.takeIf { it != initial.score }
+        val chapter = editedDouble(meta.editChapterProgress, formatProgress(initial.lastReadChapter))
+            ?.takeIf { it != initial.lastReadChapter }
+        val volume = editedInt(meta.editVolumeProgress, initial.lastReadVolume?.toString() ?: "")
+            ?.takeIf { it != initial.lastReadVolume }
+        if (status == null && score == null && chapter == null && volume == null) return null
+        return TrackerUpdateRequest(
+            trackId = "",
+            score = score,
+            status = status,
+            lastReadChapter = chapter,
+            lastReadVolume = volume,
+        )
+    }
+
+    private fun editedInt(value: String, initialText: String): Int? {
+        val trimmed = value.trim()
+        if (trimmed == initialText) return null
+        return if (trimmed.isEmpty()) 0 else trimmed.toIntOrNull()
+    }
+
+    private fun editedDouble(value: String, initialText: String): Double? {
+        val trimmed = value.trim()
+        if (trimmed == initialText) return null
+        return if (trimmed.isEmpty()) 0.0 else trimmed.toDoubleOrNull()
+    }
+
+    // Add-binding search keeps its own state so the metadata-match flow
+    // (matchProvider/matchQuery/matchResults) is not overwritten.
+
+    fun setLinkAddProvider(provider: TrackerProvider) {
+        _meta.value = _meta.value.copy(linkAddProvider = provider, linkAddResults = null)
+    }
+
+    fun setLinkAddQuery(query: String) {
+        _meta.value = _meta.value.copy(linkAddQuery = query)
+    }
+
+    fun linkAddSearch() {
+        val profile = _state.value.profile ?: return
+        val meta = _meta.value
+        val query = meta.linkAddQuery.ifBlank { _state.value.manga?.title ?: return }
+        viewModelScope.launch {
+            _meta.value = _meta.value.copy(linkAddLoading = true)
+            try {
+                val results = clientFactory.create<TrackersApi>(profile)
+                    .trackerSearch(meta.linkAddProvider, query)
+                    .await()
+                _meta.value = _meta.value.copy(linkAddLoading = false, linkAddResults = results)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _meta.value = _meta.value.copy(
+                    linkAddLoading = false, error = e.message ?: e.toString(),
+                )
+            }
         }
     }
 
@@ -552,7 +1206,7 @@ class MangaViewModel @AssistedInject constructor(
                         TrackerLinkUpsert(provider = provider, trackId = item.id, title = item.title),
                     )
                     .await()
-                _meta.value = _meta.value.copy(message = "已绑定 ${item.title}")
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_link_added, item.title))
                 loadLinks()
             } catch (e: Exception) { fail(e) }
         }
@@ -566,7 +1220,9 @@ class MangaViewModel @AssistedInject constructor(
                 clientFactory.create<TrackersApi>(profile)
                     .deleteTrackerLink(mangaId, provider)
                     .await()
-                _meta.value = _meta.value.copy(message = "已解绑")
+                _meta.value = _meta.value.copy(
+                    editingLink = null, message = appContext.getString(R.string.msg_link_removed),
+                )
                 loadLinks()
             } catch (e: Exception) { fail(e) }
         }
@@ -596,7 +1252,7 @@ class MangaViewModel @AssistedInject constructor(
                 val result = clientFactory.create<TrackersApi>(profile)
                     .syncTrackerLink(mangaId, provider, TrackerSyncRequest(preview = false))
                     .await()
-                _meta.value = _meta.value.copy(message = "已按远端进度标记 ${result.marked} 章")
+                _meta.value = _meta.value.copy(message = appContext.getString(R.string.msg_sync_applied, result.marked))
                 refresh()
                 loadLinks()
             } catch (e: Exception) { fail(e) }
@@ -688,12 +1344,12 @@ class MangaViewModel @AssistedInject constructor(
                     .await()
                 val result = response.results.firstOrNull()
                 if (result?.ok == true) {
-                    _meta.value = _meta.value.copy(migrationBusy = false, message = "迁移完成")
+                    _meta.value = _meta.value.copy(migrationBusy = false, message = appContext.getString(R.string.msg_migration_done))
                     refresh()
                 } else {
                     _meta.value = _meta.value.copy(
                         migrationBusy = false,
-                        error = result?.message ?: result?.reason?.toString() ?: "迁移失败",
+                        error = result?.message ?: result?.reason?.toString() ?: appContext.getString(R.string.error_migration_failed),
                     )
                 }
             } catch (e: Exception) {
@@ -703,6 +1359,14 @@ class MangaViewModel @AssistedInject constructor(
         }
     }
 }
+
+/** Remote state of one bound tracker entry, as shown on the detail pill and
+ *  in the link editor (webui trackerState query). */
+data class TrackerRemote(
+    val state: RemoteState? = null,
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+)
 
 /** Sub-state for the metadata/tracker sheets (M6). */
 data class MetaUiState(
@@ -718,6 +1382,26 @@ data class MetaUiState(
     val applyBusy: Boolean = false,
     val links: List<TrackerLink>? = null,
     val linkBusy: Boolean = false,
+    /** Remote status/progress per bound provider (detail-page pills). */
+    val remoteStates: Map<TrackerProvider, TrackerRemote> = emptyMap(),
+    /** Link whose trackMode/chapterOffset editor is open, null when closed. */
+    val editingLink: TrackerLink? = null,
+    val editTrackMode: TrackerLink.TrackMode = TrackerLink.TrackMode.AUTO,
+    val editChapterOffset: String = "0",
+    /** Manual remote-progress edits (webui TrackerEditForm's TrackEditValues). */
+    val editStatus: TrackStatus? = null,
+    val editScore: String = "",
+    val editChapterProgress: String = "",
+    val editVolumeProgress: String = "",
+    /** True once the user typed into a remote edit field — the async state
+     *  load then reseeds nothing, so typed values are never clobbered. */
+    val editRemoteTouched: Boolean = false,
+    // Add-binding search — deliberately separate from the match* fields so
+    // the metadata-match dialog and the tracker sheet never overwrite each other.
+    val linkAddProvider: TrackerProvider = TrackerProvider.ANILIST,
+    val linkAddQuery: String = "",
+    val linkAddResults: List<TrackSearchItem>? = null,
+    val linkAddLoading: Boolean = false,
     /** Preview of a sync-pull (design §14 M6): the remote progress
      *  that would be applied, awaiting user confirmation. */
     val syncPreview: Pair<TrackerProvider, org.sumidoku.android.core.api.model.TrackerSyncResult>? = null,

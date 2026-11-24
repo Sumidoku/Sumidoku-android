@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reader chrome -->
+    <string name="reader_back">返回</string>
+    <string name="reader_close">关闭</string>
+    <string name="reader_retry">重试</string>
+    <string name="reader_settings">设置</string>
+    <string name="reader_incognito">无痕阅读</string>
+    <string name="reader_page_progress">%1$d / %2$d</string>
+
+    <!-- Chapters -->
+    <string name="reader_chapter">章节</string>
+    <string name="reader_chapters">章节</string>
+    <string name="reader_next_chapter">下一话</string>
+    <string name="reader_prev_chapter">上一话</string>
+    <string name="reader_next_chapter_desc">下一章</string>
+    <string name="reader_previous_chapter_desc">上一章</string>
+    <string name="reader_chapter_fallback">第 %1$s 话</string>
+    <string name="reader_chapter_stats">%1$d 话 · %2$d 已读 · %3$d 未读</string>
+    <string name="reader_chapters_missing">⚠ 缺 %1$d 话 · 目录不连续</string>
+    <string name="reader_chapters_load_failed">章节列表加载失败：%1$s</string>
+    <string name="reader_continue_reading">继续阅读</string>
+    <string name="reader_back_to_previous">回到上一话</string>
+    <string name="reader_stay_here">留在本话</string>
+    <string name="reader_next_chapter_label">下一话 · %1$s</string>
+    <string name="reader_release_next_chapter">松手进入下一话</string>
+    <string name="reader_keep_pulling_next">继续拖动进入下一话</string>
+    <string name="reader_end_of_chapter">已到本话末尾</string>
+    <string name="reader_located_current">已定位到当前话</string>
+    <string name="reader_no_chapters">暂无章节</string>
+    <string name="reader_no_unread_chapters">没有未读章节</string>
+    <string name="reader_no_downloaded_chapters">没有已下载章节</string>
+
+    <!-- Chapter metadata -->
+    <string name="reader_page_count">%1$d 页</string>
+    <string name="reader_read_badge">已读</string>
+    <string name="reader_downloaded_badge">已下载</string>
+    <string name="reader_read_to_page">读到 P.%1$d</string>
+    <string name="reader_bookmarked">已加书签</string>
+    <string name="reader_locked">已锁定</string>
+
+    <!-- Chapter drawer -->
+    <string name="reader_sort_ascending">改为升序</string>
+    <string name="reader_sort_descending">改为降序</string>
+    <string name="reader_filter_all">全部</string>
+    <string name="reader_filter_unread">未读 %1$d</string>
+    <string name="reader_filter_downloaded">已下载 %1$d</string>
+
+    <!-- Page loading -->
+    <string name="reader_page_load_failed">页面加载失败</string>
+
+    <!-- Tap zone preview legend -->
+    <string name="reader_legend_prev_page">◼ 上一页</string>
+    <string name="reader_legend_menu">◼ 菜单</string>
+    <string name="reader_legend_next_page">◼ 下一页</string>
+
+    <!-- Quick panel / settings -->
+    <string name="reader_reading_mode">阅读模式</string>
+    <string name="reader_reading_settings">阅读设置</string>
+    <string name="reader_mode">模式</string>
+    <string name="reader_mode_paged">分页</string>
+    <string name="reader_mode_continuous">连续</string>
+    <string name="reader_mode_webtoon">条漫</string>
+    <string name="reader_layout">布局</string>
+    <string name="reader_layout_single">单页</string>
+    <string name="reader_layout_double">双页</string>
+    <string name="reader_layout_auto">自动</string>
+    <string name="reader_double_page_layout">双页布局</string>
+    <string name="reader_layout_auto_hint">自动 = 横屏双页 · 竖屏单页</string>
+    <string name="reader_direction">方向</string>
+    <string name="reader_dir_ltr">左→右</string>
+    <string name="reader_dir_rtl">右→左</string>
+    <string name="reader_dir_follow_manga">跟随漫画</string>
+    <string name="reader_dir_rtl_hint">解析为右→左时：滑杆反向、上一话/下一话对调、点按区镜像</string>
+    <string name="reader_overrides_hint">改动即时生效 · 与解析值相同会自动取消覆盖</string>
+    <string name="reader_chain_overridden">本漫画覆盖</string>
+    <string name="reader_chain_resolved">跟随解析</string>
+    <string name="reader_reset_defaults">恢复默认</string>
+    <string name="reader_resolution_chain">解析链：本漫画覆盖 › manga.viewer 元数据 › 全局默认</string>
+    <string name="reader_mode_value">模式 %1$s</string>
+    <string name="reader_direction_value">方向 %1$s</string>
+    <string name="reader_cover_first">首页单独成页</string>
+    <string name="reader_cover_first_hint">封面不参与跨页配对（对齐 webui doubleNoCover）</string>
+    <string name="reader_tap_zones">点按区域</string>
+    <string name="reader_tap_lr">左右</string>
+    <string name="reader_tap_rl">右左</string>
+    <string name="reader_tap_edge">边缘</string>
+    <string name="reader_tap_off">关</string>
+    <string name="reader_page_scale">页面缩放</string>
+    <string name="reader_scale_fit">适应</string>
+    <string name="reader_scale_width">宽度</string>
+    <string name="reader_scale_height">高度</string>
+    <string name="reader_scale_original">原始</string>
+    <string name="reader_split_wide">拆分宽页</string>
+    <string name="reader_split_wide_hint">横页按阅读方向拆成两半，进度仍按真实页码</string>
+    <string name="reader_background">背景</string>
+    <string name="reader_bg_dark">纯黑</string>
+    <string name="reader_bg_gray">深灰</string>
+    <string name="reader_bg_light">白色</string>
+    <string name="reader_bg_auto">跟随主题</string>
+    <string name="reader_filters_global">滤镜 · 全局</string>
+    <string name="reader_brightness">亮度</string>
+    <string name="reader_grayscale">灰度</string>
+    <string name="reader_sepia">棕褐</string>
+
+    <!-- Reader defaults screen (global defaults) -->
+    <string name="reader_defaults_title">阅读器默认</string>
+    <string name="reader_defaults_intro">这里的值是全局默认。阅读时会先看本漫画覆盖，再看图源给的 manga.viewer 元数据，最后才回落到这里。</string>
+    <string name="reader_defaults_mode_continuous">连续滚动</string>
+    <string name="reader_defaults_mode_hint">条漫 = 章内无缝纵向分页；连续滚动 = 无题头长条（Aidoku continuous 等价）。</string>
+    <string name="reader_defaults_layout">单双页布局</string>
+    <string name="reader_defaults_layout_hint">自动 = 横屏（平板横置 / 折叠屏展开）时并排双页，旋转时重建。</string>
+    <string name="reader_defaults_cover_hint">封面不拆到跨页外侧（对齐 webui doubleNoCover）</string>
+    <string name="reader_defaults_dir_hint">跟随漫画 = 用 manga.viewer 元数据；右 → 左时滑杆反向、上一章/下一章对调、点按区镜像。</string>
+    <string name="reader_defaults_tap_zones">点按区</string>
+    <string name="reader_defaults_tap_lr">左/右</string>
+    <string name="reader_defaults_tap_rl">右/左</string>
+    <string name="reader_defaults_tap_off">关闭</string>
+    <string name="reader_defaults_scale_fit">适应屏幕</string>
+    <string name="reader_defaults_scale_width">适应宽度</string>
+    <string name="reader_defaults_scale_height">适应高度</string>
+    <string name="reader_defaults_scale_original">原始尺寸</string>
+    <string name="reader_defaults_background_filters">背景与滤镜</string>
+    <string name="reader_defaults_bg_dark">深色</string>
+    <string name="reader_defaults_bg_gray">灰</string>
+    <string name="reader_defaults_bg_light">浅色</string>
+    <string name="reader_defaults_bg_auto">自动</string>
+    <string name="reader_defaults_brightness_hint">亮度只影响阅读器，不改变系统亮度。</string>
+
+    <!-- ViewModel errors -->
+    <string name="reader_no_server">未选择服务器</string>
+</resources>

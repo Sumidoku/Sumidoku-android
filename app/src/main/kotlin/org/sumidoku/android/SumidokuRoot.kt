@@ -1,6 +1,5 @@
 package org.sumidoku.android
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -12,22 +11,17 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.layout.AnimatedPane
-import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
-import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
-import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,7 +31,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.window.core.layout.WindowSizeClass
 import dagger.hilt.android.lifecycle.HiltViewModel
 import android.net.Uri
 import kotlinx.coroutines.launch
@@ -62,6 +55,7 @@ import org.sumidoku.android.feature.history.HistoryScreen
 import org.sumidoku.android.feature.library.LibraryScreen
 import org.sumidoku.android.feature.manga.MangaScreen
 import org.sumidoku.android.feature.migrate.MigrateScreen
+import org.sumidoku.android.feature.reader.ReaderDefaultsScreen
 import org.sumidoku.android.feature.reader.ReaderScreen
 import org.sumidoku.android.feature.repos.ReposScreen
 import org.sumidoku.android.feature.search.SearchScreen
@@ -122,15 +116,15 @@ class AppViewModel @Inject constructor(
     }
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, @androidx.annotation.StringRes val labelRes: Int, val icon: ImageVector)
 
 private val tabs = listOf(
-    Tab("library", "书库", Icons.Outlined.CollectionsBookmark),
-    Tab("browse", "浏览", Icons.Outlined.Explore),
-    Tab("updates", "更新", Icons.Outlined.NewReleases),
-    Tab("history", "历史", Icons.Outlined.History),
-    Tab("search", "搜索", Icons.Outlined.Search),
-    Tab("settings", "设置", Icons.Outlined.Settings),
+    Tab("library", R.string.tab_library, Icons.Outlined.CollectionsBookmark),
+    Tab("browse", R.string.tab_browse, Icons.Outlined.Explore),
+    Tab("updates", R.string.tab_updates, Icons.Outlined.NewReleases),
+    Tab("history", R.string.tab_history, Icons.Outlined.History),
+    Tab("search", R.string.tab_search, Icons.Outlined.Search),
+    Tab("settings", R.string.tab_settings, Icons.Outlined.Settings),
 )
 
 @Composable
@@ -168,7 +162,8 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
                             navArgument("chapterId") { type = NavType.LongType },
                         ),
                     ) {
-                        // 阅读器刻意是外层真路由：全屏沉浸，退出落回双栏/标签壳。
+                        // The reader is deliberately an outer real route: fully
+                        // immersive, and exiting lands back on the two-pane/tab shell.
                         ReaderScreen(onBack = { nav.popBackStack() })
                     }
                 }
@@ -201,8 +196,8 @@ private fun MainTabs(
                             restoreState = true
                         }
                     },
-                    icon = { Icon(tab.icon, contentDescription = tab.label) },
-                    label = { Text(tab.label) },
+                    icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                    label = { Text(stringResource(tab.labelRes)) },
                 )
             }
         },
@@ -224,17 +219,32 @@ private fun MainTabs(
             }
             composable("library") {
                 LibraryTab(
-                    onOpenReader = onOpenReader,
                     onOpenManga = { innerNav.navigate("manga/$it") },
-                    onFilterSearch = openFilteredSearch,
+                    onBrowseSources = { innerNav.navigate("browse") },
                 )
             }
             composable(
-                route = "manga/{mangaId}",
-                arguments = listOf(navArgument("mangaId") { type = NavType.LongType }),
+                // sourceId/mangaKey carry an unregistered source entry:
+                // the page opens instantly (Aidoku parity) and the view
+                // model registers it in the background (mangaId == -1).
+                route = "manga/{mangaId}?sourceId={sourceId}&mangaKey={mangaKey}",
+                arguments = listOf(
+                    navArgument("mangaId") { type = NavType.LongType },
+                    navArgument("sourceId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    },
+                    navArgument("mangaKey") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
             ) { entry ->
                 MangaScreen(
                     mangaId = entry.arguments?.getLong("mangaId") ?: -1L,
+                    sourceId = entry.arguments?.getLong("sourceId") ?: -1L,
+                    mangaKey = entry.arguments?.getString("mangaKey"),
                     onBack = { innerNav.popBackStack() },
                     onOpenChapter = onOpenReader,
                     onFilterSearch = openFilteredSearch,
@@ -253,6 +263,12 @@ private fun MainTabs(
                 SearchScreen(
                     onBack = { innerNav.popBackStack() },
                     onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenSource = { sourceId, query ->
+                        // webui /browse/{id}?q= — the source-scoped grid,
+                        // pre-filled with the aggregate query.
+                        val encoded = if (query.isBlank()) "" else "?query=${Uri.encode(query)}"
+                        innerNav.navigate("source/$sourceId$encoded")
+                    },
                     showBack = false,
                 )
             }
@@ -268,30 +284,38 @@ private fun MainTabs(
                 ),
             ) { entry ->
                 val sourceId = entry.arguments?.getLong("sourceId") ?: return@composable
-                val filters = entry.arguments?.getString("filters")?.let { raw ->
-                    runCatching {
-                        Json.decodeFromString(ListSerializer(FilterValue.serializer()), raw)
-                    }.getOrNull()
-                }.orEmpty()
+                // The filters argument is consumed by SourceHomeViewModel via
+                // SavedStateHandle: the screen lands directly on the grid.
                 SourceHomeScreen(
                     onBack = { innerNav.popBackStack() },
-                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenManga = { id, key ->
+                        innerNav.navigate(openMangaRoute(sourceId, id, key))
+                    },
                     onOpenSettings = { innerNav.navigate("source-settings/$sourceId") },
-                    initialFilters = filters,
                 )
             }
             composable("add-source") {
                 AddSourceScreen(onBack = { innerNav.popBackStack() })
             }
             composable(
-                route = "source/{sourceId}",
-                arguments = listOf(navArgument("sourceId") { type = NavType.LongType }),
+                route = "source/{sourceId}?query={query}",
+                arguments = listOf(
+                    navArgument("sourceId") { type = NavType.LongType },
+                    navArgument("query") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
             ) { entry ->
                 val sourceId = entry.arguments?.getLong("sourceId") ?: return@composable
                 SourceHomeScreen(
                     onBack = { innerNav.popBackStack() },
-                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenManga = { id, key ->
+                        innerNav.navigate(openMangaRoute(sourceId, id, key))
+                    },
                     onOpenSettings = { innerNav.navigate("source-settings/$sourceId") },
+                    initialQuery = entry.arguments?.getString("query"),
                 )
             }
             composable(
@@ -310,10 +334,18 @@ private fun MainTabs(
                 )
             }
             composable("downloads") {
-                DownloadsScreen(onBack = { innerNav.popBackStack() })
+                DownloadsScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenCache = { innerNav.navigate("cache") },
+                )
             }
             composable("history") {
-                HistoryScreen(onOpenManga = { innerNav.navigate("manga/$it") })
+                HistoryScreen(
+                    onOpenManga = { innerNav.navigate("manga/$it") },
+                    onOpenChapter = { mangaId, chapterId ->
+                        innerNav.navigate("reader/$mangaId/$chapterId")
+                    },
+                )
             }
             composable("settings") {
                 SettingsScreen(
@@ -328,6 +360,7 @@ private fun MainTabs(
                     onOpenCategories = { innerNav.navigate("categories") },
                     onOpenFilterGroups = { innerNav.navigate("filter-groups") },
                     onOpenServerSettings = { innerNav.navigate("server-settings") },
+                    onOpenReaderDefaults = { innerNav.navigate("reader-defaults") },
                 )
             }
             composable("categories") {
@@ -337,7 +370,10 @@ private fun MainTabs(
                 FilterGroupsScreen(onBack = { innerNav.popBackStack() })
             }
             composable("server-settings") {
-                ServerSettingsScreen(onBack = { innerNav.popBackStack() })
+                ServerSettingsScreen(
+                    onBack = { innerNav.popBackStack() },
+                    onOpenBackups = { innerNav.navigate("backups") },
+                )
             }
             composable("trash") {
                 TrashScreen(onBack = { innerNav.popBackStack() })
@@ -347,6 +383,9 @@ private fun MainTabs(
             }
             composable("cache") {
                 CacheScreen(onBack = { innerNav.popBackStack() })
+            }
+            composable("reader-defaults") {
+                ReaderDefaultsScreen(onBack = { innerNav.popBackStack() })
             }
             composable("tasks") {
                 TasksScreen(onBack = { innerNav.popBackStack() })
@@ -364,6 +403,17 @@ private fun MainTabs(
     }
 }
 
+/** Detail-page route for a source entry: registered ids navigate directly;
+ *  unregistered entries (id == null) open instantly with their source key
+ *  and the detail view model registers them in the background (Aidoku
+ *  open-first parity). Keys are URL-encoded: they can carry /, #, %. */
+private fun openMangaRoute(sourceId: Long, id: Long?, key: String): String =
+    if (id != null) {
+        "manga/$id"
+    } else {
+        "manga/-1?sourceId=$sourceId&mangaKey=" + Uri.encode(key)
+    }
+
 @Composable
 private fun PlaceholderTab(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -371,54 +421,16 @@ private fun PlaceholderTab(label: String) {
     }
 }
 
-/** Library tab host — design §17: on compact widths the grid pushes
- *  the detail route; on expanded widths (tablets/foldables) grid and
- *  detail sit side by side in a ListDetailPaneScaffold, so selecting a
- *  manga swaps the detail pane instead of navigating. */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+/** Library tab host — design 31: one full-width adaptive grid on every window
+ *  size. The tablet split view is gone on purpose; tapping a cover opens the
+ *  detail as a full page, exactly like the phone layout. */
 @Composable
 private fun LibraryTab(
-    onOpenReader: (Long, Long) -> Unit,
     onOpenManga: (Long) -> Unit,
-    onFilterSearch: (Long, List<FilterValue>) -> Unit,
+    onBrowseSources: () -> Unit,
 ) {
-    val isExpanded = currentWindowAdaptiveInfo().windowSizeClass
-        .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
-    if (!isExpanded) {
-        LibraryScreen(onOpenManga = onOpenManga)
-        return
-    }
-    val navigator = rememberListDetailPaneScaffoldNavigator<Long>()
-    val scope = rememberCoroutineScope()
-    BackHandler(enabled = navigator.canNavigateBack()) {
-        scope.launch { navigator.navigateBack() }
-    }
-    ListDetailPaneScaffold(
-        directive = navigator.scaffoldDirective,
-        value = navigator.scaffoldValue,
-        listPane = {
-            AnimatedPane {
-                LibraryScreen(onOpenManga = { id ->
-                    scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, id) }
-                })
-            }
-        },
-        detailPane = {
-            AnimatedPane {
-                val mangaId = navigator.currentDestination?.contentKey
-                if (mangaId != null) {
-                    MangaScreen(
-                        mangaId = mangaId,
-                        onBack = { scope.launch { navigator.navigateBack() } },
-                        onOpenChapter = onOpenReader,
-                        onFilterSearch = onFilterSearch,
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("选择一部漫画", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        },
+    LibraryScreen(
+        onOpenManga = onOpenManga,
+        onBrowseSources = onBrowseSources,
     )
 }

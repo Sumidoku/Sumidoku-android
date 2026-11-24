@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.common.formatEpochMs
@@ -116,10 +117,10 @@ fun BackupsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("备份与恢复") },
+                title = { Text(stringResource(R.string.backups_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.backups_back))
                     }
                 },
             )
@@ -134,16 +135,16 @@ fun BackupsScreen(
                 item {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("导出完整备份", style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.backups_export_title), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "导出当前服务器的完整备份 JSON（书库、进度、分类、设置、图源设置），保存到本机存储。",
+                                stringResource(R.string.backups_export_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Button(
                                 onClick = { viewModel.export() },
                                 enabled = !state.busy,
-                            ) { Text("导出到文件…") }
+                            ) { Text(stringResource(R.string.backups_export_button)) }
                         }
                     }
                 }
@@ -151,9 +152,9 @@ fun BackupsScreen(
                 item {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("从文件恢复", style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.backups_restore_title), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "选择本机上的 Sumidoku 备份 JSON 恢复；也可以导入 Aidoku (.aib) 备份。恢复会合并进现有数据。",
+                                stringResource(R.string.backups_restore_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -161,16 +162,16 @@ fun BackupsScreen(
                                 OutlinedButton(
                                     onClick = { restoreLauncher.launch("application/json") },
                                     enabled = !state.busy,
-                                ) { Text("恢复备份 JSON…") }
+                                ) { Text(stringResource(R.string.backups_restore_json_button)) }
                                 OutlinedButton(
                                     onClick = { aidokuLauncher.launch("*/*") },
                                     enabled = !state.busy,
-                                ) { Text("导入 Aidoku .aib…") }
+                                ) { Text(stringResource(R.string.backups_import_aidoku_button)) }
                             }
                             OutlinedButton(
                                 onClick = { tachibkLauncher.launch("*/*") },
                                 enabled = !state.busy,
-                            ) { Text("导入 Mihon/Suwayomi .tachibk…") }
+                            ) { Text(stringResource(R.string.backups_import_tachibk_button)) }
                         }
                     }
                 }
@@ -178,7 +179,7 @@ fun BackupsScreen(
                 item {
                     HorizontalDivider()
                     Text(
-                        "服务器定时备份",
+                        stringResource(R.string.backups_server_backups_title),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(top = 4.dp),
                     )
@@ -200,7 +201,7 @@ fun BackupsScreen(
                 } else if (state.files.isEmpty()) {
                     item {
                         Text(
-                            "还没有定时备份文件（在服务器配置 backup 计划后自动生成）。",
+                            stringResource(R.string.backups_no_scheduled_backups),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -226,7 +227,7 @@ fun BackupsScreen(
                                     onClick = { confirmRestoreName = file.name },
                                 ) {
                                     Icon(Icons.Outlined.Restore, contentDescription = null)
-                                    Text(" 恢复")
+                                    Text(" ${stringResource(R.string.backups_restore)}")
                                 }
                             }
                         }
@@ -240,16 +241,16 @@ fun BackupsScreen(
     if (restoreName != null) {
         AlertDialog(
             onDismissRequest = { confirmRestoreName = null },
-            title = { Text("恢复服务器备份") },
-            text = { Text("将用 $restoreName 合并恢复书库、进度、分类与设置。确定继续？") },
+            title = { Text(stringResource(R.string.backups_restore_dialog_title)) },
+            text = { Text(stringResource(R.string.backups_restore_dialog_message, restoreName)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmRestoreName = null
                     viewModel.restoreFile(restoreName)
-                }) { Text("恢复") }
+                }) { Text(stringResource(R.string.backups_restore)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmRestoreName = null }) { Text("取消") }
+                TextButton(onClick = { confirmRestoreName = null }) { Text(stringResource(R.string.backups_cancel)) }
             },
         )
     }
@@ -257,17 +258,24 @@ fun BackupsScreen(
     state.restoreResult?.let { result ->
         AlertDialog(
             onDismissRequest = { viewModel.consumeTransient() },
-            title = { Text("恢复完成") },
+            title = { Text(stringResource(R.string.backups_restore_done_title)) },
             text = {
                 Column {
                     Text(
-                        "漫画 ${result.restored.library} · 进度 ${result.restored.progress} · 分类 ${result.restored.categories} · 设置 ${result.restored.settings} · 图源设置 ${result.restored.sourceSettings}",
+                        stringResource(
+                            R.string.backups_restore_result_counts,
+                            result.restored.library,
+                            result.restored.progress,
+                            result.restored.categories,
+                            result.restored.settings,
+                            result.restored.sourceSettings,
+                        ),
                     )
                     result.warnings.forEach { Text("⚠ $it", style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.consumeTransient() }) { Text("好") }
+                TextButton(onClick = { viewModel.consumeTransient() }) { Text(stringResource(R.string.backups_ok)) }
             },
         )
     }
@@ -276,20 +284,27 @@ fun BackupsScreen(
     state.aidokuDryRun?.let { result ->
         AlertDialog(
             onDismissRequest = { viewModel.cancelAidokuDryRun() },
-            title = { Text("导入 Aidoku 备份（预览）") },
+            title = { Text(stringResource(R.string.backups_aidoku_preview_title)) },
             text = {
                 Text(
-                    "将导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）。确定导入？",
+                    stringResource(
+                        R.string.backups_aidoku_preview_message,
+                        result.imported.library,
+                        result.imported.progress,
+                        result.imported.categories,
+                        result.imported.trackers,
+                        result.skipped.size,
+                    ),
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.consumeTransient()
                     viewModel.confirmAidokuImport()
-                }) { Text("导入") }
+                }) { Text(stringResource(R.string.backups_import)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.cancelAidokuDryRun() }) { Text("取消") }
+                TextButton(onClick = { viewModel.cancelAidokuDryRun() }) { Text(stringResource(R.string.backups_cancel)) }
             },
         )
     }

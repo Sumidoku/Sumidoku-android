@@ -25,12 +25,14 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -46,11 +48,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.Download
 import org.sumidoku.android.core.api.model.DownloadStatus
+import org.sumidoku.android.core.common.hasChapterNumber
 import org.sumidoku.android.core.common.relativeEpochMs
 
 /** Downloads queue screen — preview 09-downloads.html (Tier A). */
@@ -58,10 +62,13 @@ import org.sumidoku.android.core.common.relativeEpochMs
 @Composable
 fun DownloadsScreen(
     onBack: () -> Unit,
+    onOpenCache: () -> Unit = {},
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    var tab by remember { mutableStateOf(0) }
+    var confirmClearAll by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -74,107 +81,209 @@ fun DownloadsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("下载") },
+                title = { Text(stringResource(R.string.downloads_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.downloads_back),
+                        )
                     }
                 },
                 actions = {
                     if (state.running) {
                         IconButton(onClick = { viewModel.stop() }) {
-                            Icon(Icons.Outlined.Pause, contentDescription = "暂停队列")
+                            Icon(
+                                Icons.Outlined.Pause,
+                                contentDescription = stringResource(R.string.downloads_pause_queue),
+                            )
                         }
                     } else {
                         IconButton(onClick = { viewModel.start() }) {
-                            Icon(Icons.Outlined.PlayArrow, contentDescription = "开始队列")
+                            Icon(
+                                Icons.Outlined.PlayArrow,
+                                contentDescription = stringResource(R.string.downloads_start_queue),
+                            )
                         }
                     }
-                    TextButton(onClick = { viewModel.clearFinished() }) { Text("清理已完成") }
+                    TextButton(onClick = { viewModel.clearFinished() }) {
+                        Text(stringResource(R.string.downloads_clear_finished))
+                    }
                 },
             )
         },
+
     ) { padding ->
-        when {
-            state.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            state.error != null && state.downloads.isEmpty() && state.local.isEmpty() ->
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.error!!, color = MaterialTheme.colorScheme.error)
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
-                    }
-                }
-            state.downloads.isEmpty() && state.local.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("下载队列为空", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp),
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Design 09: a two-chip switch instead of two stacked sections, so
+            // the server queue stays short and local copies get their own space.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (state.local.isNotEmpty()) {
-                    item(key = "local-header") {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    "本机离线（${state.local.size}）",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    "占用 ${formatSize(state.storageUsedBytes)} · 剩余 ${formatSize(state.storageFreeBytes)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            var confirmClear by remember { mutableStateOf(false) }
-                            TextButton(onClick = { confirmClear = true }) { Text("全部清除") }
-                            if (confirmClear) {
-                                AlertDialog(
-                                    onDismissRequest = { confirmClear = false },
-                                    title = { Text("清除全部本机离线内容？") },
-                                    text = { Text("将删除设备上所有已下载的章节档案与解压页面。") },
-                                    confirmButton = {
-                                        TextButton(onClick = {
-                                            confirmClear = false
-                                            viewModel.clearAllLocal()
-                                        }) { Text("清除") }
-                                    },
-                                    dismissButton = {
-                                        TextButton(onClick = { confirmClear = false }) { Text("取消") }
-                                    },
+                FilterChip(
+                    selected = tab == 0,
+                    onClick = { tab = 0 },
+                    label = { Text(stringResource(R.string.downloads_tab_server_queue)) },
+                )
+                FilterChip(
+                    selected = tab == 1,
+                    onClick = { tab = 1 },
+                    label = {
+                        Text(
+                            if (state.local.isNotEmpty()) {
+                                stringResource(R.string.downloads_tab_local_with_count, state.local.size)
+                            } else {
+                                stringResource(R.string.downloads_tab_local)
+                            },
+                        )
+                    },
+                )
+            }
+            when {
+                state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                tab == 0 -> if (state.downloads.isEmpty()) {
+                    EmptyDownloads(state.error, onRetry = viewModel::refresh)
+                } else {
+                    LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
+                        items(state.downloads, key = { it.chapterId }) { download ->
+                            DownloadRow(
+                                download = download,
+                                onDelete = { viewModel.delete(download.chapterId) },
+                                onRetry = { viewModel.retry(download.chapterId) },
+                            )
+                        }
+                        item(key = "cache-card") {
+                            Spacer(Modifier.height(8.dp))
+                            if (state.cacheUsedBytes > 0 || state.cacheChapters > 0) {
+                                ChapterCacheCard(
+                                    chapters = state.cacheChapters,
+                                    usedBytes = state.cacheUsedBytes,
+                                    maxBytes = state.cacheMaxBytes,
+                                    onManage = onOpenCache,
                                 )
                             }
                         }
                     }
-                    items(state.local, key = { "local-${it.chapterId}" }) { row ->
-                        LocalDownloadRow(
-                            row = row,
-                            onRemove = { viewModel.removeLocal(row.chapterId) },
-                            onRetry = { viewModel.retryLocal(row.chapterId) },
-                        )
-                    }
-                    item(key = "server-header") {
-                        Text(
-                            "服务器队列",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                        )
-                    }
                 }
-                items(state.downloads, key = { it.chapterId }) { download ->
-                    DownloadRow(
-                        download = download,
-                        onDelete = { viewModel.delete(download.chapterId) },
-                    )
+                else -> if (state.local.isEmpty()) {
+                    EmptyDownloads(state.error, onRetry = viewModel::refresh)
+                } else {
+                    LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
+                        item(key = "local-header") {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(
+                                            R.string.downloads_storage_usage,
+                                            formatSize(state.storageUsedBytes),
+                                            formatSize(state.storageFreeBytes),
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(onClick = { confirmClearAll = true }) {
+                                    Text(stringResource(R.string.downloads_clear_all))
+                                }
+                            }
+                        }
+                        items(state.local, key = { "local-${it.chapterId}" }) { row ->
+                            LocalDownloadRow(
+                                row = row,
+                                onRemove = { viewModel.removeLocal(row.chapterId) },
+                                onRetry = { viewModel.retryLocal(row.chapterId) },
+                            )
+                        }
+                    }
                 }
             }
+        }
+        if (confirmClearAll) {
+            AlertDialog(
+                onDismissRequest = { confirmClearAll = false },
+                title = { Text(stringResource(R.string.downloads_clear_all_dialog_title)) },
+                text = { Text(stringResource(R.string.downloads_clear_all_dialog_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmClearAll = false
+                        viewModel.clearAllLocal()
+                    }) { Text(stringResource(R.string.downloads_clear)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmClearAll = false }) {
+                        Text(stringResource(R.string.downloads_cancel))
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyDownloads(error: String?, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                error ?: stringResource(R.string.downloads_empty_queue),
+                color = if (error != null) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp),
+            )
+            if (error != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.downloads_retry)) }
+            }
+        }
+    }
+}
+
+/** Design 09 bottom card: server chapter-page cache accounting. */
+@Composable
+private fun ChapterCacheCard(
+    chapters: Long,
+    usedBytes: Long,
+    maxBytes: Long,
+    onManage: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.downloads_cache_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onManage) { Text(stringResource(R.string.downloads_manage)) }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                Text(
+                    stringResource(R.string.downloads_cache_chapters, chapters),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${formatSize(usedBytes)} / ${formatSize(maxBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val fraction = if (maxBytes > 0) (usedBytes.toFloat() / maxBytes).coerceIn(0f, 1f) else 0f
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -205,10 +314,10 @@ private fun LocalDownloadRow(
         supportingContent = {
             Text(
                 when (row.status) {
-                    "done" -> "已存到本机 · ${formatBytes(row.bytes)}"
-                    "error" -> row.error ?: "下载失败"
-                    "downloading" -> "下载中…"
-                    else -> "排队中"
+                    "done" -> stringResource(R.string.downloads_local_saved, formatBytes(row.bytes))
+                    "error" -> row.error ?: stringResource(R.string.downloads_local_failed)
+                    "downloading" -> stringResource(R.string.downloads_status_downloading)
+                    else -> stringResource(R.string.downloads_status_queued)
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -217,10 +326,13 @@ private fun LocalDownloadRow(
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (row.status == "error") {
-                    TextButton(onClick = onRetry) { Text("重试") }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.downloads_retry)) }
                 }
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除本机副本")
+                    Icon(
+                        Icons.Outlined.DeleteOutline,
+                        contentDescription = stringResource(R.string.downloads_delete_local_copy),
+                    )
                 }
             }
         },
@@ -234,17 +346,20 @@ private fun formatBytes(bytes: Long): String = when {
 }
 
 @Composable
-private fun DownloadRow(download: Download, onDelete: () -> Unit) {
+private fun DownloadRow(download: Download, onDelete: () -> Unit, onRetry: () -> Unit) {
     ListItem(
         leadingContent = {
             Icon(statusIcon(download.status), contentDescription = null, tint = statusTint(download.status))
         },
         headlineContent = {
+            val chapterNumber = download.chapterNumber?.takeIf(::hasChapterNumber)
+            val headline = if (chapterNumber != null) {
+                stringResource(R.string.downloads_headline_with_chapter, download.mangaTitle, chapterNumber)
+            } else {
+                download.mangaTitle
+            }
             Text(
-                buildString {
-                    append(download.mangaTitle)
-                    download.chapterNumber?.let { append("  ·  第 $it 话") }
-                },
+                headline,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -259,11 +374,9 @@ private fun DownloadRow(download: Download, onDelete: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     )
                 }
+                val status = statusLabel(download)
                 Text(
-                    buildString {
-                        append(statusLabel(download))
-                        append("  ·  ${relativeEpochMs(download.updatedAt)}")
-                    },
+                    "$status  ·  ${relativeEpochMs(download.updatedAt)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (download.status == DownloadStatus.ERROR) {
                         MaterialTheme.colorScheme.error
@@ -275,8 +388,17 @@ private fun DownloadRow(download: Download, onDelete: () -> Unit) {
             }
         },
         trailingContent = {
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (download.status == DownloadStatus.ERROR) {
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.downloads_retry)) }
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Outlined.DeleteOutline,
+                        contentDescription = stringResource(R.string.downloads_delete),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
     )
@@ -297,11 +419,19 @@ private fun statusTint(status: DownloadStatus) = when (status) {
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
+@Composable
 private fun statusLabel(download: Download): String = when (download.status) {
-    DownloadStatus.QUEUED -> "排队中"
-    DownloadStatus.DOWNLOADING -> "下载中 ${download.downloaded ?: 0}/${download.total ?: "?"} 页"
-    DownloadStatus.FINISHED -> "已完成"
-    DownloadStatus.ERROR -> "失败：${download.error ?: "未知错误"}"
+    DownloadStatus.QUEUED -> stringResource(R.string.downloads_status_queued)
+    DownloadStatus.DOWNLOADING -> stringResource(
+        R.string.downloads_status_downloading_pages,
+        download.downloaded ?: 0,
+        download.total?.toString() ?: "?",
+    )
+    DownloadStatus.FINISHED -> stringResource(R.string.downloads_status_finished)
+    DownloadStatus.ERROR -> {
+        val reason = download.error ?: stringResource(R.string.downloads_error_unknown)
+        stringResource(R.string.downloads_status_error, reason)
+    }
     else -> download.status.value
 }
 

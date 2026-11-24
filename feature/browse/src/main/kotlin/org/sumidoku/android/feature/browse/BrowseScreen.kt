@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -32,6 +34,9 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,16 +62,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
@@ -90,7 +101,19 @@ fun BrowseScreen(
     val state by viewModel.state.collectAsState()
     var showMenu by remember { mutableStateOf(false) }
     var showPinOrder by remember { mutableStateOf(false) }
+    // Design 03: the pinned group is reordered in place (⠿ handle + arrows)
+    // instead of a modal dialog, so reordering never leaves the list.
+    var editPinned by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    val pinned = state.pinned
+    var editOrder by remember(pinned) { mutableStateOf(pinned.map { it.id }) }
+    val orderedPinned = remember(pinned, editOrder) {
+        val byId = pinned.associateBy { it.id }
+        editOrder.mapNotNull { byId[it] }
+    }
+    LaunchedEffect(state.pinned.size) {
+        if (state.pinned.size < 2) editPinned = false
+    }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -102,44 +125,50 @@ fun BrowseScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("浏览") },
+                title = { Text(stringResource(R.string.browse_title)) },
                 actions = {
                     IconButton(onClick = onSearch) {
-                        Icon(Icons.Outlined.Search, contentDescription = "跨源搜索")
+                        Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.browse_cross_search))
                     }
                     IconButton(onClick = onAddSource) {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加图源")
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_source_title))
                     }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
+                            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.browse_more))
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("迁移…") },
+                                text = { Text(stringResource(R.string.browse_migrate)) },
                                 onClick = {
                                     showMenu = false
                                     onMigrate()
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(if (state.updateAllRunning) "更新中…" else "全部更新") },
-                                enabled = !state.updateAllRunning,
+                                text = {
+                                    Text(
+                                        if (state.updateAllRunning) stringResource(R.string.browse_updating_all)
+                                        else stringResource(R.string.browse_update_all_count, state.updatable.size),
+                                    )
+                                },
+                                enabled = state.updatable.isNotEmpty() && !state.updateAllRunning,
                                 onClick = {
                                     showMenu = false
                                     viewModel.updateAll()
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("编辑置顶顺序") },
+                                text = { Text(if (editPinned) stringResource(R.string.browse_edit_done) else stringResource(R.string.browse_edit_pin_order)) },
                                 enabled = state.pinned.size > 1,
                                 onClick = {
                                     showMenu = false
-                                    showPinOrder = true
+                                    editPinned = !editPinned
+                                    if (!editPinned) viewModel.savePinOrder(editOrder)
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("添加内部源 / 导入 .aix") },
+                                text = { Text(stringResource(R.string.browse_add_import_source)) },
                                 onClick = {
                                     showMenu = false
                                     onAddSource()
@@ -160,36 +189,74 @@ fun BrowseScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.error!!, color = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                        TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.browse_retry)) }
                     }
                 }
             state.sources.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("还没有安装图源", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.browse_no_sources), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = onAddSource) { Text("去添加") }
+                    TextButton(onClick = onAddSource) { Text(stringResource(R.string.browse_go_add)) }
                 }
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
+                // Design 03: a tappable search field at the top of the list; the
+                // real search lives in SearchScreen, so this only forwards the tap.
+                item(key = "searchbar") {
+                    BrowseSearchBar(onClick = onSearch)
+                }
                 if (state.updatable.isNotEmpty()) {
-                    item { SectionHeader("可更新（${state.updatable.size}）") }
+                    item { SectionHeader(stringResource(R.string.browse_updatable_section, state.updatable.size)) }
                     items(state.updatable, key = { "u${it.id}" }) { source ->
-                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, badge = "v${source.updateVersion}", onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
+                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, updating = state.updatingIds.contains(source.id), onUpdate = { viewModel.updateSource(source) }, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
                     }
                 }
-                if (state.pinned.isNotEmpty()) {
-                    item { SectionHeader("置顶") }
-                    items(state.pinned, key = { "p${it.id}" }) { source ->
-                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
+                if (orderedPinned.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = stringResource(R.string.browse_pinned),
+                            hint = if (editPinned) stringResource(R.string.browse_pin_hint_editing) else stringResource(R.string.browse_pin_hint_idle),
+                        )
+                    }
+                    itemsIndexed(orderedPinned, key = { _, source -> "p${source.id}" }) { index, source ->
+                        if (editPinned) {
+                            PinnedEditRow(
+                                source = source,
+                                profile = state.profile,
+                                canUp = index > 0,
+                                canDown = index < orderedPinned.lastIndex,
+                                onMove = { up ->
+                                    val target = if (up) index - 1 else index + 1
+                                    if (target in editOrder.indices) {
+                                        editOrder = editOrder.toMutableList().apply {
+                                            add(target, removeAt(index))
+                                        }
+                                    }
+                                },
+                            )
+                        } else {
+                            SourceRow(
+                                source,
+                                state.profile,
+                                hasSettings = state.settingsAvailable[source.id] == true,
+                                updating = state.updatingIds.contains(source.id),
+                                onUpdate = { viewModel.updateSource(source) },
+                                onClick = { onOpenSource(source.id) },
+                                onSettings = { onOpenSourceSettings(source.id) },
+                                onTogglePin = { viewModel.togglePin(source) },
+                                onToggleEnabled = { viewModel.toggleEnabled(source) },
+                                onUninstall = { viewModel.uninstall(source) },
+                            )
+                        }
                     }
                 }
                 if (state.installed.isNotEmpty()) {
-                    item { SectionHeader("已安装") }
+                    item { SectionHeader(stringResource(R.string.browse_installed)) }
                     items(state.installed, key = { "i${it.id}" }) { source ->
-                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
+                        SourceRow(source, state.profile, hasSettings = state.settingsAvailable[source.id] == true, updating = state.updatingIds.contains(source.id), onUpdate = { viewModel.updateSource(source) }, onClick = { onOpenSource(source.id) }, onSettings = { onOpenSourceSettings(source.id) }, onTogglePin = { viewModel.togglePin(source) }, onToggleEnabled = { viewModel.toggleEnabled(source) }, onUninstall = { viewModel.uninstall(source) })
                     }
                 }
             }
@@ -209,12 +276,85 @@ fun BrowseScreen(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+private fun BrowseSearchBar(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.browse_search_placeholder),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, hint: String? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        hint?.let {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Design 03: a pinned row in edit mode — ⠿ handle plus arrow buttons, since
+ *  we have no drag-reorder dependency. Tapping an arrow swaps the row. */
+@Composable
+private fun PinnedEditRow(
+    source: Source,
+    profile: ServerProfile?,
+    canUp: Boolean,
+    canDown: Boolean,
+    onMove: (up: Boolean) -> Unit,
+) {
+    ListItem(
+        leadingContent = { SourceIcon(source, profile) },
+        headlineContent = {
+            Text(source.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        supportingContent = { Text("${source.key} · v${source.version}") },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "⠿",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                IconButton(onClick = { onMove(true) }, enabled = canUp) {
+                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
+                }
+                IconButton(onClick = { onMove(false) }, enabled = canDown) {
+                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
+                }
+            }
+        },
     )
 }
 
@@ -224,7 +364,8 @@ private fun SourceRow(
     source: Source,
     profile: ServerProfile?,
     hasSettings: Boolean,
-    badge: String? = null,
+    updating: Boolean = false,
+    onUpdate: (() -> Unit)? = null,
     onClick: () -> Unit,
     onSettings: () -> Unit,
     onTogglePin: () -> Unit,
@@ -252,15 +393,24 @@ private fun SourceRow(
             },
             supportingContent = {
                 Column {
-                    // webui meta line: key · version
+                    // webui meta line: key · version. A pending update shows both
+                    // versions (design 03: "1.4.2 → 1.4.3").
+                    val versionLine = buildString {
+                        append(source.key)
+                        append(" · v${source.version}")
+                        if (source.updateVersion != null && source.updateVersion != source.version) {
+                            append(" → v${source.updateVersion}")
+                        }
+                        if (!source.enabled) append(" · ").append(stringResource(R.string.browse_meta_disabled))
+                    }
                     Text(
-                        buildString {
-                            append(source.key)
-                            append(" · v${badge?.removePrefix("v") ?: source.version}")
-                            if (!source.enabled) append(" · 已停用")
-                        },
+                        versionLine,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (source.updateVersion != null) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -272,44 +422,61 @@ private fun SourceRow(
                     if (source.missingFromRepos) {
                         Icon(
                             Icons.Outlined.Warning,
-                            contentDescription = "已不在任何来源列表中",
+                            contentDescription = stringResource(R.string.browse_missing_from_repos),
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
-                    // 仅当图源确实声明了设置项才显示齿轮（OPDS 源无设置 schema）
+                    // Row pill for a pending update (design 03); the whole
+                    // "update all" path stays in the overflow menu.
+                    if (source.updateVersion != null && onUpdate != null) {
+                        if (updating) {
+                            CircularProgressIndicator(
+                                Modifier.size(18.dp).padding(end = 4.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            TextButton(onClick = onUpdate) { Text(stringResource(R.string.browse_update)) }
+                        }
+                    }
+                    // Show the gear only when the source actually declares settings
+                    // (OPDS sources have no settings schema).
                     if (hasSettings && source.kind != Source.Kind.OPDS) {
                         IconButton(onClick = onSettings) {
                             Icon(
                                 Icons.Outlined.Settings,
-                                contentDescription = "图源设置",
+                                contentDescription = stringResource(R.string.browse_source_settings),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
             },
-            modifier = Modifier.combinedClickable(
-                onClick = onClick,
-                onLongClick = { showContextMenu = true },
-            ),
+            modifier = Modifier
+                // Disabled sources fade out as a whole (design 03), so the row
+                // still occupies its slot but stops competing for attention.
+                .alpha(if (source.enabled) 1f else 0.45f)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true },
+                ),
         )
         DropdownMenu(expanded = showContextMenu, onDismissRequest = { showContextMenu = false }) {
             DropdownMenuItem(
-                text = { Text(if (source.pinned) "取消置顶" else "置顶") },
+                text = { Text(if (source.pinned) stringResource(R.string.browse_unpin) else stringResource(R.string.browse_pin)) },
                 onClick = {
                     showContextMenu = false
                     onTogglePin()
                 },
             )
             DropdownMenuItem(
-                text = { Text(if (source.enabled) "停用" else "启用") },
+                text = { Text(if (source.enabled) stringResource(R.string.browse_disable) else stringResource(R.string.browse_enable)) },
                 onClick = {
                     showContextMenu = false
                     onToggleEnabled()
                 },
             )
             DropdownMenuItem(
-                text = { Text("卸载", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.browse_uninstall), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showContextMenu = false
                     confirmUninstall = true
@@ -319,41 +486,43 @@ private fun SourceRow(
         if (confirmUninstall) {
             AlertDialog(
                 onDismissRequest = { confirmUninstall = false },
-                title = { Text("卸载 ${source.name}？") },
-                text = { Text("将同时删除该图源的书库关联、下载与缓存数据。") },
+                title = { Text(stringResource(R.string.browse_uninstall_confirm_title, source.name)) },
+                text = { Text(stringResource(R.string.browse_uninstall_confirm_body)) },
                 confirmButton = {
                     TextButton(onClick = {
                         confirmUninstall = false
                         onUninstall()
-                    }) { Text("卸载", color = MaterialTheme.colorScheme.error) }
+                    }) { Text(stringResource(R.string.browse_uninstall), color = MaterialTheme.colorScheme.error) }
                 },
-                dismissButton = { TextButton(onClick = { confirmUninstall = false }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { confirmUninstall = false }) { Text(stringResource(R.string.action_cancel)) } },
             )
         }
     }
 }
 
-/** webui languageLabel: multi/all → 多语言；其余映射为显示名。 */
+/** webui languageLabel: multi/all maps to a "multi-language" label; the rest
+ *  map to their localized display names. */
+@Composable
 private fun languageLabel(code: String): String = when (code.lowercase()) {
-    "multi", "all" -> "多语言"
-    "en" -> "英语"
-    "ja" -> "日语"
-    "ko" -> "韩语"
-    "zh", "zh-hans" -> "简体中文"
-    "zh-hant" -> "繁體中文"
-    "fr" -> "法语"
-    "de" -> "德语"
-    "es" -> "西班牙语"
-    "it" -> "意大利语"
-    "pt", "pt-br" -> "葡萄牙语"
-    "ru" -> "俄语"
-    "vi" -> "越南语"
-    "th" -> "泰语"
-    "id" -> "印尼语"
+    "multi", "all" -> stringResource(R.string.lang_multi)
+    "en" -> stringResource(R.string.lang_en)
+    "ja" -> stringResource(R.string.lang_ja)
+    "ko" -> stringResource(R.string.lang_ko)
+    "zh", "zh-hans" -> stringResource(R.string.lang_zh_hans)
+    "zh-hant" -> stringResource(R.string.lang_zh_hant)
+    "fr" -> stringResource(R.string.lang_fr)
+    "de" -> stringResource(R.string.lang_de)
+    "es" -> stringResource(R.string.lang_es)
+    "it" -> stringResource(R.string.lang_it)
+    "pt", "pt-br" -> stringResource(R.string.lang_pt)
+    "ru" -> stringResource(R.string.lang_ru)
+    "vi" -> stringResource(R.string.lang_vi)
+    "th" -> stringResource(R.string.lang_th)
+    "id" -> stringResource(R.string.lang_id)
     else -> code.uppercase()
 }
 
-/** webui 语言 chips：前 3 个显示名 + "+N"。 */
+/** webui language chips: the first 3 display names plus a "+N" overflow chip. */
 @Composable
 private fun LanguageChips(languages: List<String>) {
     if (languages.isEmpty()) return
@@ -383,12 +552,13 @@ private fun MiniChip(text: String, color: androidx.compose.ui.graphics.Color = M
     }
 }
 
-/** webui 分级 chip：0 不显示，1 含 NSFW（警告色），2 NSFW（危险色）。 */
+/** webui rating chip: 0 shows nothing, 1 is "contains NSFW" (warning colour),
+ *  2 is NSFW (danger colour). */
 @Composable
 private fun RatingChip(rating: Long) {
     when {
         rating >= 2 -> MiniChip("NSFW", MaterialTheme.colorScheme.error)
-        rating == 1L -> MiniChip("含 NSFW", MaterialTheme.colorScheme.tertiary)
+        rating == 1L -> MiniChip(stringResource(R.string.rating_contains_nsfw), MaterialTheme.colorScheme.tertiary)
     }
 }
 
@@ -404,7 +574,7 @@ private fun PinOrderDialog(
     val byId = remember(pinned) { pinned.associateBy { it.id } }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑置顶顺序") },
+        title = { Text(stringResource(R.string.browse_edit_pin_order)) },
         text = {
             LazyColumn {
                 items(order.size) { i ->
@@ -420,7 +590,7 @@ private fun PinOrderDialog(
                                         }
                                     },
                                     enabled = i > 0,
-                                ) { Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移") }
+                                ) { Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up)) }
                                 IconButton(
                                     onClick = {
                                         if (i < order.size - 1) {
@@ -428,7 +598,7 @@ private fun PinOrderDialog(
                                         }
                                     },
                                     enabled = i < order.size - 1,
-                                ) { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移") }
+                                ) { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down)) }
                             }
                         },
                     )
@@ -436,9 +606,9 @@ private fun PinOrderDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(order) }) { Text("保存") }
+            TextButton(onClick = { onSave(order) }) { Text(stringResource(R.string.action_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
@@ -522,17 +692,24 @@ fun AddSourceScreen(
     val state by viewModel.addState.collectAsState()
     val context = LocalContext.current
     var showInternalDialog by remember { mutableStateOf(false) }
+    var internalStartLocal by remember { mutableStateOf(true) }
+    var showFilters by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { viewModel.loadRepoSources() }
     LaunchedEffect(state.error) { state.error?.let { snackbar.showSnackbar(it) } }
 
-    // 导入 .aix：系统文件选择器拿到字节后直接上传 sources/import
+    // Import .aix: the system file picker hands us the bytes, which we upload
+    // straight to sources/import.
+    val aixImportedMessage = stringResource(R.string.add_source_imported_aix)
     val aixLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
             if (bytes != null) {
                 val name = it.lastPathSegment?.substringAfterLast('/') ?: "source.aix"
-                viewModel.importAix(name, bytes) {}
+                viewModel.importAix(name, bytes) {
+                    scope.launch { snackbar.showSnackbar(aixImportedMessage) }
+                }
             }
         }
     }
@@ -541,13 +718,16 @@ fun AddSourceScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("添加图源") },
+                title = { Text(stringResource(R.string.add_source_title)) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("返回") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close))
+                    }
                 },
                 actions = {
-                    TextButton(onClick = { aixLauncher.launch("*/*") }) { Text("导入 .aix") }
-                    TextButton(onClick = { showInternalDialog = true }) { Text("内部源") }
+                    IconButton(onClick = { showFilters = !showFilters }) {
+                        Icon(Icons.Outlined.FilterList, contentDescription = stringResource(R.string.add_source_filter_lang))
+                    }
                 },
             )
         },
@@ -557,12 +737,13 @@ fun AddSourceScreen(
                 value = state.query,
                 onValueChange = { viewModel.setAddQuery(it) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("搜索名称或语言…") },
+                placeholder = { Text(stringResource(R.string.add_source_search_placeholder)) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 singleLine = true,
             )
-            // webui/Aidoku 风格语言筛选：全部语言聚合后多选 chips
-            if (state.availableLangs.size > 1) {
+            // webui/Aidoku-style language filter: multi-select chips aggregated
+            // from every language present in the repo listing.
+            if (showFilters && state.availableLangs.size > 1) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -590,22 +771,71 @@ fun AddSourceScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(state.error!!, color = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.height(8.dp))
-                            TextButton(onClick = { viewModel.loadRepoSources() }) { Text("重试") }
+                            TextButton(onClick = { viewModel.loadRepoSources() }) { Text(stringResource(R.string.browse_retry)) }
                         }
                     }
-                state.visible.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (state.repoSources.isEmpty()) "没有可安装的图源（先在设置里添加仓库）" else "没有匹配的图源",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                else -> LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
-                    items(state.visible, key = { "${it.repoId}:${it.key}" }) { repoSource ->
-                        RepoSourceRow(
-                            repoSource = repoSource,
-                            installing = state.installingKeys.contains(repoSource.key),
-                            installed = state.installedKeys.contains(repoSource.key) || repoSource.installedId != null,
-                            onInstall = { viewModel.install(repoSource) },
+                else -> LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
+                    // Design 17: the import action is a full-width card, not a
+                    // toolbar text button — it is the primary way to sideload.
+                    item(key = "import") {
+                        ImportAixCard(onClick = { aixLauncher.launch("*/*") })
+                    }
+                    item(key = "internal-header") {
+                        SectionHeaderWithNote(stringResource(R.string.add_source_internal_header), stringResource(R.string.add_source_internal_note))
+                    }
+                    item(key = "internal-local") {
+                        InternalSourceCard(
+                            glyph = stringResource(R.string.add_source_local_glyph),
+                            title = stringResource(R.string.add_source_local_title),
+                            description = stringResource(R.string.add_source_local_desc),
+                            onCreate = {
+                                internalStartLocal = true
+                                showInternalDialog = true
+                            },
+                        )
+                    }
+                    item(key = "internal-opds") {
+                        InternalSourceCard(
+                            glyph = "O",
+                            title = stringResource(R.string.add_source_opds_title),
+                            description = stringResource(R.string.add_source_opds_desc),
+                            onCreate = {
+                                internalStartLocal = false
+                                showInternalDialog = true
+                            },
+                        )
+                    }
+                    item(key = "installable-header") {
+                        SectionHeaderWithNote(
+                            stringResource(R.string.add_source_installable_header),
+                            if (state.repoCount > 0) stringResource(R.string.add_source_from_repos, state.repoCount) else stringResource(R.string.add_source_add_repo_first),
+                        )
+                    }
+                    if (state.visible.isEmpty()) {
+                        item(key = "empty") {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text(
+                                    if (state.repoSources.isEmpty()) stringResource(R.string.add_source_empty_no_repo) else stringResource(R.string.add_source_empty_no_match),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else {
+                        items(state.visible, key = { "${it.repoId}:${it.key}" }) { repoSource ->
+                            RepoSourceRow(
+                                repoSource = repoSource,
+                                installing = state.installingKeys.contains(repoSource.key),
+                                installed = state.installedKeys.contains(repoSource.key) || repoSource.installedId != null,
+                                onInstall = { viewModel.install(repoSource) },
+                            )
+                        }
+                    }
+                    item(key = "note") {
+                        Text(
+                            stringResource(R.string.add_source_footnote),
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
                 }
@@ -615,27 +845,107 @@ fun AddSourceScreen(
 
     if (showInternalDialog) {
         InternalSourceDialog(
+            initialLocal = internalStartLocal,
             onDismiss = { showInternalDialog = false },
             onCreateLocal = { draft ->
                 viewModel.createInternalLocal(draft) { showInternalDialog = false }
             },
-            onCreateOpds = { name, url ->
-                viewModel.createInternalOpds(name, url) { showInternalDialog = false }
+            onCreateOpds = { name, url, username, password ->
+                viewModel.createInternalOpds(name, url, username, password) { showInternalDialog = false }
             },
         )
     }
 }
 
-/** 添加内部源：本地文件夹或 OPDS 目录（服务器侧路径/URL）。
- *  字段对齐 webui InternalSourceModal：多目录、oneshots 目录、排除子串
- *  以及三个扫描开关（默认值与服务端配置层一致，创建后仍可在源设置里改）。 */
+/** Design 17: dashed-free full-width card for the .aix sideload path. */
+@Composable
+private fun ImportAixCard(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.FileUpload,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(stringResource(R.string.add_source_import_aix), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** One of the two internal-source entry cards (design 17). */
+@Composable
+private fun InternalSourceCard(
+    glyph: String,
+    title: String,
+    description: String,
+    onCreate: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(glyph, style = MaterialTheme.typography.titleSmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onCreate) { Text(stringResource(R.string.add_source_create)) }
+    }
+}
+
+/** Section title with a right-aligned note (design 17 headers). */
+@Composable
+private fun SectionHeaderWithNote(title: String, note: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.weight(1f))
+        Text(
+            note,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** Add an internal source: a local folder or an OPDS catalog (server-side
+ *  path/URL). Fields mirror the webui InternalSourceModal: multiple
+ *  directories, a oneshots directory, exclusion substrings, and the three
+ *  scan switches (defaults match the server config layer and can still be
+ *  changed in the source settings after creation). */
 @Composable
 private fun InternalSourceDialog(
+    initialLocal: Boolean = true,
     onDismiss: () -> Unit,
     onCreateLocal: (LocalSourceDraft) -> Unit,
-    onCreateOpds: (name: String, url: String) -> Unit,
+    onCreateOpds: (name: String, url: String, username: String?, password: String?) -> Unit,
 ) {
-    var isLocal by remember { mutableStateOf(true) }
+    var isLocal by remember { mutableStateOf(initialLocal) }
     var name by remember { mutableStateOf("") }
     var dirsText by remember { mutableStateOf("") }
     var oneshotsDir by remember { mutableStateOf("") }
@@ -644,10 +954,12 @@ private fun InternalSourceDialog(
     var analyzePages by remember { mutableStateOf(true) }
     var analyzeMetadata by remember { mutableStateOf(true) }
     var url by remember { mutableStateOf("") }
+    var opdsUsername by remember { mutableStateOf("") }
+    var opdsPassword by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加内部源") },
+        title = { Text(stringResource(R.string.add_source_internal_dialog_title)) },
         text = {
             Column(
                 Modifier
@@ -656,23 +968,23 @@ private fun InternalSourceDialog(
             ) {
                 Row {
                     TextButton(onClick = { isLocal = true }) {
-                        Text("本地文件夹", color = if (isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.add_source_tab_local), color = if (isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     TextButton(onClick = { isLocal = false }) {
-                        Text("OPDS 目录", color = if (!isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.add_source_opds_title), color = if (!isLocal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("名称") },
+                    label = { Text(stringResource(R.string.add_source_field_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
                 if (isLocal) {
                     Text(
-                        "直接阅读服务器上的本地目录。每个路径都必须存在；之后也可以在源设置里修改。",
+                        stringResource(R.string.add_source_local_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -680,7 +992,7 @@ private fun InternalSourceDialog(
                     OutlinedTextField(
                         value = dirsText,
                         onValueChange = { dirsText = it },
-                        label = { Text("目录（每行一个，服务器路径）") },
+                        label = { Text(stringResource(R.string.add_source_dirs_label)) },
                         placeholder = { Text("/mnt/manga") },
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth(),
@@ -689,9 +1001,9 @@ private fun InternalSourceDialog(
                     OutlinedTextField(
                         value = oneshotsDir,
                         onValueChange = { oneshotsDir = it },
-                        label = { Text("单话目录（可选）") },
+                        label = { Text(stringResource(R.string.add_source_oneshots_label)) },
                         placeholder = { Text("oneshots") },
-                        supportingText = { Text("路径中含该名字的目录不列出，其中的压缩档各成为一部单话漫画") },
+                        supportingText = { Text(stringResource(R.string.add_source_oneshots_hint)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -699,17 +1011,17 @@ private fun InternalSourceDialog(
                     OutlinedTextField(
                         value = exclusionsText,
                         onValueChange = { exclusionsText = it },
-                        label = { Text("排除规则（每行一个子串）") },
-                        placeholder = { Text("如 @eaDir") },
-                        supportingText = { Text("路径包含任一子串（不区分大小写）的条目在扫描时跳过") },
+                        label = { Text(stringResource(R.string.add_source_exclusions_label)) },
+                        placeholder = { Text(stringResource(R.string.add_source_exclusions_placeholder)) },
+                        supportingText = { Text(stringResource(R.string.add_source_exclusions_hint)) },
                         minLines = 2,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    DialogSwitchRow("强制按修改时间刷新", forceModifiedTime) { forceModifiedTime = it }
-                    DialogSwitchRow("分析页面", analyzePages) { analyzePages = it }
-                    DialogSwitchRow("分析元数据", analyzeMetadata) { analyzeMetadata = it }
+                    DialogSwitchRow(stringResource(R.string.add_source_switch_force_mtime), forceModifiedTime) { forceModifiedTime = it }
+                    DialogSwitchRow(stringResource(R.string.add_source_switch_analyze_pages), analyzePages) { analyzePages = it }
+                    DialogSwitchRow(stringResource(R.string.add_source_switch_analyze_metadata), analyzeMetadata) { analyzeMetadata = it }
                     Text(
-                        "这三项覆盖服务端配置的回退值；影响扫描的修改会自动触发重新扫描。",
+                        stringResource(R.string.add_source_switches_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -717,9 +1029,26 @@ private fun InternalSourceDialog(
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
-                        label = { Text("OPDS 目录 URL") },
+                        label = { Text(stringResource(R.string.add_source_opds_url_label)) },
                         placeholder = { Text("https://…/opds") },
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = opdsUsername,
+                        onValueChange = { opdsUsername = it },
+                        label = { Text(stringResource(R.string.add_source_username_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = opdsPassword,
+                        onValueChange = { opdsPassword = it },
+                        label = { Text(stringResource(R.string.add_source_password_label)) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -742,13 +1071,18 @@ private fun InternalSourceDialog(
                             ),
                         )
                     } else {
-                        onCreateOpds(name.trim(), url.trim())
+                        onCreateOpds(
+                            name.trim(),
+                            url.trim(),
+                            opdsUsername.trim().ifEmpty { null },
+                            opdsPassword.ifEmpty { null },
+                        )
                     }
                 },
                 enabled = valid,
-            ) { Text("创建") }
+            ) { Text(stringResource(R.string.add_source_create)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
@@ -810,9 +1144,9 @@ private fun RepoSourceRow(
         },
         trailingContent = {
             when {
-                installed -> Text("已安装", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                installed -> Text(stringResource(R.string.browse_installed), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 installing -> CircularProgressIndicator(modifier = Modifier.size(22.dp))
-                else -> Button(onClick = onInstall) { Text("获取") }
+                else -> Button(onClick = onInstall) { Text(stringResource(R.string.add_source_get)) }
             }
         },
     )

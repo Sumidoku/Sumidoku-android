@@ -33,6 +33,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:network"))
     implementation(project(":core:download"))
+    // Brand artwork + provider labels for the tracker pill (task ⑧/④).
+    implementation(project(":feature:trackers"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
@@ -46,4 +48,6 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    // Per-manga chapter filter/sort persistence (ChapterPrefsStore).
+    implementation(libs.androidx.datastore.preferences)
 }

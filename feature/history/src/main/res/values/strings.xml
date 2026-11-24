@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- History screen -->
+    <string name="history_title">History</string>
+    <string name="history_refresh">Refresh</string>
+    <string name="history_retry">Retry</string>
+    <string name="history_empty">No reading history yet</string>
+
+    <!-- Row supporting text: read state, page progress, clock time -->
+    <string name="history_progress_finished">Finished · %1$s</string>
+    <string name="history_progress_reading">Read %1$d / %2$d pages · %3$s</string>
+    <string name="history_progress_reading_unknown">Read %1$d pages · %2$s</string>
+    <string name="history_more_entries">%1$d more</string>
+
+    <!-- Row trailing tag -->
+    <string name="history_tag_finished">Finished</string>
+    <string name="history_tag_continue">Continue</string>
+
+    <!-- ViewModel results and errors -->
+    <string name="history_no_server">No server selected</string>
+</resources>

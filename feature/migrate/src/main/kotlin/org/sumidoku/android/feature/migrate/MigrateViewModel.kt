@@ -1,8 +1,11 @@
 package org.sumidoku.android.feature.migrate
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -71,6 +74,7 @@ data class MigrateUiState(
 
 @HiltViewModel
 class MigrateViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -89,7 +93,7 @@ class MigrateViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = MigrateUiState(loading = false, error = "未选择服务器")
+                _state.value = MigrateUiState(loading = false, error = appContext.getString(R.string.migrate_error_no_server))
                 return@launch
             }
             try {
@@ -129,8 +133,15 @@ class MigrateViewModel @Inject constructor(
         loadEntries(s.profile ?: return, source.id, replace = false)
     }
 
+    private var entriesJob: Job? = null
+    private var matchingJob: Job? = null
+    private var runJob: Job? = null
+
     private fun loadEntries(profile: ServerProfile, sourceId: Long, replace: Boolean) {
-        viewModelScope.launch {
+        // Cancel the in-flight page load: picking another source (or backing
+        // out) must not let the stale response overwrite the new listing.
+        entriesJob?.cancel()
+        entriesJob = viewModelScope.launch {
             _state.value = _state.value.copy(entriesLoading = true)
             try {
                 val page = clientFactory.create<LibraryApi>(profile)
@@ -178,7 +189,12 @@ class MigrateViewModel @Inject constructor(
     }
 
     fun backTo(step: MigrateStep) {
-        _state.value = _state.value.copy(step = step)
+        // Navigating away abandons the in-flight async work of the step left
+        // behind; their late completions are guarded as well.
+        if (step != MigrateStep.MATCHING) matchingJob?.cancel()
+        if (step != MigrateStep.RUNNING) runJob?.cancel()
+        entriesJob?.cancel()
+        _state.value = _state.value.copy(step = step, entriesLoading = false)
     }
 
     /** Auto-match: one lookup per manga × target, first candidate wins —
@@ -193,7 +209,8 @@ class MigrateViewModel @Inject constructor(
             targets.map { target -> MatchRow(manga = manga, target = target) }
         }
         _state.value = s.copy(step = MigrateStep.MATCHING, matchRows = rows)
-        viewModelScope.launch {
+        matchingJob?.cancel()
+        matchingJob = viewModelScope.launch {
             val resolved = coroutineScope {
                 rows.map { row ->
                     async {
@@ -216,7 +233,11 @@ class MigrateViewModel @Inject constructor(
                     }
                 }.awaitAll()
             }
-            _state.value = _state.value.copy(step = MigrateStep.CONFIRM, matchRows = resolved)
+            // Stale-completion guard: backing out of the matching step must
+            // not be overridden by the late awaitAll result.
+            if (_state.value.step == MigrateStep.MATCHING) {
+                _state.value = _state.value.copy(step = MigrateStep.CONFIRM, matchRows = resolved)
+            }
         }
     }
 
@@ -234,7 +255,8 @@ class MigrateViewModel @Inject constructor(
         val rows = s.matchable
         if (rows.isEmpty()) return
         _state.value = s.copy(step = MigrateStep.RUNNING)
-        viewModelScope.launch {
+        runJob?.cancel()
+        runJob = viewModelScope.launch {
             try {
                 val entries = rows.map { row ->
                     MigrateEntry(
@@ -246,13 +268,19 @@ class MigrateViewModel @Inject constructor(
                 val resp = api.migrateManga(
                     MigrateRequest(mode = s.mode, propertyEntries = entries),
                 ).await()
-                _state.value = _state.value.copy(
-                    step = MigrateStep.RESULTS,
-                    results = resp.results,
-                )
+                // The user may have backed out of the running step; only the
+                // still-running wizard consumes the result.
+                if (_state.value.step == MigrateStep.RUNNING) {
+                    _state.value = _state.value.copy(
+                        step = MigrateStep.RESULTS,
+                        results = resp.results,
+                    )
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                _state.value = _state.value.copy(step = MigrateStep.CONFIRM, error = e.message ?: e.toString())
+                if (_state.value.step == MigrateStep.RUNNING) {
+                    _state.value = _state.value.copy(step = MigrateStep.CONFIRM, error = e.message ?: e.toString())
+                }
             }
         }
     }

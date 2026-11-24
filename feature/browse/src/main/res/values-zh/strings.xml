@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浏览页 -->
+    <string name="browse_title">浏览</string>
+    <string name="browse_cross_search">跨源搜索</string>
+    <string name="browse_more">更多</string>
+    <string name="browse_migrate">迁移…</string>
+    <string name="browse_updating_all">全部更新中…</string>
+    <string name="browse_update_all_count">全部更新（%1$d）</string>
+    <string name="browse_edit_done">完成编辑</string>
+    <string name="browse_edit_pin_order">编辑置顶顺序</string>
+    <string name="browse_add_import_source">添加 / 导入图源…</string>
+    <string name="browse_retry">重试</string>
+    <string name="browse_no_sources">还没有安装图源</string>
+    <string name="browse_go_add">去添加</string>
+    <string name="browse_search_placeholder">跨图源搜索漫画…</string>
+    <string name="browse_updatable_section">可更新（%1$d）</string>
+    <string name="browse_pinned">置顶</string>
+    <string name="browse_pin_hint_editing">点按箭头调整顺序</string>
+    <string name="browse_pin_hint_idle">⋯ → 编辑置顶顺序</string>
+    <string name="browse_installed">已安装</string>
+    <string name="browse_meta_disabled">已停用</string>
+    <string name="browse_missing_from_repos">已不在任何来源列表中</string>
+    <string name="browse_update">更新</string>
+    <string name="browse_source_settings">图源设置</string>
+    <string name="browse_pin">置顶</string>
+    <string name="browse_unpin">取消置顶</string>
+    <string name="browse_disable">停用</string>
+    <string name="browse_enable">启用</string>
+    <string name="browse_uninstall">卸载</string>
+    <string name="browse_uninstall_confirm_title">卸载 %1$s？</string>
+    <string name="browse_uninstall_confirm_body">将同时删除该图源的书库关联、下载与缓存数据。</string>
+
+    <!-- 通用操作 -->
+    <string name="action_cancel">取消</string>
+    <string name="action_save">保存</string>
+    <string name="action_close">关闭</string>
+    <string name="move_up">上移</string>
+    <string name="move_down">下移</string>
+
+    <!-- 内容分级 -->
+    <string name="rating_contains_nsfw">含 NSFW</string>
+
+    <!-- 语言标签 -->
+    <string name="lang_multi">多语言</string>
+    <string name="lang_en">英语</string>
+    <string name="lang_ja">日语</string>
+    <string name="lang_ko">韩语</string>
+    <string name="lang_zh_hans">简体中文</string>
+    <string name="lang_zh_hant">繁體中文</string>
+    <string name="lang_fr">法语</string>
+    <string name="lang_de">德语</string>
+    <string name="lang_es">西班牙语</string>
+    <string name="lang_it">意大利语</string>
+    <string name="lang_pt">葡萄牙语</string>
+    <string name="lang_ru">俄语</string>
+    <string name="lang_vi">越南语</string>
+    <string name="lang_th">泰语</string>
+    <string name="lang_id">印尼语</string>
+
+    <!-- 添加图源页 -->
+    <string name="add_source_title">添加图源</string>
+    <string name="add_source_filter_lang">筛选语言</string>
+    <string name="add_source_search_placeholder">搜索可安装的图源…</string>
+    <string name="add_source_imported_aix">已导入 .aix</string>
+    <string name="add_source_internal_header">内部源</string>
+    <string name="add_source_internal_note">本地目录或 OPDS，建在服务端</string>
+    <string name="add_source_local_glyph">本</string>
+    <string name="add_source_local_title">本地漫画</string>
+    <string name="add_source_local_desc">扫描设备/服务器目录的 CBZ·图片</string>
+    <string name="add_source_opds_title">OPDS 目录</string>
+    <string name="add_source_opds_desc">接入 Komga / Kavita / Calibre-Web</string>
+    <string name="add_source_installable_header">可安装的图源</string>
+    <string name="add_source_from_repos">来自 %1$d 个仓库 · 按语言筛选</string>
+    <string name="add_source_add_repo_first">先在设置里添加仓库</string>
+    <string name="add_source_empty_no_repo">没有可安装的图源（先在设置里添加仓库）</string>
+    <string name="add_source_empty_no_match">没有匹配的图源</string>
+    <string name="add_source_footnote">数据来自服务端聚合的全部仓库索引；「获取」一步完成安装。仓库 URL 的添加/刷新/删除在 设置 → 图源仓库。</string>
+    <string name="add_source_import_aix">从文件导入 .aix</string>
+    <string name="add_source_create">创建</string>
+    <string name="add_source_get">获取</string>
+    <string name="add_source_internal_dialog_title">添加内部源</string>
+    <string name="add_source_tab_local">本地文件夹</string>
+    <string name="add_source_field_name">名称</string>
+    <string name="add_source_local_hint">直接阅读服务器上的本地目录。每个路径都必须存在；之后也可以在源设置里修改。</string>
+    <string name="add_source_dirs_label">目录（每行一个，服务器路径）</string>
+    <string name="add_source_oneshots_label">单话目录（可选）</string>
+    <string name="add_source_oneshots_hint">路径中含该名字的目录不列出，其中的压缩档各成为一部单话漫画</string>
+    <string name="add_source_exclusions_label">排除规则（每行一个子串）</string>
+    <string name="add_source_exclusions_placeholder">如 @eaDir</string>
+    <string name="add_source_exclusions_hint">路径包含任一子串（不区分大小写）的条目在扫描时跳过</string>
+    <string name="add_source_switch_force_mtime">强制按修改时间刷新</string>
+    <string name="add_source_switch_analyze_pages">分析页面</string>
+    <string name="add_source_switch_analyze_metadata">分析元数据</string>
+    <string name="add_source_switches_hint">这三项覆盖服务端配置的回退值；影响扫描的修改会自动触发重新扫描。</string>
+    <string name="add_source_opds_url_label">OPDS 目录 URL</string>
+    <string name="add_source_username_label">用户名（可选）</string>
+    <string name="add_source_password_label">密码（可选）</string>
+
+    <!-- ViewModel 结果与错误 -->
+    <string name="browse_error_no_server">未选择服务器</string>
+    <string name="browse_updated_source">已更新 %1$s</string>
+    <string name="browse_update_source_failed">更新 %1$s 失败：%2$s</string>
+    <string name="browse_updated_count">已更新 %1$d 个</string>
+    <string name="browse_failed_count">失败 %1$d 个</string>
+    <string name="browse_migrate_required_count">%1$d 个需迁移</string>
+    <string name="browse_first_failure">（%1$s：%2$s）</string>
+    <string name="browse_first_migration_warning">；%1$s：%2$s</string>
+    <string name="browse_update_all_failed">更新失败：%1$s</string>
+    <string name="browse_uninstall_failed">卸载失败：%1$s</string>
+</resources>

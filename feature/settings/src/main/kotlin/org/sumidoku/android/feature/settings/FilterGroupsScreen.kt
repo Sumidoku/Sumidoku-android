@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -82,17 +83,17 @@ fun FilterGroupsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("过滤组") },
+                title = { Text(stringResource(R.string.filter_groups_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { createOpen = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "新建过滤组")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.filter_groups_new))
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -100,7 +101,7 @@ fun FilterGroupsScreen(
         if (state.groups.isEmpty() && !state.loading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text(
-                    "还没有过滤组。\n过滤组把保存的筛选规则应用在书库上。",
+                    stringResource(R.string.filter_groups_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -118,22 +119,22 @@ fun FilterGroupsScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(group.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        "${group.rules.size} 条规则",
+                                        stringResource(R.string.filter_groups_rule_count, group.rules.size),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                                 IconButton(onClick = { viewModel.move(group, -1) }, enabled = index > 0) {
-                                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移")
+                                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.misc_move_up))
                                 }
                                 IconButton(onClick = { viewModel.move(group, 1) }, enabled = index < state.groups.lastIndex) {
-                                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移")
+                                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.misc_move_down))
                                 }
                                 IconButton(onClick = { renameTarget = group }) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "重命名")
+                                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.misc_rename))
                                 }
                                 IconButton(onClick = { deleteTarget = group }) {
-                                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.misc_delete), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                             if (group.rules.isNotEmpty()) {
@@ -149,7 +150,7 @@ fun FilterGroupsScreen(
                             OutlinedButton(
                                 onClick = { rulesTarget = group },
                                 modifier = Modifier.padding(top = 8.dp),
-                            ) { Text("编辑规则") }
+                            ) { Text(stringResource(R.string.filter_groups_edit_rules)) }
                         }
                     }
                 }
@@ -159,8 +160,8 @@ fun FilterGroupsScreen(
 
     if (createOpen) {
         NameDialog(
-            title = "新建过滤组",
-            confirmLabel = "创建",
+            title = stringResource(R.string.filter_groups_new),
+            confirmLabel = stringResource(R.string.misc_create),
             onConfirm = { name ->
                 createOpen = false
                 viewModel.create(name)
@@ -171,9 +172,9 @@ fun FilterGroupsScreen(
 
     renameTarget?.let { group ->
         NameDialog(
-            title = "重命名「${group.name}」",
+            title = stringResource(R.string.filter_groups_rename_title, group.name),
             initial = group.name,
-            confirmLabel = "保存",
+            confirmLabel = stringResource(R.string.misc_save),
             onConfirm = { name ->
                 renameTarget = null
                 viewModel.rename(group, name)
@@ -185,15 +186,15 @@ fun FilterGroupsScreen(
     deleteTarget?.let { group ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("删除过滤组") },
-            text = { Text("确定删除「${group.name}」？书库条目不受影响。") },
+            title = { Text(stringResource(R.string.filter_groups_delete_title)) },
+            text = { Text(stringResource(R.string.filter_groups_delete_text, group.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     deleteTarget = null
                     viewModel.delete(group)
-                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.misc_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.misc_cancel)) } },
         )
     }
 
@@ -210,19 +211,20 @@ fun FilterGroupsScreen(
     }
 }
 
+@Composable
 private fun describeRule(rule: FilterRule): String {
     val base = when (rule.type) {
-        FilterRuleType.DOWNLOADED -> "已下载"
-        FilterRuleType.HAS_UNREAD -> "有未读"
-        FilterRuleType.STARTED -> "已开始阅读"
-        FilterRuleType.COMPLETED -> "已完结"
-        FilterRuleType.SOURCE -> "图源 = ${valueText(rule)}"
-        FilterRuleType.CONTENT_RATING -> "分级 = ${valueText(rule)}"
-        FilterRuleType.CATEGORY -> "分类 = ${valueText(rule)}"
-        FilterRuleType.AUTHOR -> "作者 = ${valueText(rule)}"
-        FilterRuleType.TAG -> "标签 = ${valueText(rule)}"
+        FilterRuleType.DOWNLOADED -> stringResource(R.string.filter_rule_type_downloaded)
+        FilterRuleType.HAS_UNREAD -> stringResource(R.string.filter_rule_type_has_unread)
+        FilterRuleType.STARTED -> stringResource(R.string.filter_rule_type_started)
+        FilterRuleType.COMPLETED -> stringResource(R.string.filter_rule_type_completed)
+        FilterRuleType.SOURCE -> stringResource(R.string.filter_rule_value_source, valueText(rule))
+        FilterRuleType.CONTENT_RATING -> stringResource(R.string.filter_rule_value_content_rating, valueText(rule))
+        FilterRuleType.CATEGORY -> stringResource(R.string.filter_rule_value_category, valueText(rule))
+        FilterRuleType.AUTHOR -> stringResource(R.string.filter_rule_value_author, valueText(rule))
+        FilterRuleType.TAG -> stringResource(R.string.filter_rule_value_tag, valueText(rule))
     }
-    return if (rule.exclude) "排除：$base" else base
+    return if (rule.exclude) stringResource(R.string.filter_rule_exclude_prefix, base) else base
 }
 
 private fun valueText(rule: FilterRule): String =
@@ -245,13 +247,13 @@ private fun NameDialog(
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                label = { Text("名称") },
+                label = { Text(stringResource(R.string.misc_name)) },
             )
         },
         confirmButton = {
             TextButton(onClick = { if (name.isNotBlank()) onConfirm(name.trim()) }) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.misc_cancel)) } },
     )
 }
 
@@ -281,7 +283,7 @@ private fun FilterRulesSheet(
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("规则 · ${group.name}", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.filter_groups_rules_title, group.name), style = MaterialTheme.typography.titleMedium)
 
             drafts.forEachIndexed { index, draft ->
                 Card {
@@ -292,7 +294,7 @@ private fun FilterRulesSheet(
                                 style = MaterialTheme.typography.titleSmall,
                                 modifier = Modifier.weight(1f),
                             )
-                            Text("排除", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.filter_groups_exclude), style = MaterialTheme.typography.bodySmall)
                             Switch(
                                 checked = draft.exclude,
                                 onCheckedChange = { checked ->
@@ -302,7 +304,7 @@ private fun FilterRulesSheet(
                             IconButton(onClick = {
                                 drafts = drafts.toMutableList().also { it.removeAt(index) }
                             }) {
-                                Icon(Icons.Outlined.DeleteOutline, contentDescription = "移除规则")
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.filter_groups_remove_rule))
                             }
                         }
                         when (draft.type) {
@@ -331,7 +333,11 @@ private fun FilterRulesSheet(
                             }
                             FilterRuleType.CONTENT_RATING -> {
                                 ValuePicker(
-                                    options = listOf("0" to "安全", "1" to "NSFW", "2" to "18+"),
+                                    options = listOf(
+                                        "0" to stringResource(R.string.filter_groups_rating_safe),
+                                        "1" to "NSFW",
+                                        "2" to "18+",
+                                    ),
                                     selected = draft.valueText,
                                     onSelect = { v ->
                                         drafts = drafts.toMutableList().also { it[index] = draft.copy(valueText = v) }
@@ -344,7 +350,15 @@ private fun FilterRulesSheet(
                                     onValueChange = { v ->
                                         drafts = drafts.toMutableList().also { it[index] = draft.copy(valueText = v) }
                                     },
-                                    label = { Text(if (draft.type == FilterRuleType.AUTHOR) "作者" else "标签") },
+                                    label = {
+                                        Text(
+                                            if (draft.type == FilterRuleType.AUTHOR) {
+                                                stringResource(R.string.filter_rule_type_author)
+                                            } else {
+                                                stringResource(R.string.filter_rule_type_tag)
+                                            },
+                                        )
+                                    },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
@@ -355,7 +369,7 @@ private fun FilterRulesSheet(
             }
 
             Box {
-                OutlinedButton(onClick = { typeMenuOpen = true }) { Text("＋ 添加规则") }
+                OutlinedButton(onClick = { typeMenuOpen = true }) { Text(stringResource(R.string.filter_groups_add_rule)) }
                 androidx.compose.material3.DropdownMenu(
                     expanded = typeMenuOpen,
                     onDismissRequest = { typeMenuOpen = false },
@@ -373,23 +387,24 @@ private fun FilterRulesSheet(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("取消") }
-                TextButton(onClick = { onSave(drafts) }, modifier = Modifier.weight(1f)) { Text("保存") }
+                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.misc_cancel)) }
+                TextButton(onClick = { onSave(drafts) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.misc_save)) }
             }
         }
     }
 }
 
+@Composable
 private fun typeLabel(type: FilterRuleType): String = when (type) {
-    FilterRuleType.DOWNLOADED -> "已下载"
-    FilterRuleType.HAS_UNREAD -> "有未读"
-    FilterRuleType.STARTED -> "已开始阅读"
-    FilterRuleType.COMPLETED -> "已完结"
-    FilterRuleType.SOURCE -> "图源"
-    FilterRuleType.CONTENT_RATING -> "分级"
-    FilterRuleType.CATEGORY -> "分类"
-    FilterRuleType.AUTHOR -> "作者"
-    FilterRuleType.TAG -> "标签"
+    FilterRuleType.DOWNLOADED -> stringResource(R.string.filter_rule_type_downloaded)
+    FilterRuleType.HAS_UNREAD -> stringResource(R.string.filter_rule_type_has_unread)
+    FilterRuleType.STARTED -> stringResource(R.string.filter_rule_type_started)
+    FilterRuleType.COMPLETED -> stringResource(R.string.filter_rule_type_completed)
+    FilterRuleType.SOURCE -> stringResource(R.string.filter_rule_type_source)
+    FilterRuleType.CONTENT_RATING -> stringResource(R.string.filter_rule_type_content_rating)
+    FilterRuleType.CATEGORY -> stringResource(R.string.filter_rule_type_category)
+    FilterRuleType.AUTHOR -> stringResource(R.string.filter_rule_type_author)
+    FilterRuleType.TAG -> stringResource(R.string.filter_rule_type_tag)
 }
 
 @Composable
@@ -401,7 +416,7 @@ private fun ValuePicker(
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(options.firstOrNull { it.first == selected }?.second ?: "选择…")
+            Text(options.firstOrNull { it.first == selected }?.second ?: stringResource(R.string.filter_groups_select_value))
         }
         androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { (value, label) ->

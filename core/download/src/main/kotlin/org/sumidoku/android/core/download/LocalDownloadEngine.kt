@@ -201,7 +201,9 @@ class LocalDownloadEngine @Inject constructor(
                 if (needed > 0) {
                     val stat = android.os.StatFs(targetDir.absolutePath)
                     if (stat.availableBytes < needed + (16L shl 20)) {
-                        throw java.io.IOException("存储空间不足（需要约 ${needed / 1048576} MB）")
+                        throw java.io.IOException(
+                            context.getString(R.string.download_insufficient_storage, needed / 1048576),
+                        )
                     }
                 }
                 body.byteStream().use { input ->

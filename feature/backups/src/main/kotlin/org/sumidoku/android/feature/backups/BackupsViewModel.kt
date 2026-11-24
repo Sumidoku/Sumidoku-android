@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.backups
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -43,6 +45,7 @@ data class BackupsUiState(
 
 @HiltViewModel
 class BackupsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -63,7 +66,7 @@ class BackupsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = _state.value.files.isEmpty(), error = null)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = BackupsUiState(loading = false, error = "未选择服务器")
+                _state.value = BackupsUiState(loading = false, error = appContext.getString(R.string.backups_error_no_server))
                 return@launch
             }
             try {
@@ -155,7 +158,14 @@ class BackupsViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         busy = false,
                         aidokuDryRun = null,
-                        aidokuSummary = "已导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）",
+                        aidokuSummary = appContext.getString(
+                            R.string.backups_aidoku_import_summary,
+                            result.imported.library,
+                            result.imported.progress,
+                            result.imported.categories,
+                            result.imported.trackers,
+                            result.skipped.size,
+                        ),
                     )
                 }
             } catch (e: Exception) {
@@ -226,7 +236,14 @@ class BackupsViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     busy = false,
                     suwayomiDryRun = null,
-                    suwayomiSummary = "已导入：漫画 ${result.imported.library}、进度 ${result.imported.progress}、分类 ${result.imported.categories}、追踪绑定 ${result.imported.trackers}（跳过 ${result.skipped.size} 条）",
+                    suwayomiSummary = appContext.getString(
+                        R.string.backups_tachibk_import_summary,
+                        result.imported.library,
+                        result.imported.progress,
+                        result.imported.categories,
+                        result.imported.trackers,
+                        result.skipped.size,
+                    ),
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

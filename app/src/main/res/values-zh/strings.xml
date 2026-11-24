@@ -1,0 +1,12 @@
+<resources>
+    <string name="tab_library">书库</string>
+    <string name="tab_browse">浏览</string>
+    <string name="tab_updates">更新</string>
+    <string name="tab_history">历史</string>
+    <string name="tab_search">搜索</string>
+    <string name="tab_settings">设置</string>
+    <string name="update_channel_name">章节更新</string>
+    <string name="update_notification_title">Sumidoku 更新</string>
+    <string name="update_new_chapters_one">「%1$s」有新章节</string>
+    <string name="update_new_chapters_many">%1$d 部漫画有新章节</string>
+</resources>

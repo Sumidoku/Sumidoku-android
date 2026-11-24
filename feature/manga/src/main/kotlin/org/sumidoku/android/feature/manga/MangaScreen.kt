@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,10 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.North
-import androidx.compose.material.icons.outlined.South
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -53,6 +56,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,9 +70,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
@@ -77,11 +82,19 @@ import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
+import org.sumidoku.android.core.api.model.MangaStatus
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.TrackerLink
 import org.sumidoku.android.core.api.model.TrackerProvider
+import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.coverUrl
+import org.sumidoku.android.core.common.sourceImageUrl
+import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.entryCoverUrl
 import org.sumidoku.android.core.model.ServerProfile
+import org.sumidoku.android.feature.trackers.TrackerLogo
+import org.sumidoku.android.feature.trackers.trackerProviderLabel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -100,14 +113,21 @@ fun MangaScreen(
      *  it should search with, plus the manga's source (webui
      *  searchByFilters parity). */
     onFilterSearch: (sourceId: Long, filters: List<FilterValue>) -> Unit = { _, _ -> },
+    /** Unregistered source entry (Aidoku open-first): mangaId is -1 and the
+     *  view model registers it in the background while the page renders. */
+    sourceId: Long = -1L,
+    mangaKey: String? = null,
     viewModel: MangaViewModel = hiltViewModel<MangaViewModel, MangaViewModel.Factory>(
-        key = "manga-$mangaId",
-    ) { factory -> factory.create(mangaId) },
+        key = "manga-$mangaId-$sourceId-${mangaKey.orEmpty()}",
+    ) { factory -> factory.create(mangaId, sourceId, mangaKey) },
 ) {
     val state by viewModel.state.collectAsState()
     val meta by viewModel.meta.collectAsState()
     val searchMeta by viewModel.searchMeta.collectAsState()
     var activeSheet by remember { mutableStateOf<MangaSheet?>(null) }
+    var showChapterFilters by remember { mutableStateOf(false) }
+    var selecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
     var showMenu by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
@@ -121,12 +141,58 @@ fun MangaScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            if (selecting && selectedIds.isNotEmpty()) {
+                val finishedCount = state.chapters.count { it.id in selectedIds && it.hasFinishedDownload }
+                Surface(tonalElevation = 3.dp) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        fun exitSelect() {
+                            selecting = false
+                            selectedIds = emptySet()
+                        }
+                        TextButton(onClick = {
+                            viewModel.batchMarkRead(selectedIds.toList(), true)
+                            exitSelect()
+                        }) { Text(stringResource(R.string.manga_batch_mark_read)) }
+                        TextButton(onClick = {
+                            viewModel.batchMarkRead(selectedIds.toList(), false)
+                            exitSelect()
+                        }) { Text(stringResource(R.string.manga_batch_mark_unread)) }
+                        TextButton(onClick = {
+                            viewModel.batchBookmark(selectedIds.toList(), true)
+                            exitSelect()
+                        }) { Text(stringResource(R.string.manga_batch_bookmark)) }
+                        TextButton(onClick = {
+                            viewModel.batchBookmark(selectedIds.toList(), false)
+                            exitSelect()
+                        }) { Text(stringResource(R.string.manga_remove_bookmark)) }
+                        TextButton(onClick = {
+                            viewModel.downloadChapters(selectedIds.toList())
+                            exitSelect()
+                        }) { Text(stringResource(R.string.manga_download)) }
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteDownloadsFor(selectedIds.toList())
+                                exitSelect()
+                            },
+                            enabled = finishedCount > 0,
+                        ) { Text(stringResource(R.string.manga_delete_downloads_count, finishedCount)) }
+                    }
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.manga_back))
                     }
                 },
                 actions = {
@@ -135,7 +201,7 @@ fun MangaScreen(
                         IconButton(onClick = { viewModel.toggleIncognito() }) {
                             Icon(
                                 Icons.Outlined.VisibilityOff,
-                                contentDescription = "无痕阅读",
+                                contentDescription = stringResource(R.string.manga_incognito),
                                 tint = if (manga.incognito) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -145,40 +211,48 @@ fun MangaScreen(
                         }
                         Box {
                             IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
+                                Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.manga_more))
                             }
                             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                                DropdownMenuItem(text = { Text("编辑元数据") }, onClick = {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manga_refresh_details)) },
+                                    enabled = !state.refreshingDetails,
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.refreshDetailsFromSource()
+                                    },
+                                )
+                                DropdownMenuItem(text = { Text(stringResource(R.string.metadata_edit)) }, onClick = {
                                     showMenu = false
                                     activeSheet = MangaSheet.Edit
                                 })
-                                DropdownMenuItem(text = { Text("匹配元数据") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.metadata_match)) }, onClick = {
                                     showMenu = false
                                     activeSheet = MangaSheet.Match
                                 })
-                                DropdownMenuItem(text = { Text("更换封面") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.manga_change_cover)) }, onClick = {
                                     showMenu = false
                                     viewModel.loadAlternates()
                                     activeSheet = MangaSheet.Cover
                                 })
-                                DropdownMenuItem(text = { Text("恢复图源元数据") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.metadata_restore)) }, onClick = {
                                     showMenu = false
                                     viewModel.restoreMetadata()
                                 })
-                                DropdownMenuItem(text = { Text("分类…") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.manga_categories)) }, onClick = {
                                     showMenu = false
                                     viewModel.loadCategories()
                                     activeSheet = MangaSheet.Categories
                                 })
-                                DropdownMenuItem(text = { Text("迁移到其他图源…") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.manga_migrate_menu)) }, onClick = {
                                     showMenu = false
                                     activeSheet = MangaSheet.Migrate
                                 })
-                                DropdownMenuItem(text = { Text("全部标为已读") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.manga_mark_all_read)) }, onClick = {
                                     showMenu = false
                                     viewModel.markAllChapters(true)
                                 })
-                                DropdownMenuItem(text = { Text("全部标为未读") }, onClick = {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.manga_mark_all_unread)) }, onClick = {
                                     showMenu = false
                                     viewModel.markAllChapters(false)
                                 })
@@ -197,7 +271,7 @@ fun MangaScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(state.error!!, color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                    TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.manga_retry)) }
                 }
             }
             else -> {
@@ -210,7 +284,9 @@ fun MangaScreen(
                             state = state,
                             searchMeta = searchMeta,
                             onResume = {
-                                state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
+                                if (manga.id > 0) {
+                                    state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
+                                }
                             },
                             onToggleLibrary = { viewModel.toggleLibrary() },
                             onFilterSearch = { values -> onFilterSearch(manga.sourceId, values) },
@@ -219,6 +295,8 @@ fun MangaScreen(
                     item {
                         TrackerSection(
                             links = meta.links.orEmpty(),
+                            remotes = meta.remoteStates,
+                            onOpen = { link -> viewModel.openLinkEditor(link) },
                             onManage = {
                                 viewModel.loadLinks()
                                 activeSheet = MangaSheet.Links
@@ -230,35 +308,139 @@ fun MangaScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         ) {
-                            Text(
-                                "章节（${state.chapters.size}）",
-                                style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(onClick = { viewModel.toggleChapterOrder() }, modifier = Modifier.size(28.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    when {
+                                        // Unregistered entry still resolving:
+                                        // no authoritative count yet.
+                                        state.resolving && state.chapters.isEmpty() ->
+                                            stringResource(R.string.manga_chapters)
+                                        state.chapterPrefs.filtersActive -> stringResource(
+                                            R.string.manga_chapters_filtered,
+                                            state.visibleChapters.size,
+                                            state.chapters.size,
+                                        )
+                                        else -> stringResource(
+                                            R.string.manga_chapters_count,
+                                            state.chapters.size,
+                                        )
+                                    },
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                state.refreshNote?.let { note ->
+                                    Text(
+                                        note,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (state.refreshingChapters) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                IconButton(onClick = { viewModel.refreshChaptersFromSource() }, modifier = Modifier.size(28.dp)) {
+                                    Icon(
+                                        Icons.Outlined.Refresh,
+                                        contentDescription = stringResource(R.string.manga_refresh_chapters),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { showChapterFilters = true }, modifier = Modifier.size(28.dp)) {
                                 Icon(
-                                    if (viewModel.chapterOrder == org.sumidoku.android.core.api.model.SortOrder.DESC) {
-                                        Icons.Outlined.South
+                                    Icons.Outlined.FilterList,
+                                    contentDescription = stringResource(R.string.manga_chapter_filters),
+                                    tint = if (state.chapterPrefs.filtersActive) {
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        Icons.Outlined.North
+                                        MaterialTheme.colorScheme.onSurfaceVariant
                                     },
-                                    contentDescription = if (viewModel.chapterOrder == org.sumidoku.android.core.api.model.SortOrder.DESC) {
-                                        "当前：最新在前，点击切换"
+                                )
+                            }
+                            if (!selecting && state.chapters.isNotEmpty()) {
+                                TextButton(onClick = { selecting = true }) { Text(stringResource(R.string.manga_select)) }
+                            }
+                        }
+                    }
+                    if (selecting) {
+                        item {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            ) {
+                                val visible = state.visibleChapters
+                                val allSelected = visible.isNotEmpty() && visible.all { it.id in selectedIds }
+                                TextButton(onClick = {
+                                    selectedIds = if (allSelected) {
+                                        emptySet()
                                     } else {
-                                        "当前：最旧在前，点击切换"
-                                    },
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        visible.map { it.id }.toSet()
+                                    }
+                                }) { Text(if (allSelected) stringResource(R.string.manga_deselect_all) else stringResource(R.string.manga_select_all)) }
+                                Text(
+                                    stringResource(R.string.manga_selected_count, selectedIds.size),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = {
+                                    selecting = false
+                                    selectedIds = emptySet()
+                                }) { Text(stringResource(R.string.manga_done)) }
+                            }
+                        }
+                    }
+                    // Aidoku-style resolve in flight and no streamed chapters
+                    // yet: inline loading row instead of a blank section.
+                    if (state.resolving && state.visibleChapters.isEmpty()) {
+                        item(key = "resolving") {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(16.dp),
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text(
+                                    stringResource(R.string.manga_fetching_chapters),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     }
-                    items(state.chapters, key = { it.id }) { chapter ->
+                    items(state.visibleChapters, key = { it.id }) { chapter ->
                         ChapterRow(
 							chapter = chapter,
 							localStatus = state.localStatus[chapter.id],
-							onClick = { onOpenChapter(manga.id, chapter.id) },
+							selecting = selecting,
+							selected = chapter.id in selectedIds,
+							onClick = {
+								if (selecting) {
+									selectedIds = if (chapter.id in selectedIds) {
+										selectedIds - chapter.id
+									} else {
+										selectedIds + chapter.id
+									}
+								} else if (manga.id > 0 && chapter.id > 0) {
+									// Streaming placeholder chapters get real
+									// server ids after registration lands.
+									onOpenChapter(manga.id, chapter.id)
+								}
+							},
 							onEnqueue = { viewModel.enqueueChapter(chapter.id) },
 							onEnqueueLocal = { viewModel.enqueueLocal(chapter.id) },
+							onMarkRead = { viewModel.batchMarkRead(listOf(chapter.id), true) },
+							onMarkUnread = { viewModel.batchMarkRead(listOf(chapter.id), false) },
+							onMarkPreviousRead = { viewModel.markPrevious(chapter, true) },
+							onMarkPreviousUnread = { viewModel.markPrevious(chapter, false) },
+							onToggleBookmark = { viewModel.batchBookmark(listOf(chapter.id), !chapter.isBookmarked) },
+							onDeleteDownload = { viewModel.deleteDownloadsFor(listOf(chapter.id)) },
 						)
                     }
                 }
@@ -315,12 +497,16 @@ fun MangaScreen(
             TrackerLinksSheet(
                 meta = meta,
                 defaultQuery = mangaForSheets.title,
-                onProvider = { viewModel.setMatchProvider(it) },
-                onQuery = { viewModel.setMatchQuery(it) },
-                onSearch = { viewModel.matchSearch() },
+                onProvider = { viewModel.setLinkAddProvider(it) },
+                onQuery = { viewModel.setLinkAddQuery(it) },
+                onSearch = { viewModel.linkAddSearch() },
                 onAdd = { provider, item -> viewModel.addLink(provider, item) },
                 onRemove = { viewModel.removeLink(it) },
                 onSync = { viewModel.syncLink(it) },
+                onEdit = { link ->
+                    viewModel.openLinkEditor(link)
+                    activeSheet = null
+                },
                 onDismiss = { activeSheet = null },
             )
         }
@@ -339,6 +525,7 @@ fun MangaScreen(
             MigrateSheet(
                 meta = meta,
                 sources = meta.migrationSources,
+                profile = profileForSheets,
                 onDismiss = { activeSheet = null },
                 onStart = { viewModel.startMigration() },
                 onSelectTarget = { viewModel.selectMigrationTarget(it) },
@@ -352,25 +539,59 @@ fun MangaScreen(
         null -> Unit
     }
 
+    // Chapter list filter/sort sheet (webui ChapterHeader dropdown parity).
+    if (showChapterFilters) {
+        ChapterFilterSheet(
+            chapters = state.chapters,
+            prefs = state.chapterPrefs,
+            onChange = { viewModel.setChapterPrefs(it) },
+            onDismiss = { showChapterFilters = false },
+        )
+    }
+
     // M6 sync-pull preview: show what would be applied, then confirm.
     meta.syncPreview?.let { (provider, result) ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissSyncPreview() },
-            title = { Text("从追踪器同步进度") },
+            title = { Text(stringResource(R.string.tracker_sync_title)) },
             text = {
-                Text(
-                    buildString {
-                        result.progress?.let { append("远端读到第 $it 话\n") }
-                        append("将标记 ${result.marked} 章为已读。\n确定应用吗？")
-                    },
+                val progressLine = stringResource(
+                    R.string.tracker_sync_remote_progress,
+                    result.progress.toString(),
                 )
+                val confirmLine = stringResource(R.string.tracker_sync_confirm, result.marked)
+                Text(progressLine + confirmLine)
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.applySync(provider) }) { Text("应用") }
+                TextButton(onClick = { viewModel.applySync(provider) }) {
+                    Text(stringResource(R.string.action_apply))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissSyncPreview() }) { Text("取消") }
+                TextButton(onClick = { viewModel.dismissSyncPreview() }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
+        )
+    }
+
+    // M6 tracker-link editor: trackMode/chapterOffset + manual remote
+    // status/score/progress edits, sync-pull and confirmed unbind
+    // (webui TrackerEditForm).
+    meta.editingLink?.let { link ->
+        TrackerLinkEditSheet(
+            meta = meta,
+            link = link,
+            onMode = { viewModel.setEditTrackMode(it) },
+            onOffset = { viewModel.setEditChapterOffset(it) },
+            onStatus = { viewModel.setEditStatus(it) },
+            onScore = { viewModel.setEditScore(it) },
+            onChapterProgress = { viewModel.setEditChapterProgress(it) },
+            onVolumeProgress = { viewModel.setEditVolumeProgress(it) },
+            onSave = { viewModel.saveLinkSettings() },
+            onSync = { viewModel.syncLink(link.provider) },
+            onRemove = { viewModel.removeLink(link.provider) },
+            onDismiss = { viewModel.closeLinkEditor() },
         )
     }
 }
@@ -386,6 +607,7 @@ private enum class MangaSheet { Edit, Cover, Match, Links, Categories, Migrate }
 private fun MigrateSheet(
     meta: MetaUiState,
     sources: List<org.sumidoku.android.core.api.model.MigrationSource>?,
+    profile: ServerProfile?,
     onDismiss: () -> Unit,
     onStart: () -> Unit,
     onSelectTarget: (Long) -> Unit,
@@ -398,21 +620,21 @@ private fun MigrateSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("迁移到其他图源", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.manga_migrate_title), style = MaterialTheme.typography.titleMedium)
             if (sources == null) {
                 LaunchedEffect(Unit) { onStart() }
                 Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
-                Text("目标图源", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.manga_target_source), style = MaterialTheme.typography.titleSmall)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(sources.size) { i ->
                         val source = sources[i]
                         FilterChip(
                             selected = meta.migrationTargetId == source.id,
                             onClick = { onSelectTarget(source.id) },
-                            label = { Text(source.name ?: "图源 ${source.id}", maxLines = 1) },
+                            label = { Text(source.name ?: stringResource(R.string.manga_source_fallback, source.id), maxLines = 1) },
                         )
                     }
                 }
@@ -423,55 +645,57 @@ private fun MigrateSheet(
                     }
                     meta.migrationCandidates != null -> {
                         HorizontalDivider()
-                        Text("匹配结果", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.manga_match_results), style = MaterialTheme.typography.titleSmall)
                         if (meta.migrationCandidates.isEmpty()) {
                             Text(
-                                "没有匹配到同名漫画",
+                                stringResource(R.string.manga_no_match),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         } else {
+                            val isLocalTarget = sources.firstOrNull { it.id == meta.migrationTargetId }
+                                ?.kind == org.sumidoku.android.core.api.model.MigrationSource.Kind.LOCAL
                             meta.migrationCandidates.take(6).forEach { candidate ->
+                                val selected = meta.migrationSelected?.key == candidate.key
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            onSelectCandidate(
-                                                if (meta.migrationSelected?.key == candidate.key) null else candidate,
-                                            )
-                                        },
+                                            onSelectCandidate(if (selected) null else candidate)
+                                        }
+                                        .padding(vertical = 2.dp),
                                 ) {
-                                    RadioButton(
-                                        selected = meta.migrationSelected?.key == candidate.key,
-                                        onClick = {
-                                            onSelectCandidate(
-                                                if (meta.migrationSelected?.key == candidate.key) null else candidate,
-                                            )
-                                        },
-                                    )
-                                    Column(Modifier.weight(1f)) {
+                                    SearchMangaCoverThumb(profile, candidate, isLocalTarget)
+                                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                                         Text(candidate.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         candidate.authors?.takeIf { it.isNotEmpty() }?.let {
                                             Text(
-                                                it.joinToString("、"),
+                                                it.joinToString(stringResource(R.string.manga_list_separator)),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 maxLines = 1,
                                             )
                                         }
                                     }
+                                    RadioButton(
+                                        selected = selected,
+                                        onClick = {
+                                            onSelectCandidate(if (selected) null else candidate)
+                                        },
+                                    )
                                 }
                             }
                         }
 
                         HorizontalDivider()
-                        Text("迁移模式", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.manga_migrate_mode), style = MaterialTheme.typography.titleSmall)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             listOf(
-                                MigrateMode.COPY to "复制",
-                                MigrateMode.MIGRATE to "迁移",
-                                MigrateMode.MIGRATE_WITH_HISTORY to "带历史",
+                                MigrateMode.COPY to stringResource(R.string.manga_mode_copy),
+                                MigrateMode.MIGRATE to stringResource(R.string.manga_mode_migrate),
+                                MigrateMode.MIGRATE_WITH_HISTORY to stringResource(R.string.manga_mode_with_history),
                             ).forEachIndexed { index, (value, label) ->
                                 SegmentedButton(
                                     selected = mode == value,
@@ -484,10 +708,10 @@ private fun MigrateSheet(
                             onClick = { onRun(mode) },
                             enabled = meta.migrationSelected != null && !meta.migrationBusy,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("开始迁移") }
+                        ) { Text(stringResource(R.string.manga_start_migration)) }
                     }
                     else -> Text(
-                        "选择一个目标图源以查找匹配",
+                        stringResource(R.string.manga_select_target_hint),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -495,6 +719,32 @@ private fun MigrateSheet(
             }
         }
     }
+}
+
+/** Small cover for a search/migration candidate (SearchManga): mirrors webui
+ *  entryCover — proxy through the source for remote covers, the manga id
+ *  endpoint for local-source entries. */
+@Composable
+private fun SearchMangaCoverThumb(profile: ServerProfile?, candidate: SearchManga, isLocal: Boolean) {
+    val context = LocalContext.current
+    val model = profile?.let { p ->
+        entryCoverUrl(p.baseUrl, candidate.sourceId, candidate.cover, candidate.id, isLocal)?.let { url ->
+            ImageRequest.Builder(context).data(url).apply {
+                p.apiKey?.let { key ->
+                    httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+                }
+            }.build()
+        }
+    }
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = Modifier
+            .size(40.dp, 56.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentScale = ContentScale.Crop,
+    )
 }
 
 @Composable
@@ -509,7 +759,7 @@ private fun MangaHeader(
     val profile = state.profile
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row {
-            CoverImage(manga.cover, profile, Modifier.size(108.dp, 144.dp))
+            CoverImage(manga.id, manga.cover, profile, Modifier.size(108.dp, 144.dp), manga.sourceId)
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(manga.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -546,7 +796,7 @@ private fun MangaHeader(
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${manga.status.value} · ${manga.chapterCount} 话",
+                        stringResource(R.string.manga_status_chapters, mangaStatusLabel(manga.status), manga.chapterCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -555,7 +805,7 @@ private fun MangaHeader(
                         SuggestionChip(
                             onClick = {},
                             label = {
-                                Text("无痕中", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.manga_incognito_active), style = MaterialTheme.typography.labelSmall)
                             },
                         )
                     }
@@ -567,12 +817,16 @@ private fun MangaHeader(
             Button(onClick = onResume, enabled = state.resumeChapter != null, modifier = Modifier.weight(1f)) {
                 Text(
                     state.resumeChapter?.let { ch ->
-                        if (ch.lastPageRead > 0 && !ch.isRead) "继续阅读 · 第 ${ch.lastPageRead + 1} 页" else "继续阅读"
-                    } ?: "无章节",
+                        if (ch.lastPageRead > 0 && !ch.isRead) {
+                            stringResource(R.string.manga_resume_page, ch.lastPageRead + 1)
+                        } else {
+                            stringResource(R.string.manga_resume)
+                        }
+                    } ?: stringResource(R.string.manga_no_chapters),
                 )
             }
             OutlinedButton(onClick = onToggleLibrary, modifier = Modifier.weight(1f)) {
-                Text(if (manga.inLibrary) "移出书库" else "加入书库")
+                Text(if (manga.inLibrary) stringResource(R.string.manga_remove_from_library) else stringResource(R.string.manga_add_to_library))
             }
         }
         manga.description?.takeIf { it.isNotBlank() }?.let { description ->
@@ -610,11 +864,23 @@ private fun MangaHeader(
 private fun ChapterRow(
     chapter: ChapterWithDownload,
     localStatus: String?,
+    selecting: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
     onEnqueue: () -> Unit,
     onEnqueueLocal: () -> Unit,
+    onMarkRead: () -> Unit,
+    onMarkUnread: () -> Unit,
+    onMarkPreviousRead: () -> Unit,
+    onMarkPreviousUnread: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onDeleteDownload: () -> Unit,
 ) {
     val dimmed = chapter.isRead
+    // Read the locale from the composition so a locale change recomposes properly
+    // (Locale.getDefault() is not observable).
+    val locale = LocalConfiguration.current.locales[0]
+    var showActions by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -623,23 +889,28 @@ private fun ChapterRow(
             .alpha(if (dimmed) 0.55f else 1f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selecting) {
+            Checkbox(checked = selected, onCheckedChange = { onClick() })
+            Spacer(Modifier.width(8.dp))
+        }
         Column(Modifier.weight(1f)) {
             Text(
-                buildString {
-                    chapter.chapterNumber?.let { append("第 ${formatNumber(it)} 话") }
-                    chapter.title?.takeIf { it.isNotBlank() }?.let {
-                        if (isNotEmpty()) append(" · ")
-                        append(it)
-                    }
-                    if (isEmpty()) append(chapter.key)
-                },
+                // webui chapterLabel parity: Vol. X · Ch. X · title → … → untitled chapter
+                chapterLabel(chapter.volumeNumber, chapter.chapterNumber, chapter.title),
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            val readPageLabel = if (chapter.lastPageRead > 0 && !chapter.isRead) {
+                stringResource(R.string.manga_read_to_page, chapter.lastPageRead + 1)
+            } else {
+                null
+            }
             val subtitle = buildList {
-                chapter.dateUploaded?.let { add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(org.sumidoku.android.core.common.normalizeEpochMs(it)))) }
-                if (chapter.lastPageRead > 0 && !chapter.isRead) add("读到第 ${chapter.lastPageRead + 1} 页")
+                chapter.dateUploaded?.let { add(SimpleDateFormat("yyyy-MM-dd", locale).format(Date(org.sumidoku.android.core.common.normalizeEpochMs(it)))) }
+                if (readPageLabel != null) add(readPageLabel)
+                // Aidoku subtitle parity: every scanlator group, comma-joined.
+                chapter.scanlators?.takeIf { it.isNotEmpty() }?.let { add(it.joinToString(", ")) }
             }.joinToString(" · ")
             if (subtitle.isNotEmpty()) {
                 Text(
@@ -653,60 +924,122 @@ private fun ChapterRow(
                 )
             }
         }
-        if (chapter.hasFinishedDownload) {
-            Icon(
-                Icons.Outlined.CloudDownload,
-                contentDescription = "已下载",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-        } else {
-            IconButton(onClick = onEnqueue, modifier = Modifier.size(32.dp)) {
+        if (!selecting) {
+            if (chapter.locked) {
+                Icon(
+                    Icons.Outlined.Lock,
+                    contentDescription = stringResource(R.string.manga_locked),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            if (chapter.hasFinishedDownload) {
                 Icon(
                     Icons.Outlined.CloudDownload,
-                    contentDescription = "下载本章",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentDescription = stringResource(R.string.manga_downloaded),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp),
                 )
+                Spacer(Modifier.width(8.dp))
+            } else {
+                IconButton(onClick = onEnqueue, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Outlined.CloudDownload,
+                        contentDescription = stringResource(R.string.manga_download_chapter),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
-        }
-        when (localStatus) {
-            "done" -> Icon(
-                Icons.Outlined.SaveAlt,
-                contentDescription = "已存到本机",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp).padding(start = 2.dp),
-            )
-            "queued", "downloading" -> CircularProgressIndicator(
-                modifier = Modifier.size(16.dp).padding(start = 2.dp),
-                strokeWidth = 2.dp,
-            )
-            "error" -> Icon(
-                Icons.Outlined.SaveAlt,
-                contentDescription = "本机下载失败，点击重试",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier
-                    .size(18.dp)
-                    .padding(start = 2.dp)
-                    .clickable(onClick = onEnqueueLocal),
-            )
-            else -> IconButton(onClick = onEnqueueLocal, modifier = Modifier.size(32.dp)) {
-                Icon(
+            when (localStatus) {
+                "done" -> Icon(
                     Icons.Outlined.SaveAlt,
-                    contentDescription = "存到本机（离线阅读）",
+                    contentDescription = stringResource(R.string.manga_saved_locally),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp).padding(start = 2.dp),
+                )
+                "queued", "downloading" -> CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp).padding(start = 2.dp),
+                    strokeWidth = 2.dp,
+                )
+                "error" -> Icon(
+                    Icons.Outlined.SaveAlt,
+                    contentDescription = stringResource(R.string.manga_local_download_failed),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .padding(start = 2.dp)
+                        .clickable(onClick = onEnqueueLocal),
+                )
+                else -> IconButton(onClick = onEnqueueLocal, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Outlined.SaveAlt,
+                        contentDescription = stringResource(R.string.manga_save_local),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            if (chapter.isRead) {
+                Icon(
+                    Icons.Outlined.CheckCircle,
+                    contentDescription = stringResource(R.string.manga_read),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
-        }
-        if (chapter.isRead) {
-            Icon(
-                Icons.Outlined.CheckCircle,
-                contentDescription = "已读",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
+            Box {
+                IconButton(onClick = { showActions = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Outlined.MoreVert,
+                        contentDescription = stringResource(R.string.manga_chapter_actions),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                DropdownMenu(expanded = showActions, onDismissRequest = { showActions = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.manga_mark_read)) },
+                        enabled = !chapter.isRead,
+                        onClick = {
+                            showActions = false
+                            onMarkRead()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.manga_mark_unread)) },
+                        enabled = chapter.isRead,
+                        onClick = {
+                            showActions = false
+                            onMarkUnread()
+                        },
+                    )
+                    DropdownMenuItem(text = { Text(stringResource(R.string.manga_mark_previous_read)) }, onClick = {
+                        showActions = false
+                        onMarkPreviousRead()
+                    })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.manga_mark_previous_unread)) }, onClick = {
+                        showActions = false
+                        onMarkPreviousUnread()
+                    })
+                    DropdownMenuItem(
+                        text = { Text(if (chapter.isBookmarked) stringResource(R.string.manga_remove_bookmark) else stringResource(R.string.manga_bookmark_chapter)) },
+                        onClick = {
+                            showActions = false
+                            onToggleBookmark()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.manga_delete_download)) },
+                        enabled = chapter.hasFinishedDownload,
+                        onClick = {
+                            showActions = false
+                            onDeleteDownload()
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -725,13 +1058,13 @@ private fun CategoriesSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("分类", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.manga_categories_title), style = MaterialTheme.typography.titleMedium)
             when {
                 categories == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
                 categories.isEmpty() -> Text(
-                    "还没有分类（在设置里创建）",
+                    stringResource(R.string.manga_no_categories),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
@@ -758,17 +1091,34 @@ private fun CategoriesSheet(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { onSave(selected) }, modifier = Modifier.fillMaxWidth()) { Text("保存") }
+            Button(onClick = { onSave(selected) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_save)) }
         }
     }
 }
 
 @Composable
-internal fun CoverImage(cover: String?, profile: ServerProfile?, modifier: Modifier = Modifier) {    val context = LocalContext.current
-    val model = cover?.let { c ->
-        val url = if (c.startsWith("http")) c else profile?.baseUrl?.trimEnd('/') + c
+internal fun CoverImage(
+    mangaId: Long,
+    cover: String?,
+    profile: ServerProfile?,
+    modifier: Modifier = Modifier,
+    /** Needed only while mangaId is the -1 unregistered placeholder: the
+     *  cover then comes from the source-image proxy, not /manga/{id}/cover. */
+    sourceId: Long = -1L,
+) {
+    val context = LocalContext.current
+    // Same as webui coverUrl(manga.id, manga.cover): the server resolves the
+    // image itself, so local-source manga with cover == null still load.
+    val url = profile?.baseUrl?.let { base ->
+        if (mangaId <= 0) {
+            cover?.let { sourceImageUrl(base, sourceId, it) }
+        } else {
+            coverUrl(base, mangaId, cover)
+        }
+    }
+    val model = profile?.let {
         ImageRequest.Builder(context).data(url).apply {
-            profile?.apiKey?.let { key ->
+            it.apiKey?.let { key ->
                 httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
             }
         }.build()
@@ -787,27 +1137,29 @@ private fun formatNumber(value: Float): String =
     if (value % 1f == 0f) value.toInt().toString() else value.toString()
 
 /** Inline tracker bindings, mirroring webui's TrackerSection: a section
- *  header with the bound provider pills and one entry point that opens the
- *  full link manager (add/sync/unbind). */
+ *  header with the bound provider pills (brand logo + name + remote status)
+ *  and one entry point that opens the full link manager (add/sync/unbind). */
 @Composable
 private fun TrackerSection(
     links: List<TrackerLink>,
+    remotes: Map<TrackerProvider, TrackerRemote>,
+    onOpen: (TrackerLink) -> Unit,
     onManage: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "追踪",
+                stringResource(R.string.tracker_title),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onManage) {
-                Text(if (links.isEmpty()) "添加绑定" else "管理")
+                Text(if (links.isEmpty()) stringResource(R.string.tracker_add_link) else stringResource(R.string.tracker_manage))
             }
         }
         if (links.isEmpty()) {
             Text(
-                "还没有绑定追踪条目",
+                stringResource(R.string.tracker_no_links),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -817,21 +1169,24 @@ private fun TrackerSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
-                links.forEach { link -> TrackerPill(link, onManage) }
+                links.forEach { link ->
+                    TrackerPill(
+                        link = link,
+                        remote = remotes[link.provider],
+                        onClick = { onOpen(link) },
+                    )
+                }
             }
         }
         HorizontalDivider(Modifier.padding(top = 8.dp))
     }
 }
 
+/** Pill = brand logo + provider name + remote status; a red dot marks a
+ *  provider whose remote state could not be read. Tapping opens the editor. */
 @Composable
-private fun TrackerPill(link: TrackerLink, onClick: () -> Unit) {
-    val (label, color) = when (link.provider) {
-        TrackerProvider.ANILIST -> "AniList" to Color(0xFF02A9FF)
-        TrackerProvider.MAL -> "MyAnimeList" to Color(0xFF2E51A2)
-        TrackerProvider.BANGUMI -> "Bangumi" to Color(0xFFF0913A)
-        TrackerProvider.MANGABAKA -> "MangaBaka" to Color(0xFF6E56CF)
-    }
+private fun TrackerPill(link: TrackerLink, remote: TrackerRemote?, onClick: () -> Unit) {
+    val status = remote?.state?.status?.let { trackStatusLabel(it) }
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
@@ -841,7 +1196,156 @@ private fun TrackerPill(link: TrackerLink, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Box(Modifier.size(10.dp).clip(RoundedCornerShape(50)).background(color))
-        Text(label, style = MaterialTheme.typography.labelLarge)
+        TrackerLogo(link.provider, size = 16.dp)
+        Text(trackerProviderLabel(link.provider), style = MaterialTheme.typography.labelLarge)
+        if (status != null) {
+            Text(
+                status,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (remote?.failed == true) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.error),
+            )
+        }
     }
+}
+
+@Composable
+private fun mangaStatusLabel(status: MangaStatus): String = when (status) {
+    MangaStatus.UNKNOWN -> stringResource(R.string.manga_status_unknown)
+    MangaStatus.ONGOING -> stringResource(R.string.manga_status_ongoing)
+    MangaStatus.COMPLETED -> stringResource(R.string.manga_status_completed)
+    MangaStatus.CANCELLED -> stringResource(R.string.manga_status_cancelled)
+    MangaStatus.HIATUS -> stringResource(R.string.manga_status_hiatus)
+}
+
+/** Chapter list filter/sort sheet (webui chapterPrefs + Aidoku chapter
+ *  filters parity): sort key + direction, four tri-state filters, and
+ *  language / scanlator pickers that only appear when more than one
+ *  distinct value exists. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ChapterFilterSheet(
+    chapters: List<ChapterWithDownload>,
+    prefs: ChapterPrefs,
+    onChange: (ChapterPrefs) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val languages = chapters.mapNotNull { it.language?.takeIf(String::isNotBlank) }.distinct().sorted()
+    val allScanlators = chapters.flatMap { it.scanlators.orEmpty() }.distinct().sorted()
+    val hasUngrouped = chapters.any { it.scanlators.orEmpty().isEmpty() }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.chapter_sort), style = MaterialTheme.typography.titleSmall)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                val sorts = listOf(
+                    ChapterListSort.SOURCE to stringResource(R.string.chapter_sort_default),
+                    ChapterListSort.CHAPTER to stringResource(R.string.chapter_sort_number),
+                    ChapterListSort.DATE to stringResource(R.string.chapter_sort_date),
+                )
+                sorts.forEachIndexed { index, (sort, label) ->
+                    SegmentedButton(
+                        selected = prefs.sort == sort,
+                        onClick = { onChange(prefs.copy(sort = sort)) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = sorts.size),
+                    ) { Text(label) }
+                }
+            }
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                val dirs = listOf(
+                    false to stringResource(R.string.chapter_sort_desc),
+                    true to stringResource(R.string.chapter_sort_asc),
+                )
+                dirs.forEachIndexed { index, (asc, label) ->
+                    SegmentedButton(
+                        selected = prefs.asc == asc,
+                        onClick = { onChange(prefs.copy(asc = asc)) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = dirs.size),
+                    ) { Text(label) }
+                }
+            }
+            Text(stringResource(R.string.chapter_filter), style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TriChip(stringResource(R.string.chapter_filter_unread), prefs.unread) { onChange(prefs.copy(unread = it)) }
+                TriChip(stringResource(R.string.chapter_filter_downloaded), prefs.downloaded) { onChange(prefs.copy(downloaded = it)) }
+                TriChip(stringResource(R.string.chapter_filter_bookmarked), prefs.bookmarked) { onChange(prefs.copy(bookmarked = it)) }
+                TriChip(stringResource(R.string.chapter_filter_locked), prefs.locked) { onChange(prefs.copy(locked = it)) }
+            }
+            if (languages.size > 1) {
+                Text(stringResource(R.string.chapter_language), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = prefs.language == null,
+                        onClick = { onChange(prefs.copy(language = null)) },
+                        label = { Text(stringResource(R.string.filter_all)) },
+                    )
+                    languages.forEach { lang ->
+                        FilterChip(
+                            selected = prefs.language == lang,
+                            onClick = { onChange(prefs.copy(language = lang)) },
+                            label = { Text(lang) },
+                        )
+                    }
+                }
+            }
+            if (allScanlators.size > 1) {
+                Text(stringResource(R.string.chapter_scanlators), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val selected = prefs.scanlators
+                    val options = if (hasUngrouped) listOf("") + allScanlators else allScanlators
+                    FilterChip(
+                        selected = selected == null,
+                        onClick = { onChange(prefs.copy(scanlators = null)) },
+                        label = { Text(stringResource(R.string.filter_all)) },
+                    )
+                    options.forEach { group ->
+                        FilterChip(
+                            selected = selected != null && group in selected,
+                            onClick = {
+                                val next = (selected ?: emptySet()).toMutableSet().apply {
+                                    if (!add(group)) remove(group)
+                                }
+                                onChange(prefs.copy(scanlators = next.ifEmpty { null }))
+                            },
+                            label = { Text(if (group.isEmpty()) stringResource(R.string.chapter_no_scanlator) else group) },
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = { onChange(ChapterPrefs()) }) { Text(stringResource(R.string.chapter_reset_all)) }
+                Button(onClick = onDismiss) { Text(stringResource(R.string.manga_done)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TriChip(label: String, value: Tri, onChange: (Tri) -> Unit) {
+    val stateLabel = when (value) {
+        Tri.OFF -> stringResource(R.string.tri_off)
+        Tri.INCLUDE -> stringResource(R.string.tri_include)
+        Tri.EXCLUDE -> stringResource(R.string.tri_exclude)
+    }
+    FilterChip(
+        selected = value != Tri.OFF,
+        onClick = { onChange(value.next()) },
+        label = { Text(stringResource(R.string.tri_chip_label, label, stateLabel)) },
+    )
 }

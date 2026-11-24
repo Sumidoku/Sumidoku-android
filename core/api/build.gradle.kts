@@ -161,26 +161,52 @@ tasks.register("patchGeneratedSources") {
                 if (patched != original) target.writeText(patched)
             }
         }
+        // The generator emits @Contextual java.math.BigDecimal for numeric
+        // oneOf values (RemoteState.lastReadChapter, TrackerSyncResult.progress,
+        // TrackUpdate, TrackerUpdateRequest). No contextual serializer is
+        // registered for BigDecimal, so decoding any tracker remote state or
+        // sync result aborts with "Serializer for class 'BigDecimal' is not
+        // found" — tracker pills never show remote progress and sync always
+        // fails. The wire values are plain JSON numbers (f32/f64 server-side),
+        // so kotlin.Double is a drop-in replacement for both directions.
+        modelDir.listFiles { f -> f.extension == "kt" }?.forEach { target ->
+            val text = target.readText()
+            if (text.contains("java.math.BigDecimal")) {
+                val lines = text.lines()
+                val out = ArrayList<String>(lines.size)
+                for (i in lines.indices) {
+                    val line = lines[i]
+                    val next = lines.getOrNull(i + 1) ?: ""
+                    when {
+                        // The generator puts @Contextual on its own line
+                        // above the property; Double has a built-in
+                        // serializer, so the annotation must go too.
+                        next.contains("java.math.BigDecimal") && line.trimStart().startsWith("@Contextual ") ->
+                            out += line.replaceFirst("@Contextual ", "")
+                        line.contains("java.math.BigDecimal") ->
+                            out += line.replace("java.math.BigDecimal", "kotlin.Double").replaceFirst("@Contextual ", "")
+                        else -> out += line
+                    }
+                }
+                target.writeText(out.joinToString(System.lineSeparator()))
+            }
+        }
         // Nullable properties without a default still require the key to be
         // present: a missing key aborts the whole decode with
         // MissingFieldException. The vendored aidoku wire types send
         // explicit nulls, but any hand-written or future payload that omits
-        // an optional key would take the whole source home/listing/search
-        // response down. Default every nullable property to null in that
-        // payload family so decode tolerates omitted keys.
-        val tolerantNames = setOf(
-            "HomeComponent.kt", "HomeLayout.kt", "Link.kt", "AidokuListing.kt",
-            "Listing.kt", "HomeFilterItem.kt", "SourceManga.kt",
-            "SourceChapter.kt", "MangaWithChapter.kt",
-        )
-        modelDir.listFiles { f ->
-            f.extension == "kt" && (
-                f.name in tolerantNames ||
-                    f.name.startsWith("HomeComponentValueOneOf") ||
-                    f.name.startsWith("LinkValueOneOf")
-                )
-        }?.forEach { target ->
-            val lines = target.readLines()
+        // an optional key would take the whole response down (the library
+        // page, search candidates and migration lookups have all hit this
+        // against older/edge servers). Default every nullable property to
+        // null in EVERY model: on the request side explicitNulls=false
+        // means an unset null is simply omitted, which is the correct
+        // semantics for an optional field anyway.
+        modelDir.listFiles { f -> f.extension == "kt" }?.forEach { target ->
+            val text = target.readText()
+            // Interfaces (e.g. the oneOf RegisterInternalRequest) cannot
+            // carry property initializers — leave their val lines alone.
+            if (Regex("(?m)^\\s*(?:sealed\\s+)?interface\\s").containsMatchIn(text)) return@forEach
+            val lines = text.lines()
             var changed = false
             val patched = lines.map { line ->
                 val trimmed = line.trimStart()
@@ -202,8 +228,8 @@ tasks.register("patchGeneratedSources") {
         // MigrationSource is the /migrate/sources row. Older servers omit
         // later-added fields (mangaCount, pin fields, updateVersion), and a
         // missing key aborts the whole list decode — the migration screen
-        // then shows only "始终报错不显示内容". Default every property
-        // except the primary key so an older payload still decodes.
+        // then shows only a permanent error with no content. Default every
+        // property except the primary key so an older payload still decodes.
         val migrationSource = File(modelDir, "MigrationSource.kt")
         if (migrationSource.exists()) {
             val lines = migrationSource.readLines()
@@ -225,6 +251,36 @@ tasks.register("patchGeneratedSources") {
                 }
             }
             if (changed) migrationSource.writeText(patched.joinToString(System.lineSeparator()))
+        }
+        // SettingValue is externally tagged on the wire: known kinds are
+        // one-key objects, but Button and any kind unknown to the server's
+        // normalizer (e.g. the local source "list" rows for
+        // paths/exclusions) arrive as bare JSON strings. The generated data
+        // class has no string branch, so a bare string aborts the whole
+        // settings document decode ("Expected start of the object '{'"),
+        // which the UI then reports as "source settings completely
+        // unavailable". Add a
+        // rawString carrier field and route SourceSetting.value through the
+        // hand-written SettingValueSerializer (property-level annotation —
+        // a class-level one would make SettingValue.serializer() recurse
+        // into itself inside the delegate).
+        val settingValue = File(modelDir, "SettingValue.kt")
+        if (settingValue.exists()) {
+            val original = settingValue.readText()
+            val patched = original.replace(
+                Regex("""val picker: SettingValueOneOf11Picker\? = null\R\R\) \{"""),
+                "val picker: SettingValueOneOf11Picker? = null,\n\n    @SerialName(value = \"rawString\")\n    val rawString: kotlin.String? = null\n\n) {",
+            )
+            if (patched != original) settingValue.writeText(patched)
+        }
+        val sourceSetting = File(modelDir, "SourceSetting.kt")
+        if (sourceSetting.exists()) {
+            val original = sourceSetting.readText()
+            val patched = original.replace(
+                Regex("""@SerialName\(value = "value"\)\R    val `value`: SettingValue"""),
+                "@SerialName(value = \"value\")\n    @Serializable(with = org.sumidoku.android.core.api.SettingValueSerializer::class)\n    val `value`: SettingValue",
+            )
+            if (patched != original) sourceSetting.writeText(patched)
         }
     }
 }

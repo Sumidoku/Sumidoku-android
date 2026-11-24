@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 搜索页 -->
+    <string name="search_title">搜索</string>
+    <string name="search_back">返回</string>
+    <string name="search_placeholder">在所有图源中搜索…</string>
+    <string name="search_action">搜索</string>
+    <string name="search_no_sources">当前筛选没有可用图源</string>
+    <string name="search_prompt_source_count">输入关键词，一次搜索 %1$d 个图源</string>
+    <string name="search_empty">没有找到结果</string>
+    <string name="search_entry_count">%1$d 条</string>
+    <string name="search_view_all">查看全部</string>
+    <string name="search_loading">加载中…</string>
+    <string name="search_load_more">加载更多</string>
+    <string name="search_filter_ratings">分级</string>
+    <string name="search_filter_languages">语言</string>
+    <string name="search_filter_sources">图源</string>
+    <string name="search_source_progress">%1$d/%2$d 个图源</string>
+    <string name="search_reset">重置</string>
+    <string name="search_done">完成</string>
+    <string name="search_include">包含</string>
+    <string name="search_exclude">排除</string>
+
+    <!-- 内容分级 -->
+    <string name="search_rating_safe">安全</string>
+    <string name="search_rating_contains_nsfw">含 NSFW</string>
+    <string name="search_rating_nsfw">NSFW</string>
+
+    <!-- 语言标签 -->
+    <string name="search_lang_multi">多语言</string>
+    <string name="search_lang_en">英语</string>
+    <string name="search_lang_ja">日语</string>
+    <string name="search_lang_zh">中文</string>
+    <string name="search_lang_ko">韩语</string>
+    <string name="search_lang_fr">法语</string>
+    <string name="search_lang_de">德语</string>
+    <string name="search_lang_es">西班牙语</string>
+    <string name="search_lang_pt">葡萄牙语</string>
+    <string name="search_lang_it">意大利语</string>
+    <string name="search_lang_ru">俄语</string>
+    <string name="search_lang_ar">阿拉伯语</string>
+    <string name="search_lang_hi">印地语</string>
+    <string name="search_lang_th">泰语</string>
+    <string name="search_lang_vi">越南语</string>
+    <string name="search_lang_id">印尼语</string>
+    <string name="search_lang_tr">土耳其语</string>
+    <string name="search_lang_pl">波兰语</string>
+    <string name="search_lang_nl">荷兰语</string>
+    <string name="search_lang_sv">瑞典语</string>
+    <string name="search_lang_uk">乌克兰语</string>
+    <string name="search_lang_ro">罗马尼亚语</string>
+    <string name="search_lang_cs">捷克语</string>
+    <string name="search_lang_el">希腊语</string>
+    <string name="search_lang_hu">匈牙利语</string>
+    <string name="search_lang_fi">芬兰语</string>
+    <string name="search_lang_da">丹麦语</string>
+    <string name="search_lang_no">挪威语</string>
+    <string name="search_lang_he">希伯来语</string>
+    <string name="search_lang_fa">波斯语</string>
+    <string name="search_lang_ms">马来语</string>
+    <string name="search_lang_tl">他加禄语</string>
+    <string name="search_lang_ca">加泰罗尼亚语</string>
+
+    <!-- ViewModel 结果与错误 -->
+    <string name="search_failed">搜索失败</string>
+    <string name="search_source_fallback">图源 %1$d</string>
+</resources>

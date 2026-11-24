@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,11 +25,14 @@ data class IncognitoUiState(
     val error: String? = null,
 )
 
-/** 设置首页的「无痕阅读」开关。webui 把 incognito 放在常规组里，漫画详情页
- *  仍可按单部覆盖；PUT /settings 按整份结构化对象写入，所以这里先缓存整份
- *  服务端设置，只替换 incognito 组后提交。 */
+/** The "incognito reading" toggle on the settings home page. The webui places
+ *  incognito in the general group, and the manga detail page can still override
+ *  it per title; PUT /settings writes the whole structured object, so this
+ *  ViewModel caches the full server settings and only replaces the incognito
+ *  group before submitting. */
 @HiltViewModel
 class IncognitoViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val factory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -64,8 +69,9 @@ class IncognitoViewModel @Inject constructor(
             val previous = settings?.incognito?.enabled ?: _state.value.enabled
             _state.value = _state.value.copy(busy = true, enabled = enabled, error = null)
             try {
-                // 先取一次最新设置：服务器设置页可能刚改过其它分组，直接把旧
-                // 快照 PUT 回去会覆盖掉那些修改。
+                // Fetch the latest settings first: the server settings page may
+                // have just changed other groups, and PUTting the old snapshot
+                // back would overwrite those changes.
                 val current = try {
                     factory.create<SettingsApi>(p).getSettings().await()
                 } catch (e: Exception) {

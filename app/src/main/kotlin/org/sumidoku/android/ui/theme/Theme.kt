@@ -40,15 +40,44 @@ private val SumidokuLight = lightColorScheme(
     error = Color(0xFFBA1A1A),
 )
 
+// Design 37: AMOLED keeps the dark palette's text and accent but drops the
+// background to true black, and separates cards/sheets/bars with three
+// near-black surfaceContainer steps instead of one flat surface. Pure black
+// everywhere except those steps would erase the layering.
+private val SumidokuAmoled = darkColorScheme(
+    primary = Color(0xFFA8B5FF),
+    onPrimary = Color(0xFF1A1D33),
+    primaryContainer = Color(0xFF2E3352),
+    onPrimaryContainer = Color(0xFFDDE1FF),
+    background = Color(0xFF000000),
+    onBackground = Color(0xFFE6E6EB),
+    surface = Color(0xFF050507),
+    onSurface = Color(0xFFE6E6EB),
+    surfaceVariant = Color(0xFF101014),
+    onSurfaceVariant = Color(0xFF9A9AA8),
+    surfaceContainerLowest = Color(0xFF000000),
+    surfaceContainerLow = Color(0xFF08080B),
+    surfaceContainer = Color(0xFF0C0C10),
+    surfaceContainerHigh = Color(0xFF131318),
+    surfaceContainerHighest = Color(0xFF1A1A21),
+    outline = Color(0xFF3D415A),
+    outlineVariant = Color(0xFF23232C),
+    error = Color(0xFFF2B8B5),
+)
+
 @Composable
 fun SumidokuTheme(themePref: String = "system", content: @Composable () -> Unit) {
+    // "system" resolves to dark unless the device is in light mode: the app is
+    // dark-first, so this is the only case that needs the system signal.
     val dark = when (themePref) {
-        "dark" -> true
         "light" -> false
+        "dark", "amoled" -> true
         else -> isSystemInDarkTheme()
     }
-    MaterialTheme(
-        colorScheme = if (dark) SumidokuDark else SumidokuLight,
-        content = content,
-    )
+    val scheme = when {
+        themePref == "amoled" -> SumidokuAmoled
+        dark -> SumidokuDark
+        else -> SumidokuLight
+    }
+    MaterialTheme(colorScheme = scheme, content = content)
 }

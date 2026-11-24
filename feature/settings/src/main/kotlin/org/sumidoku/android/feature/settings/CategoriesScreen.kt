@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,11 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -71,6 +74,7 @@ data class CategoriesUiState(
 
 @HiltViewModel
 class CategoriesViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -85,7 +89,10 @@ class CategoriesViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = CategoriesUiState(loading = false, error = "未选择服务器")
+                _state.value = CategoriesUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.misc_no_server_selected),
+                )
                 return@launch
             }
             try {
@@ -99,15 +106,15 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun create(name: String) {
-        mutate("已创建") { it.createCategory(CategoryNameRequest(name)) }
+        mutate(appContext.getString(R.string.categories_created)) { it.createCategory(CategoryNameRequest(name)) }
     }
 
     fun rename(id: Long, name: String) {
-        mutate("已重命名") { it.updateCategory(id, UpdateCategoryRequest(name = name)) }
+        mutate(appContext.getString(R.string.categories_renamed)) { it.updateCategory(id, UpdateCategoryRequest(name = name)) }
     }
 
     fun delete(id: Long) {
-        mutate("已删除") { it.deleteCategory(id) }
+        mutate(appContext.getString(R.string.categories_deleted)) { it.deleteCategory(id) }
     }
 
     fun move(id: Long, delta: Int) {
@@ -117,7 +124,7 @@ class CategoriesViewModel @Inject constructor(
         if (index < 0 || target !in list.indices) return
         val moved = list.removeAt(index)
         list.add(target, moved)
-        mutate("已保存顺序") { it.reorderCategories(ReorderRequest(ids = list.map { c -> c.id })) }
+        mutate(appContext.getString(R.string.categories_order_saved)) { it.reorderCategories(ReorderRequest(ids = list.map { c -> c.id })) }
     }
 
     private fun mutate(message: String, call: (CategoriesApi) -> retrofit2.Call<*>) {
@@ -161,17 +168,17 @@ fun CategoriesScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("分类管理") },
+                title = { Text(stringResource(R.string.categories_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { dialog = null to "" }) {
-                Icon(Icons.Outlined.Add, contentDescription = "新建分类")
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.categories_new))
             }
         },
     ) { padding ->
@@ -180,7 +187,7 @@ fun CategoriesScreen(
                 CircularProgressIndicator()
             }
             state.categories.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("还没有分类", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.categories_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -192,9 +199,10 @@ fun CategoriesScreen(
                         headlineContent = { Text(category.name) },
                         supportingContent = {
                             Text(
-                                buildString {
-                                    append("${category.mangaCount} 部漫画")
-                                    if (category.isDefault) append(" · 默认")
+                                if (category.isDefault) {
+                                    stringResource(R.string.categories_manga_count_default, category.mangaCount)
+                                } else {
+                                    stringResource(R.string.categories_manga_count, category.mangaCount)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -204,13 +212,13 @@ fun CategoriesScreen(
                                 IconButton(
                                     enabled = index > 0,
                                     onClick = { viewModel.move(category.id, -1) },
-                                ) { Icon(Icons.Outlined.ArrowUpward, contentDescription = "上移") }
+                                ) { Icon(Icons.Outlined.ArrowUpward, contentDescription = stringResource(R.string.misc_move_up)) }
                                 IconButton(
                                     enabled = index < state.categories.lastIndex,
                                     onClick = { viewModel.move(category.id, 1) },
-                                ) { Icon(Icons.Outlined.ArrowDownward, contentDescription = "下移") }
+                                ) { Icon(Icons.Outlined.ArrowDownward, contentDescription = stringResource(R.string.misc_move_down)) }
                                 IconButton(onClick = { dialog = category.id to category.name }) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "重命名")
+                                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.misc_rename))
                                 }
                                 IconButton(
                                     enabled = !category.isDefault,
@@ -218,7 +226,7 @@ fun CategoriesScreen(
                                 ) {
                                     Icon(
                                         Icons.Outlined.DeleteOutline,
-                                        contentDescription = "删除",
+                                        contentDescription = stringResource(R.string.misc_delete),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -232,15 +240,20 @@ fun CategoriesScreen(
 
     dialog?.let { (id, initial) ->
         var name by remember(id) { mutableStateOf(initial) }
+        val dialogTitle = if (id == null) {
+            stringResource(R.string.categories_new)
+        } else {
+            stringResource(R.string.categories_rename_title)
+        }
         AlertDialog(
             onDismissRequest = { dialog = null },
-            title = { Text(if (id == null) "新建分类" else "重命名分类") },
+            title = { Text(dialogTitle) },
             text = {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    label = { Text("名称") },
+                    label = { Text(stringResource(R.string.misc_name)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
@@ -251,10 +264,10 @@ fun CategoriesScreen(
                         if (id == null) viewModel.create(name.trim()) else viewModel.rename(id, name.trim())
                         dialog = null
                     },
-                ) { Text("保存") }
+                ) { Text(stringResource(R.string.misc_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { dialog = null }) { Text("取消") }
+                TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.misc_cancel)) }
             },
         )
     }

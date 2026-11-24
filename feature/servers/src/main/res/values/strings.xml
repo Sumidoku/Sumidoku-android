@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="servers_title">Servers</string>
+    <string name="servers_add">Add server</string>
+    <string name="servers_add_confirm">Add</string>
+    <string name="servers_cancel">Cancel</string>
+    <string name="servers_verifying">Verifying…</string>
+    <string name="servers_empty_title">No servers yet</string>
+    <string name="servers_empty_desc">Add your Sumidoku instance to get started</string>
+    <string name="servers_current">Current server</string>
+    <string name="servers_delete">Delete</string>
+    <string name="servers_mirrors">+%1$d mirrors</string>
+    <string name="servers_name_optional">Name (optional)</string>
+    <string name="servers_url_label">Address *</string>
+    <string name="servers_url_placeholder">http://192.168.1.10:4567</string>
+    <string name="servers_credential_key">API Key</string>
+    <string name="servers_credential_password">Username &amp; password</string>
+    <string name="servers_api_key_optional">API Key (optional)</string>
+    <string name="servers_api_key_hint">Create one in Server settings → System → API keys</string>
+    <string name="servers_username">Username</string>
+    <string name="servers_password">Password</string>
+    <string name="servers_password_hint">Signs in for a rolling 30-day session token, the same mechanism as the webui</string>
+    <string name="servers_mirrors_label">Mirror addresses (optional, one per line)</string>
+    <string name="servers_error_probe_failed">Cannot connect, or this is not a Sumidoku server (/api/v1/version: %1$s)</string>
+    <string name="servers_error_bad_credentials">Incorrect username or password</string>
+    <string name="servers_error_login_http">Login failed (HTTP %1$d)</string>
+    <string name="servers_error_login">Login failed: %1$s</string>
+</resources>

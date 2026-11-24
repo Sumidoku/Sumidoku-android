@@ -105,6 +105,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -161,7 +162,7 @@ fun ReaderScreen(
             state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(state.error!!, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { viewModel.openChapter(state.chapterId) }) { Text("重试") }
+                    TextButton(onClick = { viewModel.openChapter(state.chapterId) }) { Text(stringResource(R.string.reader_retry)) }
                 }
             }
             state.vertical -> VerticalReaderBody(state, viewModel)
@@ -422,7 +423,7 @@ private fun TransitionPage(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            if (isNext) "下一话" else "上一话",
+            stringResource(if (isNext) R.string.reader_next_chapter else R.string.reader_prev_chapter),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -432,11 +433,11 @@ private fun TransitionPage(
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
-        val meta = buildString {
-            append("${chapter.pageCount} 页")
-            if (chapter.isRead) append(" · 已读")
-            if (chapter.isDownloaded || chapter.hasFinishedDownload) append(" · 已下载")
-        }
+        val meta = buildList {
+            add(stringResource(R.string.reader_page_count, chapter.pageCount))
+            if (chapter.isRead) add(stringResource(R.string.reader_read_badge))
+            if (chapter.isDownloaded || chapter.hasFinishedDownload) add(stringResource(R.string.reader_downloaded_badge))
+        }.joinToString(" · ")
         Spacer(Modifier.size(6.dp))
         Text(
             meta,
@@ -446,15 +447,17 @@ private fun TransitionPage(
         if (skipped > 0) {
             Spacer(Modifier.size(14.dp))
             Text(
-                "⚠ 缺 $skipped 话 · 目录不连续",
+                stringResource(R.string.reader_chapters_missing, skipped),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.tertiary,
             )
         }
         Spacer(Modifier.size(24.dp))
-        Button(onClick = onConfirm) { Text(if (isNext) "继续阅读" else "回到上一话") }
+        Button(onClick = onConfirm) {
+            Text(stringResource(if (isNext) R.string.reader_continue_reading else R.string.reader_back_to_previous))
+        }
         Spacer(Modifier.size(4.dp))
-        TextButton(onClick = onBack) { Text("留在本话") }
+        TextButton(onClick = onBack) { Text(stringResource(R.string.reader_stay_here)) }
     }
 }
 
@@ -559,15 +562,15 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                     ) {
                         Text(
                             when {
-                                pull <= -pullThreshold -> "松手进入下一话"
-                                pull < 0f -> "继续拖动进入下一话"
-                                else -> "已到本话末尾"
+                                pull <= -pullThreshold -> stringResource(R.string.reader_release_next_chapter)
+                                pull < 0f -> stringResource(R.string.reader_keep_pulling_next)
+                                else -> stringResource(R.string.reader_end_of_chapter)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         TextButton(onClick = { viewModel.openChapter(nextChapter.id) }) {
-                            Text("下一话 · " + chapterCardLabel(nextChapter))
+                            Text(stringResource(R.string.reader_next_chapter_label, chapterCardLabel(nextChapter)))
                         }
                     }
                 }
@@ -656,7 +659,7 @@ private fun VerticalScrollBar(
             ) {
                 Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     Text(
-                        "${(shown * (total - 1)).toInt() + 1} / $total",
+                        stringResource(R.string.reader_page_progress, (shown * (total - 1)).toInt() + 1, total),
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium,
                     )
@@ -924,9 +927,9 @@ private fun TapZonePreview(layout: String, rtl: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.padding(top = 4.dp),
     ) {
-        Text("◼ 上一页", color = prevColor, style = MaterialTheme.typography.labelSmall)
-        Text("◼ 菜单", color = menuColor, style = MaterialTheme.typography.labelSmall)
-        Text("◼ 下一页", color = nextColor, style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(R.string.reader_legend_prev_page), color = prevColor, style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(R.string.reader_legend_menu), color = menuColor, style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(R.string.reader_legend_next_page), color = nextColor, style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -989,8 +992,8 @@ private fun ReaderImage(
         // jump; the retry button sits above the tap zones (preview 07).
         Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("页面加载失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { failed = false; retryKey++ }) { Text("重试") }
+                Text(stringResource(R.string.reader_page_load_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { failed = false; retryKey++ }) { Text(stringResource(R.string.reader_retry)) }
             }
         }
         return
@@ -1054,19 +1057,20 @@ private fun ReaderOverlay(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = chromeContent)
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.reader_back), tint = chromeContent)
                 }
                 if (state.incognito) {
                     Icon(
                         Icons.Outlined.VisibilityOff,
-                        contentDescription = "无痕阅读",
+                        contentDescription = stringResource(R.string.reader_incognito),
                         tint = chromeContent.copy(alpha = 0.85f),
                         modifier = Modifier.padding(start = 4.dp),
                     )
                 }
                 Column(Modifier.padding(start = if (state.incognito) 8.dp else 0.dp)) {
                     Text(
-                        state.chapterTitle,
+                        if (state.chapterTitle.isNotEmpty()) state.chapterTitle
+                        else stringResource(R.string.reader_chapter),
                         color = chromeContent,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
@@ -1082,17 +1086,17 @@ private fun ReaderOverlay(
                             Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
                         }
                         Text(
-                            "${state.index + 1} / ${state.pages.size}",
+                            stringResource(R.string.reader_page_progress, state.index + 1, state.pages.size),
                             style = MaterialTheme.typography.labelSmall,
                             color = chromeContent.copy(alpha = 0.7f),
                         )
                         if (!state.vertical) {
                             Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
                             Text(
-                                when {
-                                    !state.doubleSpread(landscape) -> "单页"
-                                    else -> "双页"
-                                },
+                                stringResource(
+                                    if (!state.doubleSpread(landscape)) R.string.reader_layout_single
+                                    else R.string.reader_layout_double,
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = chromeContent.copy(alpha = 0.7f),
                             )
@@ -1100,7 +1104,7 @@ private fun ReaderOverlay(
                         if (state.dir == "rtl") {
                             Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
                             Text(
-                                "右→左",
+                                stringResource(R.string.reader_dir_rtl),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = chromeContent.copy(alpha = 0.7f),
                             )
@@ -1133,12 +1137,12 @@ private fun ReaderOverlay(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OverlayAction(Icons.Outlined.FormatListNumbered, "章节", tint = chromeContent) {
+                    OverlayAction(Icons.Outlined.FormatListNumbered, stringResource(R.string.reader_chapters), tint = chromeContent) {
                         viewModel.openChapterSheet(true)
                     }
                     OverlayAction(
                         if (state.vertical) Icons.Outlined.ViewCarousel else Icons.Outlined.ViewAgenda,
-                        "阅读模式",
+                        stringResource(R.string.reader_reading_mode),
                         tint = chromeContent,
                         accent = true,
                         dot = state.overridden.contains(ReaderField.MODE),
@@ -1150,17 +1154,17 @@ private fun ReaderOverlay(
                             PageLayout.DOUBLE -> Icons.Outlined.ViewColumn
                             PageLayout.AUTO -> Icons.Outlined.ViewColumn
                         },
-                        "布局",
+                        stringResource(R.string.reader_layout),
                         tint = chromeContent,
                         dot = state.overridden.contains(ReaderField.LAYOUT),
                     ) { viewModel.setLayout(nextLayout(state.layout)) }
                     OverlayAction(
                         Icons.Outlined.SwapHoriz,
-                        "方向",
+                        stringResource(R.string.reader_direction),
                         tint = chromeContent,
                         dot = state.overridden.contains(ReaderField.DIR),
                     ) { viewModel.setDir(nextDir(state.dirPreference)) }
-                    OverlayAction(Icons.Outlined.Tune, "设置", tint = chromeContent) { showSettings = true }
+                    OverlayAction(Icons.Outlined.Tune, stringResource(R.string.reader_settings), tint = chromeContent) { showSettings = true }
                 }
             }
         }
@@ -1230,7 +1234,7 @@ private fun nextDir(pref: String): String = when (pref) {
 }
 
 /** Long-pressing the mode key flips paged ⇄ webtoon without opening the
- *  panel (preview 07: 模式 · 长按切换). */
+ *  panel (preview 07: mode · long-press to switch). */
 private fun nextMode(mode: String): String = when (mode) {
     ReadingMode.WEBTOON -> ReadingMode.PAGED
     else -> ReadingMode.WEBTOON
@@ -1266,7 +1270,7 @@ private fun ChapterNavigator(
             ) {
                 Icon(
                     if (rtl) Icons.AutoMirrored.Outlined.NavigateNext else Icons.AutoMirrored.Outlined.NavigateBefore,
-                    contentDescription = "上一章",
+                    contentDescription = stringResource(R.string.reader_previous_chapter_desc),
                     tint = contentColor,
                     modifier = Modifier.size(20.dp),
                 )
@@ -1298,7 +1302,7 @@ private fun ChapterNavigator(
             ) {
                 Icon(
                     if (rtl) Icons.AutoMirrored.Outlined.NavigateBefore else Icons.AutoMirrored.Outlined.NavigateNext,
-                    contentDescription = "下一章",
+                    contentDescription = stringResource(R.string.reader_next_chapter_desc),
                     tint = contentColor,
                     modifier = Modifier.size(20.dp),
                 )
@@ -1337,36 +1341,46 @@ private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("章节", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.reader_chapters), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${state.chapters.size} 话 · ${state.chapters.count { it.isRead }} 已读 · ${unread.coerceAtLeast(0)} 未读",
+                        stringResource(
+                            R.string.reader_chapter_stats,
+                            state.chapters.size,
+                            state.chapters.count { it.isRead },
+                            unread.coerceAtLeast(0),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = { descending = !descending }) {
-                    Icon(Icons.Outlined.Sort, contentDescription = if (descending) "改为升序" else "改为降序")
+                    Icon(
+                        Icons.Outlined.Sort,
+                        contentDescription = stringResource(
+                            if (descending) R.string.reader_sort_ascending else R.string.reader_sort_descending,
+                        ),
+                    )
                 }
                 IconButton(onClick = { viewModel.openChapterSheet(false) }) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "关闭")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.reader_close))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
-                FilterChip(selected = filter == "all", onClick = { filter = "all" }, label = { Text("全部") })
+                FilterChip(selected = filter == "all", onClick = { filter = "all" }, label = { Text(stringResource(R.string.reader_filter_all)) })
                 FilterChip(
                     selected = filter == "unread",
                     onClick = { filter = "unread" },
-                    label = { Text("未读 $unread") },
+                    label = { Text(stringResource(R.string.reader_filter_unread, unread)) },
                 )
                 FilterChip(
                     selected = filter == "downloaded",
                     onClick = { filter = "downloaded" },
-                    label = { Text("已下载 $downloaded") },
+                    label = { Text(stringResource(R.string.reader_filter_downloaded, downloaded)) },
                 )
             }
             if (visible.any { it.id == state.chapterId }) {
                 Text(
-                    "已定位到当前话",
+                    stringResource(R.string.reader_located_current),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -1381,16 +1395,16 @@ private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
                         )
-                        TextButton(onClick = { viewModel.retryChapters() }) { Text("重试") }
+                        TextButton(onClick = { viewModel.retryChapters() }) { Text(stringResource(R.string.reader_retry)) }
                     }
                 }
                 visible.isEmpty() -> {
                     Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
                         Text(
                             when (filter) {
-                                "unread" -> "没有未读章节"
-                                "downloaded" -> "没有已下载章节"
-                                else -> "暂无章节"
+                                "unread" -> stringResource(R.string.reader_no_unread_chapters)
+                                "downloaded" -> stringResource(R.string.reader_no_downloaded_chapters)
+                                else -> stringResource(R.string.reader_no_chapters)
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1434,7 +1448,7 @@ private fun ChapterGapRow(missing: Int) {
             Text("⚠", color = MaterialTheme.colorScheme.tertiary)
             Spacer(Modifier.width(8.dp))
             Text(
-                "缺 $missing 话 · 目录不连续",
+                stringResource(R.string.reader_chapters_missing, missing),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1460,17 +1474,17 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
             )
             Column(Modifier.weight(1f)) {
                 Text(
-                    chapter.title?.takeIf { it.isNotBlank() } ?: "第 $number 话",
+                    chapter.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.reader_chapter_fallback, number),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = if (chapter.isRead) MaterialTheme.colorScheme.onSurfaceVariant
                     else MaterialTheme.colorScheme.onSurface,
                 )
-                val meta = buildString {
-                    append("${chapter.pageCount} 页")
-                    if (chapter.lastPageRead > 0) append(" · 读到 P.${chapter.lastPageRead + 1}")
-                }
+                val meta = buildList {
+                    add(stringResource(R.string.reader_page_count, chapter.pageCount))
+                    if (chapter.lastPageRead > 0) add(stringResource(R.string.reader_read_to_page, chapter.lastPageRead + 1))
+                }.joinToString(" · ")
                 Text(
                     meta,
                     style = MaterialTheme.typography.labelSmall,
@@ -1480,7 +1494,7 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
             if (chapter.isBookmarked) {
                 Icon(
                     Icons.Outlined.BookmarkBorder,
-                    contentDescription = "已加书签",
+                    contentDescription = stringResource(R.string.reader_bookmarked),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1488,7 +1502,7 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
             if (chapter.locked) {
                 Icon(
                     Icons.Outlined.Lock,
-                    contentDescription = "已锁定",
+                    contentDescription = stringResource(R.string.reader_locked),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1496,14 +1510,14 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
             if (chapter.isDownloaded || chapter.hasFinishedDownload) {
                 Icon(
                     Icons.Outlined.Download,
-                    contentDescription = "已下载",
+                    contentDescription = stringResource(R.string.reader_downloaded_badge),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
             } else if (chapter.isRead) {
                 Icon(
                     Icons.Outlined.Check,
-                    contentDescription = "已读",
+                    contentDescription = stringResource(R.string.reader_read_badge),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1524,7 +1538,7 @@ private fun QuickPanelSheet(state: ReaderUiState, viewModel: ReaderViewModel, on
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("阅读设置", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.reader_reading_settings), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.width(8.dp))
                 ChainTag(overridden = state.overridden.isNotEmpty())
             }
@@ -1532,7 +1546,7 @@ private fun QuickPanelSheet(state: ReaderUiState, viewModel: ReaderViewModel, on
             LayoutSection(state, viewModel)
             DirSection(state, viewModel)
             Text(
-                "改动即时生效 · 与解析值相同会自动取消覆盖",
+                stringResource(R.string.reader_overrides_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1548,7 +1562,7 @@ private fun ChainTag(overridden: Boolean) {
         shape = RoundedCornerShape(6.dp),
     ) {
         Text(
-            if (overridden) "本漫画覆盖" else "跟随解析",
+            stringResource(if (overridden) R.string.reader_chain_overridden else R.string.reader_chain_resolved),
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1559,12 +1573,12 @@ private fun ChainTag(overridden: Boolean) {
 @Composable
 private fun ModeSection(state: ReaderUiState, viewModel: ReaderViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("模式", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.reader_mode), style = MaterialTheme.typography.titleSmall)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             listOf(
-                ReadingMode.PAGED to "分页",
-                ReadingMode.CONTINUOUS to "连续",
-                ReadingMode.WEBTOON to "条漫",
+                ReadingMode.PAGED to stringResource(R.string.reader_mode_paged),
+                ReadingMode.CONTINUOUS to stringResource(R.string.reader_mode_continuous),
+                ReadingMode.WEBTOON to stringResource(R.string.reader_mode_webtoon),
             ).forEachIndexed { index, (value, label) ->
                 SegmentedButton(
                     selected = state.mode == value,
@@ -1579,7 +1593,7 @@ private fun ModeSection(state: ReaderUiState, viewModel: ReaderViewModel) {
 @Composable
 private fun LayoutSection(state: ReaderUiState, viewModel: ReaderViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("双页布局", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.reader_double_page_layout), style = MaterialTheme.typography.titleSmall)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             PageLayout.entries.forEachIndexed { index, value ->
                 SegmentedButton(
@@ -1589,17 +1603,19 @@ private fun LayoutSection(state: ReaderUiState, viewModel: ReaderViewModel) {
                     enabled = !state.vertical,
                 ) {
                     Text(
-                        when (value) {
-                            PageLayout.SINGLE -> "单页"
-                            PageLayout.DOUBLE -> "双页"
-                            PageLayout.AUTO -> "自动"
-                        },
+                        stringResource(
+                            when (value) {
+                                PageLayout.SINGLE -> R.string.reader_layout_single
+                                PageLayout.DOUBLE -> R.string.reader_layout_double
+                                PageLayout.AUTO -> R.string.reader_layout_auto
+                            },
+                        ),
                     )
                 }
             }
         }
         Text(
-            "自动 = 横屏双页 · 竖屏单页",
+            stringResource(R.string.reader_layout_auto_hint),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1609,9 +1625,13 @@ private fun LayoutSection(state: ReaderUiState, viewModel: ReaderViewModel) {
 @Composable
 private fun DirSection(state: ReaderUiState, viewModel: ReaderViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("方向", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.reader_direction), style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("default" to "跟随漫画", "ltr" to "左→右", "rtl" to "右→左").forEach { (value, label) ->
+            listOf(
+                "default" to stringResource(R.string.reader_dir_follow_manga),
+                "ltr" to stringResource(R.string.reader_dir_ltr),
+                "rtl" to stringResource(R.string.reader_dir_rtl),
+            ).forEach { (value, label) ->
                 FilterChip(
                     selected = state.dirPreference == value,
                     onClick = { viewModel.setDir(value) },
@@ -1620,7 +1640,7 @@ private fun DirSection(state: ReaderUiState, viewModel: ReaderViewModel) {
             }
         }
         Text(
-            "解析为右→左时：滑杆反向、上一话/下一话对调、点按区镜像",
+            stringResource(R.string.reader_dir_rtl_hint),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1640,11 +1660,11 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("阅读设置", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.reader_reading_settings), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.width(8.dp))
                 ChainTag(overridden = state.overridden.isNotEmpty())
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { viewModel.resetMangaOverrides() }) { Text("恢复默认") }
+                TextButton(onClick = { viewModel.resetMangaOverrides() }) { Text(stringResource(R.string.reader_reset_defaults)) }
             }
             // Resolution chain block (preview 24): shows where the values
             // come from, so the user never wonders why a page paired up.
@@ -1654,12 +1674,32 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             ) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        "解析链：本漫画覆盖 › manga.viewer 元数据 › 全局默认",
+                        stringResource(R.string.reader_resolution_chain),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text("模式 ${state.mode}", style = MaterialTheme.typography.bodySmall)
-                    Text("方向 ${if (state.dir == "rtl") "右→左" else "左→右"}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(
+                            R.string.reader_mode_value,
+                            stringResource(
+                                when (state.mode) {
+                                    ReadingMode.CONTINUOUS -> R.string.reader_mode_continuous
+                                    ReadingMode.WEBTOON -> R.string.reader_mode_webtoon
+                                    else -> R.string.reader_mode_paged
+                                },
+                            ),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        stringResource(
+                            R.string.reader_direction_value,
+                            stringResource(
+                                if (state.dir == "rtl") R.string.reader_dir_rtl else R.string.reader_dir_ltr,
+                            ),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
 
@@ -1668,9 +1708,9 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             LayoutSection(state, viewModel)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("首页单独成页", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.reader_cover_first), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "封面不参与跨页配对（对齐 webui doubleNoCover）",
+                        stringResource(R.string.reader_cover_first_hint),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1685,9 +1725,15 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             DirSection(state, viewModel)
 
             HorizontalDivider()
-            Text("点按区域", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.reader_tap_zones), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("lr" to "左右", "rl" to "右左", "edge" to "边缘", "kindle" to "Kindle", "off" to "关")
+                listOf(
+                    "lr" to stringResource(R.string.reader_tap_lr),
+                    "rl" to stringResource(R.string.reader_tap_rl),
+                    "edge" to stringResource(R.string.reader_tap_edge),
+                    "kindle" to "Kindle",
+                    "off" to stringResource(R.string.reader_tap_off),
+                )
                     .forEach { (value, label) ->
                         FilterChip(
                             selected = state.tapZones == value,
@@ -1701,9 +1747,14 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             }
 
             HorizontalDivider()
-            Text("页面缩放", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.reader_page_scale), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("fit" to "适应", "width" to "宽度", "height" to "高度", "original" to "原始")
+                listOf(
+                    "fit" to stringResource(R.string.reader_scale_fit),
+                    "width" to stringResource(R.string.reader_scale_width),
+                    "height" to stringResource(R.string.reader_scale_height),
+                    "original" to stringResource(R.string.reader_scale_original),
+                )
                     .forEach { (value, label) ->
                         FilterChip(
                             selected = state.scale == value,
@@ -1715,9 +1766,9 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("拆分宽页", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.reader_split_wide), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "横页按阅读方向拆成两半，进度仍按真实页码",
+                        stringResource(R.string.reader_split_wide_hint),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1730,9 +1781,14 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             }
 
             HorizontalDivider()
-            Text("背景", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.reader_background), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("dark" to "纯黑", "gray" to "深灰", "light" to "白色", "auto" to "跟随主题")
+                listOf(
+                    "dark" to stringResource(R.string.reader_bg_dark),
+                    "gray" to stringResource(R.string.reader_bg_gray),
+                    "light" to stringResource(R.string.reader_bg_light),
+                    "auto" to stringResource(R.string.reader_bg_auto),
+                )
                     .forEach { (value, label) ->
                         FilterChip(
                             selected = state.background == value,
@@ -1743,9 +1799,13 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             }
 
             HorizontalDivider()
-            Text("滤镜 · 全局", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.reader_filters_global), style = MaterialTheme.typography.titleSmall)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("亮度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(48.dp))
+                Text(
+                    stringResource(R.string.reader_brightness),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.width(48.dp),
+                )
                 Slider(
                     value = state.brightness,
                     onValueChange = { viewModel.setBrightness(it) },
@@ -1760,11 +1820,19 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("灰度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(
+                    stringResource(R.string.reader_grayscale),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(checked = state.grayscale, onCheckedChange = { viewModel.setGrayscale(it) })
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("棕褐", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(
+                    stringResource(R.string.reader_sepia),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(checked = state.sepia, onCheckedChange = { viewModel.setSepia(it) })
             }
         }

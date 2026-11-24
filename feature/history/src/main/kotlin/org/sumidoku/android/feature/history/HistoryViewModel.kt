@@ -1,8 +1,10 @@
 package org.sumidoku.android.feature.history
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -28,6 +30,7 @@ data class HistoryUiState(
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -43,7 +46,10 @@ class HistoryViewModel @Inject constructor(
         viewModelScope.launch {
             val profile = repository.activeProfile.first()
             if (profile == null) {
-                _state.value = HistoryUiState(loading = false, error = "未选择服务器")
+                _state.value = HistoryUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.history_no_server),
+                )
                 return@launch
             }
             _state.value = _state.value.copy(profile = profile, loading = true, error = null)

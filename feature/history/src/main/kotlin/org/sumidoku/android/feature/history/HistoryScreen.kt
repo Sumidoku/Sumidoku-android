@@ -1,9 +1,11 @@
 package org.sumidoku.android.feature.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,12 +33,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,13 +50,23 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import org.sumidoku.android.core.api.model.HistoryEntry
-import org.sumidoku.android.core.common.relativeEpochMs
+import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.clockEpochMs
+import org.sumidoku.android.core.common.coverUrl
+import org.sumidoku.android.core.common.dayBucket
+import org.sumidoku.android.core.common.dayHeader
+import org.sumidoku.android.core.common.normalizeEpochMs
 
-/** History tab — preview 11-history.html. */
+/**
+ * History tab — preview 11-history.html: day headers (`Today · Nov 11`),
+ * rows `Manga title · Chapter N` + `Read 7 / 24 pages · 21:12` / `Finished · 20:47`,
+ * a continue/finished tag, and a tap that resumes the chapter in the reader.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     onOpenManga: (Long) -> Unit,
+    onOpenChapter: (mangaId: Long, chapterId: Long) -> Unit = { _, _ -> },
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -65,13 +80,22 @@ fun HistoryScreen(
             }
     }
 
+    val groups = remember(state.entries) {
+        state.entries.groupBy { dayBucket(it.lastReadAt) }
+            .toSortedMap(compareByDescending { it })
+            .map { (day, dayEntries) -> day to dedupeHistory(dayEntries).sortedByDescending { it.entry.lastReadAt } }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("历史") },
+                title = { Text(stringResource(R.string.history_title)) },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "刷新")
+                        Icon(
+                            Icons.Outlined.Refresh,
+                            contentDescription = stringResource(R.string.history_refresh),
+                        )
                     }
                 },
             )
@@ -88,36 +112,45 @@ fun HistoryScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(state.error!!, color = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.height(8.dp))
-                            TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                            TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.history_retry)) }
                         }
                     }
                 !state.loading && state.entries.isEmpty() ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("还没有阅读记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            stringResource(R.string.history_empty),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                else -> {
-                    // webui HistoryPage：同一漫画同一天折叠为一条（保留最新），
-                    // 折叠条数以「还有 N 条」显示。
-                    val rows = androidx.compose.runtime.remember(state.entries) { dedupeHistory(state.entries) }
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                    ) {
-                        itemsIndexed(rows, key = { _, r -> "${r.entry.chapter.id}:${r.entry.lastReadAt}" }) { _, row ->
+                else -> LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 20.dp),
+                ) {
+                    groups.forEach { (day, rows) ->
+                        item(key = "header-$day") {
+                            SectionHeader(dayHeader(rows.firstOrNull()?.entry?.lastReadAt ?: 0L))
+                        }
+                        items(rows, key = { "${it.entry.chapter.id}:${it.entry.lastReadAt}" }) { row ->
                             HistoryRow(
                                 entry = row.entry,
                                 extra = row.extra,
                                 baseUrl = state.profile?.baseUrl.orEmpty(),
                                 apiKey = state.profile?.apiKey,
-                                onClick = { onOpenManga(row.entry.manga.id) },
+                                onClick = {
+                                    if (row.entry.isRead) {
+                                        onOpenManga(row.entry.manga.id)
+                                    } else {
+                                        onOpenChapter(row.entry.manga.id, row.entry.chapter.id)
+                                    }
+                                },
                             )
                         }
-                        if (state.loadingMore) {
-                            item {
-                                Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(Modifier.size(22.dp))
-                                }
+                    }
+                    if (state.loadingMore) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(22.dp))
                             }
                         }
                     }
@@ -129,22 +162,32 @@ fun HistoryScreen(
 
 private data class HistoryRowData(val entry: HistoryEntry, val extra: Int)
 
-/** webui HistoryPage.tsx：按 漫画 id + 本地日历日 分组，保留 lastReadAt
- *  最大的一条，其余计为折叠条数，结果按时间降序。 */
+/** One manga per local calendar day: the newest read wins, the rest collapse
+ *  into `N more` — same rule as webui HistoryPage. */
 private fun dedupeHistory(entries: List<HistoryEntry>): List<HistoryRowData> {
-    val groups = LinkedHashMap<String, HistoryRowData>()
-    val cal = java.util.Calendar.getInstance()
+    val groups = LinkedHashMap<Long, HistoryRowData>()
     for (e in entries) {
-        cal.timeInMillis = org.sumidoku.android.core.common.normalizeEpochMs(e.lastReadAt)
-        val key = "${e.manga.id}@${cal.get(java.util.Calendar.YEAR)}-${cal.get(java.util.Calendar.MONTH)}-${cal.get(java.util.Calendar.DAY_OF_MONTH)}"
-        val cur = groups[key]
-        groups[key] = if (cur == null) {
+        val cur = groups[e.manga.id]
+        groups[e.manga.id] = if (cur == null) {
             HistoryRowData(e, 0)
         } else {
-            HistoryRowData(if (e.lastReadAt > cur.entry.lastReadAt) e else cur.entry, cur.extra + 1)
+            HistoryRowData(
+                if (normalizeEpochMs(e.lastReadAt) > normalizeEpochMs(cur.entry.lastReadAt)) e else cur.entry,
+                cur.extra + 1,
+            )
         }
     }
-    return groups.values.sortedByDescending { it.entry.lastReadAt }
+    return groups.values.toList()
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 @Composable
@@ -156,33 +199,55 @@ private fun HistoryRow(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val coverModel = entry.manga.cover?.let { cover ->
-        val url = if (cover.startsWith("http")) cover else baseUrl.trimEnd('/') + cover
-        ImageRequest.Builder(context).data(url).apply {
+    // Same as webui coverUrl(manga.id, manga.cover): always the manga cover
+    // endpoint so local-source manga (cover == null) still resolve.
+    val coverModel = if (baseUrl.isBlank()) null else ImageRequest.Builder(context)
+        .data(coverUrl(baseUrl, entry.manga.id, entry.manga.cover))
+        .apply {
             apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
         }.build()
-    }
+    val read = entry.isRead || (entry.chapter.pageCount > 0 && entry.lastPageRead + 1 >= entry.chapter.pageCount)
     ListItem(
         leadingContent = {
             AsyncImage(
                 model = coverModel,
                 contentDescription = null,
-                modifier = Modifier.size(42.dp, 56.dp).clip(RoundedCornerShape(4.dp)),
+                modifier = Modifier.size(44.dp, 60.dp).clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Crop,
             )
         },
         headlineContent = {
-            Text(entry.manga.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                entry.manga.title + " · " +
+                    chapterLabel(entry.chapter.volumeNumber, entry.chapter.chapterNumber, entry.chapter.title),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         },
         supportingContent = {
+            // Progress line: read pages (or finished) + clock, then the
+            // collapsed-count suffix. Kept as whole formatted strings so the
+            // separator and word order stay translatable per locale.
+            val clock = clockEpochMs(entry.lastReadAt)
+            val progress = when {
+                read -> stringResource(R.string.history_progress_finished, clock)
+                entry.chapter.pageCount > 0 -> stringResource(
+                    R.string.history_progress_reading,
+                    entry.lastPageRead + 1,
+                    entry.chapter.pageCount,
+                    clock,
+                )
+                else -> stringResource(
+                    R.string.history_progress_reading_unknown,
+                    entry.lastPageRead + 1,
+                    clock,
+                )
+            }
             Text(
-                buildString {
-                    entry.chapter.chapterNumber?.let { n ->
-                        append("第 ${if (n % 1f == 0f) n.toLong() else n} 话  ·  ")
-                    }
-                    append("读到第 ${entry.lastPageRead + 1} 页")
-                    if (entry.isRead) append("  ·  已读完")
-                    if (extra > 0) append("  ·  还有 $extra 条")
+                if (extra > 0) {
+                    progress + " · " + stringResource(R.string.history_more_entries, extra)
+                } else {
+                    progress
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -190,12 +255,30 @@ private fun HistoryRow(
             )
         },
         trailingContent = {
+            val tagColor = if (read) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.primary
+            }
+            val textColor = if (read) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onPrimary
+            }
             Text(
-                relativeEpochMs(entry.lastReadAt),
+                if (read) {
+                    stringResource(R.string.history_tag_finished)
+                } else {
+                    stringResource(R.string.history_tag_continue)
+                },
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = textColor,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(tagColor)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
             )
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable { onClick() },
     )
 }

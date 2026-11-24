@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,11 +45,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -77,6 +80,7 @@ data class ApiKeysUiState(
 
 @HiltViewModel
 class ApiKeysViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -91,7 +95,7 @@ class ApiKeysViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = ApiKeysUiState(loading = false, error = "未选择服务器")
+                _state.value = ApiKeysUiState(loading = false, error = appContext.getString(R.string.misc_no_server_selected))
                 return@launch
             }
             try {
@@ -127,7 +131,7 @@ class ApiKeysViewModel @Inject constructor(
             val profile = repository.activeProfile.first() ?: return@launch
             try {
                 clientFactory.create<AuthApi>(profile).revokeApiKey(id).await()
-                _state.value = _state.value.copy(message = "已吊销")
+                _state.value = _state.value.copy(message = appContext.getString(R.string.api_keys_revoked))
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -144,7 +148,7 @@ class ApiKeysViewModel @Inject constructor(
                 clientFactory.create<AuthApi>(profile)
                     .changePassword(PasswordChangeRequest(currentPassword = current, newPassword = next))
                     .await()
-                _state.value = _state.value.copy(busy = false, message = "密码已更新")
+                _state.value = _state.value.copy(busy = false, message = appContext.getString(R.string.api_keys_password_updated))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(busy = false, error = e.message ?: e.toString())
@@ -180,22 +184,22 @@ fun ApiKeysScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("API 密钥") },
+                title = { Text(stringResource(R.string.api_keys_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showPassword = true }) {
-                        Icon(Icons.Outlined.Lock, contentDescription = "修改密码")
+                        Icon(Icons.Outlined.Lock, contentDescription = stringResource(R.string.api_keys_change_password))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreate = true }) {
-                Icon(Icons.Outlined.Add, contentDescription = "新建密钥")
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.api_keys_new_key))
             }
         },
     ) { padding ->
@@ -204,7 +208,7 @@ fun ApiKeysScreen(
                 CircularProgressIndicator()
             }
             state.keys.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("还没有 API 密钥，点右下角新建", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.api_keys_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -216,16 +220,19 @@ fun ApiKeysScreen(
                         headlineContent = { Text(key.name) },
                         supportingContent = {
                             Text(
-                                buildString {
-                                    append("创建于 ${formatEpochMs(key.createdAt)}")
-                                    key.lastUsedAt?.let { append(" · 最近使用 ${formatEpochMs(it)}") }
-                                },
+                                key.lastUsedAt?.let {
+                                    stringResource(
+                                        R.string.api_keys_dates_with_last_used,
+                                        formatEpochMs(key.createdAt),
+                                        formatEpochMs(it),
+                                    )
+                                } ?: stringResource(R.string.api_keys_dates, formatEpochMs(key.createdAt)),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
                         trailingContent = {
                             IconButton(onClick = { viewModel.revoke(key.id) }) {
-                                Icon(Icons.Outlined.DeleteOutline, contentDescription = "吊销")
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.api_keys_revoke))
                             }
                         },
                     )
@@ -238,12 +245,12 @@ fun ApiKeysScreen(
         var name by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreate = false },
-            title = { Text("新建 API 密钥") },
+            title = { Text(stringResource(R.string.api_keys_create_title)) },
             text = {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("名称（如：手机、平板）") },
+                    label = { Text(stringResource(R.string.api_keys_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -255,19 +262,19 @@ fun ApiKeysScreen(
                         showCreate = false
                         viewModel.create(name)
                     },
-                ) { Text("创建") }
+                ) { Text(stringResource(R.string.misc_create)) }
             },
-            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { showCreate = false }) { Text(stringResource(R.string.misc_cancel)) } },
         )
     }
 
     state.createdKey?.let { key ->
         AlertDialog(
             onDismissRequest = { viewModel.consumeTransient() },
-            title = { Text("保存好这个密钥") },
+            title = { Text(stringResource(R.string.api_keys_save_key_title)) },
             text = {
                 Column {
-                    Text("密钥只显示这一次，服务器只保存指纹。请立即复制保存：")
+                    Text(stringResource(R.string.api_keys_save_key_text))
                     SelectionContainer {
                         Text(
                             key,
@@ -279,7 +286,7 @@ fun ApiKeysScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.consumeTransient() }) { Text("我已保存") }
+                TextButton(onClick = { viewModel.consumeTransient() }) { Text(stringResource(R.string.api_keys_saved_confirm)) }
             },
         )
     }
@@ -289,20 +296,20 @@ fun ApiKeysScreen(
         var next by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showPassword = false },
-            title = { Text("修改密码") },
+            title = { Text(stringResource(R.string.api_keys_change_password)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = current,
                         onValueChange = { current = it },
-                        label = { Text("当前密码") },
+                        label = { Text(stringResource(R.string.api_keys_current_password)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = next,
                         onValueChange = { next = it },
-                        label = { Text("新密码") },
+                        label = { Text(stringResource(R.string.api_keys_new_password)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -315,9 +322,9 @@ fun ApiKeysScreen(
                         showPassword = false
                         viewModel.changePassword(current, next)
                     },
-                ) { Text("修改") }
+                ) { Text(stringResource(R.string.api_keys_change_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { showPassword = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { showPassword = false }) { Text(stringResource(R.string.misc_cancel)) } },
         )
     }
 }

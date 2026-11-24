@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>条漫阅读器 · sumidoku-android 设计稿</title>
+<title>条漫阅读器 · 可拖拽滚动条 · sumidoku-android 设计稿</title>
 <link rel="stylesheet" href="assets/mock.css">
 <style>
   /* 加载中：页盒内居中旋转弧（对齐 webui .reader__img--loading，accent 色弧） */
@@ -12,11 +12,35 @@
   @keyframes pgspin { to { transform: rotate(360deg); } }
   /* 失败：槽位保留宽高比盒，重试按钮在槽内（连续模式，对齐 webui FailedPage retryInOverlay=false） */
   .pg-failed { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--surface); color: #6b7280; font-size: 13px; }
+  /* 可拖拽滚动条（对齐 Komikku Webtoon 条漫滚动条）：触控热区 24dp，thumb 拖动态放大，
+     拖动时左侧浮出页码气泡；轨道刻度 = 各话起止锚点 */
+  .sb-hot { position: absolute; right: 2px; top: 12%; bottom: 12%; width: 24px; }
+  .sb-track { position: absolute; right: 10px; top: 0; bottom: 0; width: 5px; border-radius: 99px; background: rgba(255,255,255,.13); }
+  .sb-tick { position: absolute; right: 9px; width: 7px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.35); }
+  .sb-thumb { position: absolute; right: 7px; top: 30%; width: 11px; height: 64px; border-radius: 99px;
+    background: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+  .sb-bubble { position: absolute; right: 34px; top: 34%; font-size: 11.5px; font-weight: 700;
+    color: var(--text); background: rgba(38,38,51,.95); border: 1px solid var(--border);
+    border-radius: 99px; padding: 5px 12px; }
+  .sb-bubble small { display: block; font-weight: 500; font-size: 10px; color: var(--muted); }
+  /* 底栏与分页模式共用同一章节导航器 */
+  .chapnav { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .navpill {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: rgba(38,38,51,.92); border: 1px solid var(--border);
+    border-radius: 99px; padding: 7px 12px; font-size: 12px; color: var(--muted);
+  }
+  .navpill .cur { color: var(--text); font-weight: 700; min-width: 14px; text-align: center; }
+  .navpill .track { flex: 1; height: 4px; border-radius: 99px; background: var(--surface3); position: relative; }
+  .navpill .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 99px; }
+  .navpill .track u { position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); }
+  .chapnav .iconbtn { background: rgba(38,38,51,.92); border: 1px solid var(--border); width: 40px; height: 40px; color: var(--text); }
+  .chapnav .iconbtn svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
-<h1 class="page-title">阅读器 · 条漫（Webtoon）· 页面状态</h1>
-<p class="page-sub">连续滚动三态同框：正常页 / 加载中（已知宽高比 → 页盒内居中 accent 弧，对齐 .reader__img--loading）/ 失败（自动重试 1 次仍败 → 槽内 图标+文案+重试按钮，连续模式不重开覆盖层）</p>
+<h1 class="page-title">阅读器 · 条漫 · 可拖拽滚动条（页面三态同框）</h1>
+<p class="page-sub">条漫/连续滚动没有「翻页方向」可言，底栏只保留 章节 / 模式 / 设置 三键（对齐 Aidoku webtoon 的精简底栏）；右缘滚动条可拖拽：24dp 触控热区、拖动时 thumb 放大、左侧浮出「7 / 24 · 第 201 话」气泡、轨道刻度标记各话起止；页面三态不变（正常 / 加载中弧 / 失败槽内重试）</p>
 <div class="phone">
   <div class="reader-canvas" style="background:#0C0C10;overflow:hidden">
     <div style="padding:0">
@@ -30,10 +54,14 @@
         <span class="btn" style="padding:7px 18px;font-size:12.5px">重试</span>
       </div>
     </div>
-    <div style="position:absolute;right:8px;top:30%;bottom:30%;width:4px;border-radius:99px;background:rgba(255,255,255,.14)">
-      <div style="position:absolute;top:0;left:0;right:0;height:38%;background:var(--accent);border-radius:99px"></div>
+    <div class="sb-hot">
+      <div class="sb-track"></div>
+      <div class="sb-tick" style="top:0"></div>
+      <div class="sb-tick" style="top:45%"></div>
+      <div class="sb-tick" style="top:78%"></div>
+      <div class="sb-thumb"></div>
     </div>
-    <div style="position:absolute;right:16px;top:44%;font-size:10px;color:var(--muted);writing-mode:vertical-rl">7 / 24</div>
+    <div class="sb-bubble">7 / 24<small>第 201 话</small></div>
   </div>
 
   <div class="reader-overlay-top">
@@ -48,16 +76,19 @@
   </div>
 
   <div class="reader-overlay-bottom">
-    <div class="slider" style="margin-bottom:10px">
-      <span>1</span>
-      <div class="track"><i style="width:29%"></i><u style="left:29%"></u></div>
-      <span>24</span>
+    <div class="chapnav">
+      <span class="iconbtn" title="上一章"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M17 6l-6 6 6 6M11 6l-6 6 6 6"/></svg></span>
+      <div class="navpill">
+        <span class="cur">7</span>
+        <div class="track"><i style="width:29%"></i><u style="left:29%"></u></div>
+        <span>/ 24</span>
+      </div>
+      <span class="iconbtn" title="下一章"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 6l6 6-6 6M13 6l6 6-6 6"/></svg></span>
     </div>
     <div style="display:flex;justify-content:space-around;color:var(--muted)">
-      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></span>
-      <span class="iconbtn" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="1.5"/><path d="M6 8h12M6 14h12"/></svg></span>
-      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16m0 0-4-4m4 4 4-4"/></svg></span>
-      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l-.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
+      <span class="iconbtn" title="章节列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></span>
+      <span class="iconbtn" style="color:var(--accent)" title="阅读模式：条漫（长按切回 分页 / 连续滚动）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="1.5"/><path d="M6 8h12M6 14h12"/></svg></span>
+      <span class="iconbtn" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>
     </div>
   </div>
 </div>

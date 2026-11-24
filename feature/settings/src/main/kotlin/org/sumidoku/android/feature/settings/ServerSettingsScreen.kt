@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -52,6 +53,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.Category
 import org.sumidoku.android.core.api.model.ChapterCacheSettings
 import org.sumidoku.android.core.api.model.DownloadSettings
+import org.sumidoku.android.core.common.formatEpochMs
+import org.sumidoku.android.core.common.relativeEpochMs
 
 /** Structured server-settings editor (design §14 M7): sections map
  *  1:1 onto GET /api/v1/settings; Save PUTs the complete structured
@@ -60,15 +63,17 @@ import org.sumidoku.android.core.api.model.DownloadSettings
 @Composable
 fun ServerSettingsScreen(
     onBack: () -> Unit,
+    onOpenBackups: () -> Unit = {},
     viewModel: ServerSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.server_settings_saved)
 
     LaunchedEffect(state.saved, state.error) {
         when {
             state.saved -> {
-                snackbar.showSnackbar("设置已保存")
+                snackbar.showSnackbar(savedMessage)
                 viewModel.consumeTransient()
             }
             state.error != null -> {
@@ -81,10 +86,10 @@ fun ServerSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("服务器设置") },
+                title = { Text(stringResource(R.string.server_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
             )
@@ -103,20 +108,20 @@ fun ServerSettingsScreen(
                 Modifier.fillMaxSize().padding(padding),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-            ) { Text(state.error ?: "无法加载设置") }
+            ) { Text(state.error ?: stringResource(R.string.server_settings_load_failed)) }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                item { SectionHeader("书库与更新") }
+                item { SectionHeader(stringResource(R.string.server_settings_section_library)) }
                 item {
                     SettingChipsRow(
-                        label = "默认分类",
-                        hint = "你从未手动选过分类时书库打开的定位",
+                        label = stringResource(R.string.server_settings_default_category),
+                        hint = stringResource(R.string.server_settings_default_category_hint),
                         options = buildList<Pair<String, String>> {
-                            add("all" to "全部")
-                            add("uncategorized" to "未分类")
+                            add("all" to stringResource(R.string.server_settings_category_all))
+                            add("uncategorized" to stringResource(R.string.server_settings_category_uncategorized))
                             categories.forEach { add(it.id.toString() to it.name) }
                         },
                         selected = s.library.defaultCategory,
@@ -126,44 +131,38 @@ fun ServerSettingsScreen(
                     )
                 }
                 item {
-                    ToggleRow("显示未分类", "书库里保留「未分类」分组", s.library.showUncategorized) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_show_uncategorized), stringResource(R.string.server_settings_show_uncategorized_hint), s.library.showUncategorized) { v ->
                         viewModel.update { it.copy(library = it.library.copy(showUncategorized = v)) }
                     }
                 }
                 item {
-                    ToggleRow("更新时刷新元数据", "书库更新时重新拉取图源元数据", s.library.refreshMetadata) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_refresh_metadata), stringResource(R.string.server_settings_refresh_metadata_hint), s.library.refreshMetadata) { v ->
                         viewModel.update { it.copy(library = it.library.copy(refreshMetadata = v)) }
                     }
                 }
                 item {
-                    SettingChipsRow(
-                        label = "更新周期",
-                        hint = "全局书库更新的运行间隔",
-                        options = listOf(
-                            "0" to "从不",
-                            "12" to "每 12 小时",
-                            "24" to "每 24 小时",
-                            "48" to "每 2 天",
-                            "168" to "每周",
-                        ),
-                        selected = s.library.updateIntervalHours.toString(),
-                        onSelect = { v ->
-                            v.toLongOrNull()?.let { hours ->
-                                viewModel.update { it.copy(library = it.library.copy(updateIntervalHours = hours)) }
-                            }
+                    UpdateIntervalRow(
+                        valueHours = s.library.updateIntervalHours,
+                        presets = libraryUpdateIntervalPresets(),
+                        onSelect = { hours ->
+                            viewModel.update { it.copy(library = it.library.copy(updateIntervalHours = hours)) }
                         },
                     )
                 }
                 item {
                     Text(
-                        "更新时跳过（skipTitles）",
+                        stringResource(R.string.server_settings_skip_titles),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        listOf("hasUnread" to "有未读", "completed" to "已完结", "notStarted" to "未开始").forEach { (key, label) ->
+                        listOf(
+                            "hasUnread" to stringResource(R.string.server_settings_skip_has_unread),
+                            "completed" to stringResource(R.string.server_settings_skip_completed),
+                            "notStarted" to stringResource(R.string.server_settings_skip_not_started),
+                        ).forEach { (key, label) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
                                     checked = key in s.library.skipTitles,
@@ -182,8 +181,8 @@ fun ServerSettingsScreen(
 
                 item {
                     ExcludedCategoriesRow(
-                        title = "更新时排除的分类",
-                        subtitle = "属于这些分类的漫画在全局更新时跳过",
+                        title = stringResource(R.string.server_settings_excluded_update_title),
+                        subtitle = stringResource(R.string.server_settings_excluded_update_subtitle),
                         categories = categories,
                         excluded = s.library.excludedUpdateCategories,
                         onChange = { next ->
@@ -192,21 +191,21 @@ fun ServerSettingsScreen(
                     )
                 }
 
-                item { SectionHeader("下载") }
+                item { SectionHeader(stringResource(R.string.server_settings_section_download)) }
                 item {
-                    ToggleRow("自动下载新章节", "更新发现新章节时自动入队", s.download.autoDownloadNewChapters) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_auto_download_new), stringResource(R.string.server_settings_auto_download_new_hint), s.download.autoDownloadNewChapters) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoDownloadNewChapters = v)) }
                     }
                 }
                 item {
-                    NumberRow("自动下载上限（话/部）", s.download.autoDownloadLimit.toString()) { v ->
+                    NumberRow(stringResource(R.string.server_settings_auto_download_limit), s.download.autoDownloadLimit.toString()) { v ->
                         v.toLongOrNull()?.let { limit ->
                             viewModel.update { it.copy(download = it.download.copy(autoDownloadLimit = limit)) }
                         }
                     }
                 }
                 item {
-                    NumberRow("提前下载章节数", s.download.downloadAheadCount.toString()) { v ->
+                    NumberRow(stringResource(R.string.server_settings_download_ahead_count), s.download.downloadAheadCount.toString()) { v ->
                         v.toLongOrNull()?.let { count ->
                             viewModel.update { it.copy(download = it.download.copy(downloadAheadCount = count)) }
                         }
@@ -214,7 +213,7 @@ fun ServerSettingsScreen(
                 }
                 item {
                     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        Text("下载格式", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.server_settings_download_format), style = MaterialTheme.typography.bodyMedium)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                             DownloadSettings.DownloadFormat.entries.forEachIndexed { index, format ->
                                 SegmentedButton(
@@ -229,46 +228,46 @@ fun ServerSettingsScreen(
                     }
                 }
                 item {
-                    NumberRow("并发下载数", s.download.downloadConcurrency.toString()) { v ->
+                    NumberRow(stringResource(R.string.server_settings_download_concurrency), s.download.downloadConcurrency.toString()) { v ->
                         v.toLongOrNull()?.let { c ->
                             viewModel.update { it.copy(download = it.download.copy(downloadConcurrency = c)) }
                         }
                     }
                 }
                 item {
-                    ToggleRow("跳过有未读章节的漫画", "更新前已有未读章节的漫画不自动下载", s.download.autoSkipMangaWithUnread) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_auto_skip_unread), stringResource(R.string.server_settings_auto_skip_unread_hint), s.download.autoSkipMangaWithUnread) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoSkipMangaWithUnread = v)) }
                     }
                 }
                 item {
-                    ToggleRow("忽略重新上传的章节", "自动下载时跳过重新上传的章节", s.download.autoIgnoreReuploads) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_auto_ignore_reuploads), stringResource(R.string.server_settings_auto_ignore_reuploads_hint), s.download.autoIgnoreReuploads) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoIgnoreReuploads = v)) }
                     }
                 }
                 item {
-                    ToggleRow("手动标记已读后删除", "手动标记已读时删除该章的下载", s.download.deleteAfterManualRead) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_delete_after_manual_read), stringResource(R.string.server_settings_delete_after_manual_read_hint), s.download.deleteAfterManualRead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(deleteAfterManualRead = v)) }
                     }
                 }
                 item {
-                    ToggleRow("阅后删除", "读完已下载章节后删除成品", s.download.deleteAfterRead) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_delete_after_read), stringResource(R.string.server_settings_delete_after_read_hint), s.download.deleteAfterRead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(deleteAfterRead = v)) }
                     }
                 }
                 item {
-                    ToggleRow("允许删除带书签的章节", "带书签的章节也按阅后删除规则处理", s.download.allowDeleteBookmarked) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_allow_delete_bookmarked), stringResource(R.string.server_settings_allow_delete_bookmarked_hint), s.download.allowDeleteBookmarked) { v ->
                         viewModel.update { it.copy(download = it.download.copy(allowDeleteBookmarked = v)) }
                     }
                 }
                 item {
-                    ToggleRow("预读下一章", "阅读时提前下载后续章节", s.download.downloadAhead) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_download_ahead), stringResource(R.string.server_settings_download_ahead_hint), s.download.downloadAhead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(downloadAhead = v)) }
                     }
                 }
                 item {
                     ExcludedCategoriesRow(
-                        title = "自动下载排除的分类",
-                        subtitle = "这些分类里的漫画只跳过自动下载，仍可手动下载",
+                        title = stringResource(R.string.server_settings_excluded_download_title),
+                        subtitle = stringResource(R.string.server_settings_excluded_download_subtitle),
                         categories = categories,
                         excluded = s.library.excludedDownloadCategories,
                         onChange = { next ->
@@ -278,31 +277,31 @@ fun ServerSettingsScreen(
                 }
                 item {
                     TextRow(
-                        label = "下载后移动（模板）",
+                        label = stringResource(R.string.server_settings_move_path_label),
                         value = s.download.movePath ?: "",
                         placeholder = "/mnt/library/{author}/{manga}/{filename}",
-                        supporting = "变量：{source} 源名 · {title}/{manga} 漫画标题 · {author} 作者 · {artist} 画师 · {chapter} 章节名 · {filename} 默认文件名；留空表示不移动",
+                        supporting = stringResource(R.string.server_settings_move_path_supporting),
                         onValueChange = { v ->
                             viewModel.update { it.copy(download = it.download.copy(movePath = v.ifBlank { null })) }
                         },
                     )
                 }
 
-                item { SectionHeader("计划备份") }
+                item { SectionHeader(stringResource(R.string.server_settings_section_backup)) }
                 item {
-                    ToggleRow("启用计划备份", "按间隔自动写出备份文件", s.backup.enabled) { v ->
+                    ToggleRow(stringResource(R.string.server_settings_backup_enabled), stringResource(R.string.server_settings_backup_enabled_hint), s.backup.enabled) { v ->
                         viewModel.update { it.copy(backup = it.backup.copy(enabled = v)) }
                     }
                 }
                 item {
-                    NumberRow("备份间隔（小时）", s.backup.intervalHours.toString()) { v ->
+                    NumberRow(stringResource(R.string.server_settings_backup_interval), s.backup.intervalHours.toString()) { v ->
                         v.toLongOrNull()?.let { h ->
                             viewModel.update { it.copy(backup = it.backup.copy(intervalHours = h)) }
                         }
                     }
                 }
                 item {
-                    NumberRow("保留份数", s.backup.retentionCount.toString()) { v ->
+                    NumberRow(stringResource(R.string.server_settings_backup_retention), s.backup.retentionCount.toString()) { v ->
                         v.toLongOrNull()?.let { r ->
                             viewModel.update { it.copy(backup = it.backup.copy(retentionCount = r)) }
                         }
@@ -310,19 +309,49 @@ fun ServerSettingsScreen(
                 }
                 item {
                     TextRow(
-                        label = "备份目录",
+                        label = stringResource(R.string.server_settings_backup_dir),
                         value = s.backup.dir ?: "",
-                        placeholder = "留空使用服务器默认备份目录",
-                        supporting = "也可用环境变量 SUMIDOKU_BACKUP_DIR 指定",
+                        placeholder = stringResource(R.string.server_settings_backup_dir_placeholder),
+                        supporting = stringResource(R.string.server_settings_backup_dir_supporting),
                         onValueChange = { v ->
                             viewModel.update { it.copy(backup = it.backup.copy(dir = v.ifBlank { null })) }
                         },
                     )
                 }
 
-                item { SectionHeader("缓存") }
                 item {
-                    NumberRow("章节页缓存上限（MB）", ((s.cache?.chapterMaxBytes ?: 0L) / 1048576L).toString()) { v ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(stringResource(R.string.server_settings_backup_last), style = MaterialTheme.typography.bodyLarge)
+                        // lastRun is maintained by the server (0/empty means it has never run)
+                        Text(
+                            s.backup.lastRun?.takeIf { it > 0L }
+                                ?.let { stringResource(R.string.server_settings_backup_last_run, relativeEpochMs(it), formatEpochMs(it)) }
+                                ?: stringResource(R.string.server_settings_backup_never),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.server_settings_view_backups), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.server_settings_view_backups_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = onOpenBackups) { Text(stringResource(R.string.server_settings_open)) }
+                    }
+                }
+
+                item { SectionHeader(stringResource(R.string.server_settings_section_cache)) }
+                item {
+                    NumberRow(stringResource(R.string.server_settings_chapter_cache_max), ((s.cache?.chapterMaxBytes ?: 0L) / 1048576L).toString()) { v ->
                         v.toLongOrNull()?.let { mb ->
                             viewModel.update {
                                 it.copy(cache = (it.cache ?: ChapterCacheSettings(chapterMaxBytes = 0L)).copy(chapterMaxBytes = mb * 1048576L))
@@ -336,7 +365,7 @@ fun ServerSettingsScreen(
                         onClick = { viewModel.save() },
                         enabled = !state.busy,
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    ) { Text(if (state.busy) "保存中…" else "保存设置") }
+                    ) { Text(stringResource(if (state.busy) R.string.server_settings_saving else R.string.server_settings_save)) }
                 }
             }
         }
@@ -382,8 +411,9 @@ private fun NumberRow(label: String, value: String, onValid: (String) -> Unit) {
     )
 }
 
-/** 单选 chips：分类类取值（默认分类）与预置间隔都用它，选项外的当前值
- *  单独补一个 chip，避免服务器上的自定义值被静默丢掉。 */
+/** Single-choice chips: used for category-like values (default category) and
+ *  preset intervals alike. A current value outside the options gets its own
+ *  extra chip so a custom value stored on the server is not silently lost. */
 @Composable
 private fun SettingChipsRow(
     label: String,
@@ -414,7 +444,106 @@ private fun SettingChipsRow(
     }
 }
 
-/** 分类排除规则：一行摘要 + 弹窗多选（webui ExcludedCategoriesSetting）。 */
+/** Preset update intervals, matching webui LIBRARY_UPDATE_INTERVALS
+ *  (SettingsPage.tsx:1086-1092). */
+@Composable
+private fun libraryUpdateIntervalPresets(): List<Pair<String, String>> = listOf(
+    "0" to stringResource(R.string.server_settings_interval_never),
+    "12" to stringResource(R.string.server_settings_interval_12h),
+    "24" to stringResource(R.string.server_settings_interval_24h),
+    "48" to stringResource(R.string.server_settings_interval_2d),
+    "168" to stringResource(R.string.server_settings_interval_weekly),
+)
+
+/** Update interval: preset steps plus a "Custom" dialog (any number of hours);
+ *  both write back to library.updateIntervalHours (the extra Select option of
+ *  webui LibraryUpdateSection, SettingsPage.tsx:1259-1278). A non-preset value
+ *  stored on the server gets its own selected chip so it is not silently
+ *  dropped. */
+@Composable
+private fun UpdateIntervalRow(
+    valueHours: Long,
+    presets: List<Pair<String, String>>,
+    onSelect: (Long) -> Unit,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
+    val current = valueHours.toString()
+    val isPreset = presets.any { it.first == current }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(stringResource(R.string.server_settings_update_interval), style = MaterialTheme.typography.bodyLarge)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            presets.forEach { (value, name) ->
+                FilterChip(
+                    selected = current == value,
+                    onClick = { value.toLongOrNull()?.let(onSelect) },
+                    label = { Text(name) },
+                )
+            }
+            FilterChip(
+                selected = !isPreset,
+                onClick = {
+                    draft = if (isPreset) "" else valueHours.toString()
+                    showDialog = true
+                },
+                label = {
+                    Text(
+                        if (isPreset) {
+                            stringResource(R.string.server_settings_interval_custom)
+                        } else {
+                            stringResource(R.string.server_settings_interval_custom_value, valueHours.toString())
+                        },
+                    )
+                },
+            )
+        }
+        Text(
+            stringResource(R.string.server_settings_update_interval_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (showDialog) {
+        val parsed = draft.toLongOrNull()
+        val valid = parsed != null && parsed > 0
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.server_settings_custom_interval_title)) },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { v -> if (v.all { it.isDigit() }) draft = v },
+                    label = { Text(stringResource(R.string.server_settings_hours)) },
+                    placeholder = { Text(stringResource(R.string.server_settings_hours_placeholder)) },
+                    supportingText = { Text(stringResource(R.string.server_settings_hours_supporting)) },
+                    isError = draft.isNotEmpty() && !valid,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        parsed?.let(onSelect)
+                        showDialog = false
+                    },
+                    enabled = valid,
+                ) { Text(stringResource(R.string.server_settings_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.server_settings_cancel)) } },
+        )
+    }
+}
+
+/** Category exclusion rule: one-line summary plus a multi-select dialog
+ *  (webui ExcludedCategoriesSetting). */
 @Composable
 private fun ExcludedCategoriesRow(
     title: String,
@@ -431,12 +560,12 @@ private fun ExcludedCategoriesRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                if (excluded.isEmpty()) subtitle else "已排除 ${excluded.size} 个分类",
+                if (excluded.isEmpty()) subtitle else stringResource(R.string.server_settings_excluded_count, excluded.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = { showDialog = true }) { Text("选择") }
+        TextButton(onClick = { showDialog = true }) { Text(stringResource(R.string.server_settings_select)) }
     }
     if (showDialog) {
         AlertDialog(
@@ -444,7 +573,7 @@ private fun ExcludedCategoriesRow(
             title = { Text(title) },
             text = {
                 if (categories.isEmpty()) {
-                    Text("还没有分类")
+                    Text(stringResource(R.string.server_settings_no_categories))
                 } else {
                     Column(
                         Modifier
@@ -468,7 +597,7 @@ private fun ExcludedCategoriesRow(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showDialog = false }) { Text("完成") } },
+            confirmButton = { TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.server_settings_done)) } },
         )
     }
 }

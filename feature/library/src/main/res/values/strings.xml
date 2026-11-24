@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Top app bar -->
+    <string name="library_title">Library</string>
+    <string name="library_choose_category">Choose category</string>
+    <string name="library_display">Display</string>
+    <string name="library_sort">Sort</string>
+    <string name="library_filter">Filter</string>
+    <string name="library_refresh">Refresh</string>
+    <string name="library_retry">Retry</string>
+
+    <!-- Sort menu -->
+    <string name="library_sort_added">Recently added</string>
+    <string name="library_sort_title">Title</string>
+    <string name="library_sort_last_read">Recently read</string>
+    <string name="library_sort_latest_chapter">Latest chapter</string>
+    <string name="library_sort_unread">Most unread</string>
+
+    <!-- Batch mode -->
+    <string name="library_exit_batch_mode">Exit batch mode</string>
+    <string name="library_selected_count">%1$d selected</string>
+    <string name="library_select_all">Select all</string>
+    <string name="library_deselect_all">Deselect all</string>
+    <string name="library_set_categories">Set categories</string>
+    <string name="library_mark_read">Mark as read</string>
+    <string name="library_remove_from_library">Remove from library</string>
+    <string name="library_remove_confirm_message">Remove %1$d manga from the library? Their chapters and downloads are not affected.</string>
+    <string name="library_remove">Remove</string>
+    <string name="library_cancel">Cancel</string>
+    <string name="library_batch_categories_hint">This replaces the selected manga\'s categories; it does not add to them.</string>
+    <string name="library_clear_categories">Clear categories</string>
+    <string name="library_apply_categories">Apply · %1$d categories</string>
+
+    <!-- Filter chips -->
+    <string name="library_remove_chip">Remove %1$s</string>
+    <string name="library_chip_rating">Rating: %1$s</string>
+    <string name="library_chip_source">Source: %1$s</string>
+    <string name="library_chip_author">Author: %1$s</string>
+    <string name="library_chip_tag">Tag: %1$s</string>
+    <string name="library_chip_group">Filter group: %1$s</string>
+
+    <!-- Empty state -->
+    <string name="library_empty_filtered_title">No manga match your filters</string>
+    <string name="library_empty_title">Your library is empty</string>
+    <string name="library_empty_filtered_hint">Try loosening your filters</string>
+    <string name="library_empty_active_filters">Current filters: %1$s</string>
+    <string name="library_empty_hint">Browse sources and add the manga you like to your library.\nNew chapter updates will appear in the Updates tab</string>
+    <string name="library_clear_filters">Clear filters</string>
+    <string name="library_browse_sources">Browse sources</string>
+
+    <!-- Sheet header -->
+    <string name="library_back">Back</string>
+    <string name="library_reset">Reset</string>
+    <string name="library_done">Done</string>
+
+    <!-- Filter panel -->
+    <string name="library_section_status">Status</string>
+    <string name="library_more_filters">More filters</string>
+    <string name="library_none_selected">None selected</string>
+    <string name="library_no_options">No options available</string>
+    <string name="library_manga_count">%1$d manga</string>
+
+    <!-- Category sheet -->
+    <string name="library_categories">Categories</string>
+    <string name="library_uncategorized">Uncategorized</string>
+    <string name="library_filter_groups">Filter groups</string>
+    <string name="library_selected">Selected</string>
+
+    <!-- Tri-state rows -->
+    <string name="library_tri_include">Included</string>
+    <string name="library_tri_exclude">Excluded</string>
+    <string name="library_tri_none">Not filtered</string>
+
+    <!-- Status filters -->
+    <string name="library_status_unread">Unread</string>
+    <string name="library_status_completed">Completed</string>
+    <string name="library_status_tracked">Tracked</string>
+    <string name="library_status_bookmarked">Bookmarked</string>
+    <string name="library_status_downloaded">Downloaded</string>
+
+    <!-- Content ratings -->
+    <string name="library_rating_safe">Safe</string>
+    <string name="library_rating_suggestive">Suggestive</string>
+    <string name="library_rating_nsfw">NSFW</string>
+
+    <!-- Filter dimensions -->
+    <string name="library_dimension_ratings">Rating</string>
+    <string name="library_dimension_sources">Sources</string>
+    <string name="library_dimension_authors">Authors</string>
+    <string name="library_dimension_tags">Tags</string>
+
+    <!-- Display sheet -->
+    <string name="library_form_compact">Compact</string>
+    <string name="library_form_comfortable">Comfortable</string>
+    <string name="library_form_list">List</string>
+    <string name="library_columns">Columns</string>
+    <string name="library_column_count">%1$d columns</string>
+    <string name="library_columns_hint">Auto adapts to a minimum cover width of 100 dp; portrait and landscape column counts are remembered separately.</string>
+    <string name="library_cover_badges">Cover badges</string>
+    <string name="library_badge_unread">Unread count badge</string>
+    <string name="library_badge_download">Downloaded mark</string>
+    <string name="library_badge_source">Source mark</string>
+
+    <!-- Entry rows -->
+    <string name="library_downloaded">Downloaded</string>
+    <string name="library_chapter_number">Ch. %1$s</string>
+    <string name="library_chapter_count">%1$d chapters</string>
+    <string name="library_unread_count">%1$d unread</string>
+    <string name="library_all_read">All read</string>
+
+    <!-- ViewModel notices -->
+    <string name="library_batch_marked_read">Marked as read · %1$d manga</string>
+    <string name="library_batch_categories_set">Categories set · %1$d manga</string>
+    <string name="library_batch_removed">Removed from library · %1$d manga</string>
+    <string name="library_no_server">No server selected</string>
+    <string name="library_batch_failed">Batch operation failed: %1$s</string>
+</resources>

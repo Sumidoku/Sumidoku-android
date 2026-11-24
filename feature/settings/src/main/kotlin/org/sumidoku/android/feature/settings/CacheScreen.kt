@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.settings
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,11 +32,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -62,6 +65,7 @@ data class CacheUiState(
 
 @HiltViewModel
 class CacheViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
 ) : ViewModel() {
@@ -76,7 +80,10 @@ class CacheViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = CacheUiState(loading = false, error = "未选择服务器")
+                _state.value = CacheUiState(
+                    loading = false,
+                    error = appContext.getString(R.string.misc_no_server_selected),
+                )
                 return@launch
             }
             try {
@@ -97,7 +104,10 @@ class CacheViewModel @Inject constructor(
             _state.value = _state.value.copy(busy = true)
             try {
                 val result = clientFactory.create<CacheApi>(profile).clearChapterCache().await()
-                _state.value = _state.value.copy(busy = false, message = "已释放 ${formatBytes(result.clearedBytes)}")
+                _state.value = _state.value.copy(
+                    busy = false,
+                    message = appContext.getString(R.string.cache_cleared_bytes, formatBytes(result.clearedBytes)),
+                )
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -112,7 +122,10 @@ class CacheViewModel @Inject constructor(
             _state.value = _state.value.copy(busy = true)
             try {
                 val result = clientFactory.create<CacheApi>(profile).clearCoverCache().await()
-                _state.value = _state.value.copy(busy = false, message = "已清空 ${result.clearedEntries} 个封面缓存")
+                _state.value = _state.value.copy(
+                    busy = false,
+                    message = appContext.getString(R.string.cache_cleared_covers, result.clearedEntries),
+                )
                 refresh()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -147,10 +160,10 @@ fun CacheScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("缓存管理") },
+                title = { Text(stringResource(R.string.cache_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.misc_back))
                     }
                 },
             )
@@ -169,9 +182,14 @@ fun CacheScreen(
                     item {
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("章节页缓存", style = MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.cache_chapter_title), style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    "${formatBytes(chapter.usedBytes)} / ${formatBytes(chapter.maxBytes)} · ${chapter.chapterCount} 个章节",
+                                    stringResource(
+                                        R.string.cache_chapter_usage,
+                                        formatBytes(chapter.usedBytes),
+                                        formatBytes(chapter.maxBytes),
+                                        chapter.chapterCount,
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -184,7 +202,7 @@ fun CacheScreen(
                                 )
                                 chapter.lastError?.let {
                                     Text(
-                                        "最近错误：$it",
+                                        stringResource(R.string.cache_last_error, it),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )
@@ -192,7 +210,7 @@ fun CacheScreen(
                                 Button(
                                     onClick = { viewModel.clearChapterCache() },
                                     enabled = !state.busy,
-                                ) { Text("清空章节缓存") }
+                                ) { Text(stringResource(R.string.cache_clear_chapters)) }
                             }
                         }
                     }
@@ -201,16 +219,20 @@ fun CacheScreen(
                     item {
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("封面缓存", style = MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.cache_cover_title), style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    "${cover.propertyEntries} 个条目 · ${formatBytes(cover.usedBytes)}",
+                                    stringResource(
+                                        R.string.cache_cover_usage,
+                                        cover.propertyEntries,
+                                        formatBytes(cover.usedBytes),
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 OutlinedButton(
                                     onClick = { viewModel.clearCoverCache() },
                                     enabled = !state.busy,
-                                ) { Text("清空封面缓存") }
+                                ) { Text(stringResource(R.string.cache_clear_covers)) }
                             }
                         }
                     }

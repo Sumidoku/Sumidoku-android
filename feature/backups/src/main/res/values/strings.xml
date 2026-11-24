@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backups_title">Backup &amp; Restore</string>
+    <string name="backups_back">Back</string>
+    <string name="backups_export_title">Export full backup</string>
+    <string name="backups_export_desc">Export the current server\'s full backup JSON (library, progress, categories, settings, source settings) and save it to local storage.</string>
+    <string name="backups_export_button">Export to file…</string>
+    <string name="backups_restore_title">Restore from file</string>
+    <string name="backups_restore_desc">Pick a Sumidoku backup JSON from this device to restore; you can also import an Aidoku (.aib) backup. Restoring merges into the existing data.</string>
+    <string name="backups_restore_json_button">Restore backup JSON…</string>
+    <string name="backups_import_aidoku_button">Import Aidoku .aib…</string>
+    <string name="backups_import_tachibk_button">Import Mihon/Suwayomi .tachibk…</string>
+    <string name="backups_server_backups_title">Scheduled server backups</string>
+    <string name="backups_no_scheduled_backups">No scheduled backup files yet (generated automatically once a backup schedule is configured on the server).</string>
+    <string name="backups_restore">Restore</string>
+    <string name="backups_restore_dialog_title">Restore server backup</string>
+    <string name="backups_restore_dialog_message">%1$s will be merged in to restore the library, progress, categories and settings. Continue?</string>
+    <string name="backups_cancel">Cancel</string>
+    <string name="backups_restore_done_title">Restore complete</string>
+    <string name="backups_restore_result_counts">Manga %1$d · Progress %2$d · Categories %3$d · Settings %4$d · Source settings %5$d</string>
+    <string name="backups_ok">OK</string>
+    <string name="backups_aidoku_preview_title">Import Aidoku backup (preview)</string>
+    <string name="backups_aidoku_preview_message">Will import: %1$d manga, %2$d progress, %3$d categories, %4$d tracker bindings (%5$d skipped). Import now?</string>
+    <string name="backups_import">Import</string>
+    <string name="backups_error_no_server">No server selected</string>
+    <string name="backups_aidoku_import_summary">Imported: %1$d manga, %2$d progress, %3$d categories, %4$d tracker bindings (%5$d skipped)</string>
+    <string name="backups_tachibk_import_summary">Imported: %1$d manga, %2$d progress, %3$d categories, %4$d tracker bindings (%5$d skipped)</string>
+    <string name="tachibk_preview_title">Import Mihon backup (preview)</string>
+    <string name="tachibk_preview_message">Will import: %1$d manga, %2$d progress, %3$d categories, %4$d tracker bindings (%5$d skipped). Confirm the mapping of each source:</string>
+    <string name="tachibk_manga_count">%1$d manga</string>
+    <string name="tachibk_matched_fallback">Matched</string>
+    <string name="tachibk_unmatched">No automatic match</string>
+    <string name="tachibk_select_mapping">Choose mapping…</string>
+    <string name="tachibk_skip_source">Skip this source</string>
+</resources>

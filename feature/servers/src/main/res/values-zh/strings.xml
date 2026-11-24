@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="servers_title">服务器</string>
+    <string name="servers_add">添加服务器</string>
+    <string name="servers_add_confirm">添加</string>
+    <string name="servers_cancel">取消</string>
+    <string name="servers_verifying">验证中…</string>
+    <string name="servers_empty_title">还没有服务器</string>
+    <string name="servers_empty_desc">添加你的 Sumidoku 实例开始</string>
+    <string name="servers_current">当前服务器</string>
+    <string name="servers_delete">删除</string>
+    <string name="servers_mirrors">+%1$d 镜像</string>
+    <string name="servers_name_optional">名称（可选）</string>
+    <string name="servers_url_label">地址 *</string>
+    <string name="servers_url_placeholder">http://192.168.1.10:4567</string>
+    <string name="servers_credential_key">API Key</string>
+    <string name="servers_credential_password">用户名密码</string>
+    <string name="servers_api_key_optional">API Key（可选）</string>
+    <string name="servers_api_key_hint">服务器设置 → 系统 → API keys 创建</string>
+    <string name="servers_username">用户名</string>
+    <string name="servers_password">密码</string>
+    <string name="servers_password_hint">登录换 30 天滚动会话令牌，与 webui 同机制</string>
+    <string name="servers_mirrors_label">镜像地址（可选，每行一个）</string>
+    <string name="servers_error_probe_failed">无法连接或非 Sumidoku 服务器（/api/v1/version：%1$s）</string>
+    <string name="servers_error_bad_credentials">用户名或密码错误</string>
+    <string name="servers_error_login_http">登录失败（HTTP %1$d）</string>
+    <string name="servers_error_login">登录失败：%1$s</string>
+</resources>

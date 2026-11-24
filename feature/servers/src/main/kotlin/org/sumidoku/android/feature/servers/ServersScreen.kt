@@ -44,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,10 +64,10 @@ fun ServersScreen(
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("服务器") }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.servers_title)) }) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Outlined.Add, contentDescription = "添加服务器")
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.servers_add))
             }
         },
     ) { padding ->
@@ -83,10 +84,13 @@ fun ServersScreen(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("还没有服务器", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.servers_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "添加你的 Sumidoku 实例开始",
+                        stringResource(R.string.servers_empty_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -168,7 +172,7 @@ private fun ServerCard(
                 )
                 if (profile.mirrors.isNotEmpty()) {
                     Text(
-                        "+${profile.mirrors.size} 镜像",
+                        stringResource(R.string.servers_mirrors, profile.mirrors.size),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -177,7 +181,7 @@ private fun ServerCard(
             if (isActive) {
                 Icon(
                     Icons.Outlined.CheckCircle,
-                    contentDescription = "当前服务器",
+                    contentDescription = stringResource(R.string.servers_current),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.size(4.dp))
@@ -185,7 +189,7 @@ private fun ServerCard(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Outlined.Delete,
-                    contentDescription = "删除",
+                    contentDescription = stringResource(R.string.servers_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -208,28 +212,33 @@ private fun AddServerDialog(
     var password by rememberSaveable { mutableStateOf("") }
     var mirrors by rememberSaveable { mutableStateOf("") }
 
+    val credentialOptions = listOf(
+        "key" to stringResource(R.string.servers_credential_key),
+        "password" to stringResource(R.string.servers_credential_password),
+    )
+
     AlertDialog(
         onDismissRequest = { if (!inFlight) onDismiss() },
-        title = { Text("添加服务器") },
+        title = { Text(stringResource(R.string.servers_add)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("名称（可选）") },
+                    label = { Text(stringResource(R.string.servers_name_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
-                    label = { Text("地址 *") },
-                    placeholder = { Text("http://192.168.1.10:4567") },
+                    label = { Text(stringResource(R.string.servers_url_label)) },
+                    placeholder = { Text(stringResource(R.string.servers_url_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("key" to "API Key", "password" to "用户名密码").forEachIndexed { index, (value, label) ->
+                    credentialOptions.forEachIndexed { index, (value, label) ->
                         SegmentedButton(
                             selected = credentialMode == value,
                             onClick = { credentialMode = value },
@@ -241,8 +250,8 @@ private fun AddServerDialog(
                     OutlinedTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it },
-                        label = { Text("API Key（可选）") },
-                        supportingText = { Text("服务器设置 → 系统 → API keys 创建") },
+                        label = { Text(stringResource(R.string.servers_api_key_optional)) },
+                        supportingText = { Text(stringResource(R.string.servers_api_key_hint)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -250,24 +259,24 @@ private fun AddServerDialog(
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text("用户名") },
+                        label = { Text(stringResource(R.string.servers_username)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("密码") },
+                        label = { Text(stringResource(R.string.servers_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
-                        supportingText = { Text("登录换 30 天滚动会话令牌，与 webui 同机制") },
+                        supportingText = { Text(stringResource(R.string.servers_password_hint)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 OutlinedTextField(
                     value = mirrors,
                     onValueChange = { mirrors = it },
-                    label = { Text("镜像地址（可选，每行一个）") },
+                    label = { Text(stringResource(R.string.servers_mirrors_label)) },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -296,11 +305,19 @@ private fun AddServerDialog(
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.size(8.dp))
                 }
-                Text(if (inFlight) "验证中…" else "添加")
+                Text(
+                    if (inFlight) {
+                        stringResource(R.string.servers_verifying)
+                    } else {
+                        stringResource(R.string.servers_add_confirm)
+                    },
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !inFlight) { Text("取消") }
+            TextButton(onClick = onDismiss, enabled = !inFlight) {
+                Text(stringResource(R.string.servers_cancel))
+            }
         },
     )
 }

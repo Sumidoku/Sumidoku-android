@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>书库 · 显示设置弹层 · sumidoku-android 设计稿</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .dim { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+  .sheet .gh { font-size: 12.5px; color: var(--accent); font-weight: 600; margin: 14px 2px 8px; }
+  /* 形态三选：迷你预览卡 + 选中描边 */
+  .modes { display: flex; gap: 10px; }
+  .mode { flex: 1; border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 8px 8px; text-align: center; font-size: 12px; color: var(--muted); }
+  .mode.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .mode .pv { height: 56px; display: flex; align-items: center; justify-content: center; gap: 3px; margin-bottom: 6px; }
+  .pv i { display: block; background: var(--surface3); border-radius: 3px; }
+  .mode.on .pv i { background: var(--accent); opacity: .85; }
+  /* 密度档 chips */
+  .dens { display: flex; gap: 8px; }
+  .dens .chip { flex: 1; text-align: center; }
+  .sheet .swrow { display: flex; align-items: center; justify-content: space-between; padding: 11px 2px; font-size: 14px; }
+  .sheet .note { font-size: 10.5px; color: var(--faint); margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1 class="page-title">书库 · 显示设置弹层</h1>
+<p class="page-sub">顶栏「显示」图标唤起：形态三选（紧凑=默认 / 舒适 / 列表，迷你预览卡）+ 列数密度（Auto=按 100dp 自适应，2/3/4 固定）+ 徽标显隐；列数按横竖屏分别记忆（对齐 Komikku LibraryColumns）</p>
+<div class="phone">
+  <div class="statusbar"><span>21:30</span><span class="icons">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h4v4H2zM8 13h4v8H8zM14 9h4v12h-4zM20 5h2v16h-2z"/></svg>
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="7" width="15" height="10" rx="2"/><rect x="5" y="9" width="9" height="6" fill="#0A0A0E"/></svg>
+  </span></div>
+
+  <div class="appbar">
+    <span class="title">书库</span>
+    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg></span>
+    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
+    <span class="iconbtn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></span>
+  </div>
+
+  <div class="content">
+    <div class="cgrid">
+      <div class="cover g1"><span class="ubadge">12</span><span class="ct">青之驱魔师</span></div>
+      <div class="cover g2"><span class="ubadge">3</span><span class="ct">葬送的芙莉莲</span></div>
+      <div class="cover g4"><span class="ubadge">27</span><span class="ct">我独自升级</span></div>
+      <div class="cover g5"><span class="ct">链锯人</span></div>
+      <div class="cover g6"><span class="ubadge">1</span><span class="ct">间谍过家家</span></div>
+      <div class="cover g2"><span class="ct">怪兽 8 号</span></div>
+    </div>
+
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+
+      <div class="gh" style="margin-top:0">显示形态</div>
+      <div class="modes">
+        <div class="mode on">
+          <div class="pv">
+            <i style="width:14px;height:26px"></i><i style="width:14px;height:26px"></i><i style="width:14px;height:26px"></i>
+          </div>
+          紧凑网格
+        </div>
+        <div class="mode">
+          <div class="pv">
+            <span style="text-align:center"><i style="width:20px;height:30px;margin:0 auto"></i><i style="width:20px;height:3px;margin:3px auto 0"></i></span>
+            <span style="text-align:center"><i style="width:20px;height:30px;margin:0 auto"></i><i style="width:20px;height:3px;margin:3px auto 0"></i></span>
+          </div>
+          舒适网格
+        </div>
+        <div class="mode">
+          <div class="pv" style="flex-direction:column;gap:4px">
+            <i style="width:38px;height:8px"></i><i style="width:38px;height:8px"></i><i style="width:38px;height:8px"></i>
+          </div>
+          列表
+        </div>
+      </div>
+
+      <div class="gh">列数密度</div>
+      <div class="dens">
+        <span class="chip active">Auto</span><span class="chip">2</span><span class="chip">3</span><span class="chip">4</span>
+      </div>
+
+      <div class="gh">封面徽标</div>
+      <div class="swrow"><span>未读数角标</span><span class="sw on"></span></div>
+      <div class="swrow"><span>已下载标记</span><span class="sw on"></span></div>
+      <div class="swrow"><span>来源标记（非默认源时）</span><span class="sw"></span></div>
+
+      <div class="note">Auto 按最小封面宽 100dp 自适应（对齐 Komikku GridCells.Adaptive(128dp) 的等价体验）；竖屏 / 横屏的列数分别记忆。</div>
+    </div>
+  </div>
+
+  <div class="bottomnav">
+    <span class="tab active"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>书库</span>
+    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5z"/></svg></span>浏览</span>
+    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span>更新</span>
+    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span>历史</span>
+    <span class="tab"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg></span>设置</span>
+  </div>
+</div>
+</body>
+</html>

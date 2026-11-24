@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trackers_title">Tracker accounts</string>
+    <string name="trackers_back">Back</string>
+    <string name="trackers_action_link">Link</string>
+    <string name="trackers_action_unlink">Unlink</string>
+    <string name="trackers_action_cancel">Cancel</string>
+    <string name="trackers_status_linked">Linked: %1$s</string>
+    <string name="trackers_status_unlinked">Not linked</string>
+    <string name="trackers_unknown_account">Unknown account</string>
+    <string name="trackers_sync_strategy_title">Sync strategy (server-side)</string>
+    <string name="trackers_strategy_push_title">Push progress automatically after reading</string>
+    <string name="trackers_strategy_push_detail">Compares remote progress with the pure decide() function, moving forward only and never backwards; the client does not need to stay in the foreground.</string>
+    <string name="trackers_strategy_pull_title">Pull a progress mirror from the tracker</string>
+    <string name="trackers_strategy_pull_detail">Mirrors Aidoku\'s getChaptersToSyncProgressFromTracker: when the remote is further ahead, the remote value wins.</string>
+    <string name="trackers_strategy_binding_title">Link status and account unlinking</string>
+    <string name="trackers_strategy_binding_detail">OAuth completes in the provider\'s official panel and tokens are stored only on the server; linking and unlinking on this page take effect immediately.</string>
+    <string name="trackers_default_label">Default tracker</string>
+    <string name="trackers_default_detail">Provider preselected when searching metadata</string>
+    <string name="trackers_default_none">None</string>
+    <string name="tracker_oauth_sheet_title">Link %1$s</string>
+    <string name="trackers_error_no_server">No server selected</string>
+    <string name="trackers_message_linked">Linked</string>
+    <string name="trackers_message_unlinked">Unlinked</string>
+    <string name="trackers_message_saved">Saved</string>
+</resources>

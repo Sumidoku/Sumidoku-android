@@ -65,7 +65,11 @@ class UpdateCheckWorker(
     private fun notifyNewChapters(count: Int, firstTitle: String) {
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "章节更新", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(
+                CHANNEL,
+                applicationContext.getString(R.string.update_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ),
         )
         val intent = PendingIntent.getActivity(
             applicationContext,
@@ -75,10 +79,14 @@ class UpdateCheckWorker(
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val text = if (count == 1) "「$firstTitle」有新章节" else "$count 部漫画有新章节"
+        val text = if (count == 1) {
+            applicationContext.getString(R.string.update_new_chapters_one, firstTitle)
+        } else {
+            applicationContext.getString(R.string.update_new_chapters_many, count)
+        }
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Sumidoku 更新")
+            .setContentTitle(applicationContext.getString(R.string.update_notification_title))
             .setContentText(text)
             .setContentIntent(intent)
             .setAutoCancel(true)

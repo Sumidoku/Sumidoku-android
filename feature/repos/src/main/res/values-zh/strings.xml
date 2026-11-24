@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="repos_title">图源仓库</string>
+    <string name="repos_back">返回</string>
+    <string name="repos_add_repo">添加仓库</string>
+    <string name="repos_retry">重试</string>
+    <string name="repos_empty_title">还没有图源仓库</string>
+    <string name="repos_empty_desc">添加仓库后即可浏览并安装第三方图源</string>
+    <string name="repos_added_header">已添加</string>
+    <string name="repos_index_cache_hint">索引缓存在服务端，刷新才回源</string>
+    <string name="repos_index_url_label">仓库索引 URL</string>
+    <string name="repos_fetching_index">正在拉取索引…</string>
+    <string name="repos_add">添加</string>
+    <string name="repos_cancel">取消</string>
+    <string name="repos_delete_dialog_title">删除仓库？</string>
+    <string name="repos_delete_dialog_message">已安装的图源不受影响，但无法再接收该仓库的更新。</string>
+    <string name="repos_delete">删除</string>
+    <string name="repos_not_refreshed">未刷新</string>
+    <string name="repos_stale_warning">上次刷新失败（沿用旧缓存）· %1$s</string>
+    <string name="repos_source_count_refreshed">%1$d 个图源 · %2$s 刷新</string>
+    <string name="repos_refresh">刷新</string>
+    <string name="repos_error_no_server">未选择服务器</string>
+    <string name="repos_error_unknown">未知错误</string>
+    <string name="repos_msg_index_refreshed">索引已刷新</string>
+    <string name="repos_msg_refresh_failed">刷新失败：%1$s</string>
+    <string name="repos_msg_deleted">已删除仓库</string>
+    <string name="repos_msg_delete_failed">删除失败：%1$s</string>
+    <string name="repos_validation_url_empty">请输入索引 URL</string>
+    <string name="repos_validation_url_invalid">URL 格式不正确</string>
+    <string name="repos_validation_url_scheme">只支持 http/https</string>
+    <string name="repos_validation_url_no_host">URL 缺少主机名</string>
+    <string name="repos_validation_url_not_json">请粘贴 index.json 的地址</string>
+</resources>

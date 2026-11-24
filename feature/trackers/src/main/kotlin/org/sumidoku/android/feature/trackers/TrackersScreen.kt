@@ -4,7 +4,6 @@ import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Card
@@ -46,56 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.model.ServerProfile
 
-private fun providerLabel(provider: TrackerProvider): String = when (provider) {
-    TrackerProvider.ANILIST -> "AniList"
-    TrackerProvider.MAL -> "MyAnimeList"
-    TrackerProvider.BANGUMI -> "Bangumi"
-    TrackerProvider.MANGABAKA -> "MangaBaka"
-}
-
-/** Brand monogram + colour per provider. No brand assets are bundled, so
- *  the badge is a tinted lettered square in the provider's brand colour
- *  (preview 14-trackers.html uses the same monogram convention). */
-private data class TrackerBrand(val monogram: String, val color: Color)
-
-private fun providerBrand(provider: TrackerProvider): TrackerBrand = when (provider) {
-    TrackerProvider.ANILIST -> TrackerBrand("AL", Color(0xFF02A9FF))
-    TrackerProvider.MAL -> TrackerBrand("MAL", Color(0xFF2E51A2))
-    TrackerProvider.BANGUMI -> TrackerBrand("BGM", Color(0xFFF0913A))
-    TrackerProvider.MANGABAKA -> TrackerBrand("MB", Color(0xFF6E56CF))
-}
-
-@Composable
-private fun TrackerProviderBadge(provider: TrackerProvider) {
-    val brand = providerBrand(provider)
-    // Tint the square and lift the glyph towards the foreground colour so
-    // the same brand colour stays legible in light and dark themes.
-    val glyph = lerp(brand.color, MaterialTheme.colorScheme.onSurface, 0.35f)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(brand.color.copy(alpha = 0.18f)),
-    ) {
-        Text(
-            brand.monogram,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = glyph,
-        )
-    }
-}
+private fun providerLabel(provider: TrackerProvider): String = trackerProviderLabel(provider)
 
 /** Tracker account bindings: OAuth status per provider, bind via an
  *  embedded WebView that intercepts the callback navigation and hands
@@ -123,10 +78,13 @@ fun TrackersScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("追踪器账号") },
+                title = { Text(stringResource(R.string.trackers_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.trackers_back),
+                        )
                     }
                 },
             )
@@ -149,13 +107,17 @@ fun TrackersScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(12.dp),
                         ) {
-                            TrackerProviderBadge(provider)
+                            TrackerLogo(provider)
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                                 Text(providerLabel(provider), style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     when {
-                                        status?.loggedIn == true -> "已绑定：${status.username ?: "未知账号"}"
-                                        else -> "未绑定"
+                                        status?.loggedIn == true -> {
+                                            val username = status.username
+                                                ?: stringResource(R.string.trackers_unknown_account)
+                                            stringResource(R.string.trackers_status_linked, username)
+                                        }
+                                        else -> stringResource(R.string.trackers_status_unlinked)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (status?.loggedIn == true) {
@@ -172,12 +134,12 @@ fun TrackersScreen(
                                 TextButton(
                                     enabled = state.busyProvider == null,
                                     onClick = { viewModel.logout(provider) },
-                                ) { Text("解绑") }
+                                ) { Text(stringResource(R.string.trackers_action_unlink)) }
                             } else {
                                 TextButton(
                                     enabled = state.busyProvider == null,
                                     onClick = { oauthProvider = provider },
-                                ) { Text("绑定") }
+                                ) { Text(stringResource(R.string.trackers_action_link)) }
                             }
                         }
                     }
@@ -187,28 +149,51 @@ fun TrackersScreen(
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.trackers_sync_strategy_title), style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(6.dp))
+                    TrackerStrategyRow(
+                        title = stringResource(R.string.trackers_strategy_push_title),
+                        detail = stringResource(R.string.trackers_strategy_push_detail),
+                    )
+                    TrackerStrategyRow(
+                        title = stringResource(R.string.trackers_strategy_pull_title),
+                        detail = stringResource(R.string.trackers_strategy_pull_detail),
+                    )
+                    TrackerStrategyRow(
+                        title = stringResource(R.string.trackers_strategy_binding_title),
+                        detail = stringResource(R.string.trackers_strategy_binding_detail),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
                     var showDefaultMenu by remember { mutableStateOf(false) }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("默认追踪器", style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.trackers_default_label), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "搜索元数据时默认选中的提供方",
+                                stringResource(R.string.trackers_default_detail),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Box {
                             OutlinedButton(onClick = { showDefaultMenu = true }) {
-                                Text(state.defaultTracker?.let { providerLabel(it) } ?: "无")
+                                Text(
+                                    state.defaultTracker?.let { providerLabel(it) }
+                                        ?: stringResource(R.string.trackers_default_none),
+                                )
                             }
                             DropdownMenu(expanded = showDefaultMenu, onDismissRequest = { showDefaultMenu = false }) {
-                                DropdownMenuItem(text = { Text("无") }, onClick = {
-                                    showDefaultMenu = false
-                                    viewModel.setDefault(null)
-                                })
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.trackers_default_none)) },
+                                    onClick = {
+                                        showDefaultMenu = false
+                                        viewModel.setDefault(null)
+                                    },
+                                )
                                 TrackerProvider.entries.forEach { provider ->
                                     DropdownMenuItem(text = { Text(providerLabel(provider)) }, onClick = {
                                         showDefaultMenu = false
@@ -261,8 +246,12 @@ private fun TrackerOauthSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
-                Text("绑定 ${providerLabel(provider)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("取消") }
+                Text(
+                    stringResource(R.string.tracker_oauth_sheet_title, providerLabel(provider)),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.trackers_action_cancel)) }
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             AndroidView(
@@ -298,5 +287,21 @@ private fun TrackerOauthSheet(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+    }
+}
+
+/** Read-only explanation rows for server-side tracker sync — the API exposes
+ *  only bind/unbind + default tracker, so the strategy is documented, not toggled. */
+@androidx.compose.runtime.Composable
+private fun TrackerStrategyRow(title: String, detail: String) {
+    androidx.compose.foundation.layout.Column(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            detail,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

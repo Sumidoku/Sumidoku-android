@@ -2,6 +2,7 @@ package org.sumidoku.android.feature.source
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -31,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -52,7 +55,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +67,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import org.sumidoku.android.core.api.model.SettingValueOneOf8Login
+import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourceSetting
 import kotlin.math.roundToInt
 
@@ -75,9 +82,10 @@ fun SourceSettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.source_saved)
 
     LaunchedEffect(state.saved) {
-        if (state.saved) snackbar.showSnackbar("已保存")
+        if (state.saved) snackbar.showSnackbar(savedMessage)
     }
     LaunchedEffect(state.error) {
         state.error?.let { snackbar.showSnackbar(it) }
@@ -93,20 +101,37 @@ fun SourceSettingsScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text(state.source?.name?.let { "$it 设置" } ?: "图源设置") },
+                title = {
+                    Text(
+                        state.source?.name?.let {
+                            stringResource(R.string.source_settings_title_named, it)
+                        } ?: stringResource(R.string.source_settings),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.source_back),
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.reset() }) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "重置为默认")
+                        Icon(
+                            Icons.Outlined.RestartAlt,
+                            contentDescription = stringResource(R.string.source_reset_to_default),
+                        )
                     }
                     TextButton(
                         onClick = { viewModel.save() },
                         enabled = state.dirty && !state.saving,
-                    ) { Text(if (state.saving) "保存中…" else "保存") }
+                    ) {
+                        Text(
+                            if (state.saving) stringResource(R.string.source_saving)
+                            else stringResource(R.string.source_save),
+                        )
+                    }
                 },
             )
         },
@@ -118,16 +143,42 @@ fun SourceSettingsScreen(
             }
             settings == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.error ?: "无法加载设置", color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                    Text(
+                        state.error ?: stringResource(R.string.source_settings_load_failed),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = { viewModel.refresh() }) {
+                        Text(stringResource(R.string.source_retry))
+                    }
                 }
             }
             settings.settings.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("此图源没有设置项", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.source_no_settings),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
+                // Local sources get the webui LocalSourcePanel actions:
+                // re-scan the configured directories (queued as a task).
+                if (state.source?.kind == Source.Kind.LOCAL) {
+                    item(key = "__scan_local__") {
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.source_scan_local)) },
+                            supportingContent = {
+                                Text(stringResource(R.string.source_scan_local_subtitle))
+                            },
+                            trailingContent = {
+                                TextButton(onClick = { viewModel.scanLocal() }) {
+                                    Text(stringResource(R.string.source_scan))
+                                }
+                            },
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
                 items(settings.settings, key = { it.key }) { setting ->
                     if (setting.visibleIn(state.values)) {
                         SettingRow(
@@ -161,6 +212,66 @@ class SettingActions(
     val pressButton: (SourceSetting) -> Unit,
 )
 
+/** Single-choice dialog shared by select/picker rows: radio indicators,
+ *  rounded rows with the selected option highlighted (M3 spec style instead
+ *  of a bare list). */
+@Composable
+private fun SingleChoiceDialog(
+    title: String,
+    options: List<String>,
+    titles: List<String>,
+    current: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            LazyColumn {
+                items(options.size) { i ->
+                    val selected = options[i] == current
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (selected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    Color.Transparent
+                                },
+                            )
+                            .clickable {
+                                onPick(options[i])
+                                onDismiss()
+                            }
+                            .padding(end = 12.dp),
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = {
+                                onPick(options[i])
+                                onDismiss()
+                            },
+                        )
+                        Text(
+                            titles.getOrElse(i) { options[i] },
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.source_cancel)) } },
+    )
+}
+
 @Composable
 private fun SettingRow(
     setting: SourceSetting,
@@ -181,12 +292,68 @@ private fun SettingRow(
         }
         when {
             settingValue?.group != null -> {
-                Text(
-                    setting.title ?: setting.key,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
+                val group = settingValue.group!!
+                val loginTag = groupLoginTag(group, values)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        setting.title ?: setting.key,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    loginTag?.let {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(6.dp),
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                // Group children are real settings — render them
+                // recursively instead of dropping them.
+                group.items.forEach { child ->
+                    if (child.visibleIn(values)) {
+                        SettingRow(child, values, actions)
+                    }
+                }
+                group.footer?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                }
+            }
+            settingValue?.rawString != null -> {
+                // Bare-string kinds: "list" (local source paths/exclusions),
+                // "Button", and kinds unknown to the server normalizer.
+                when (setting.type.lowercase()) {
+                    "list" -> EditableStringListRow(setting, values, onChange, placeholder = null)
+                    "button" -> ListItem(
+                        headlineContent = { Text(setting.title ?: setting.key) },
+                        trailingContent = {
+                            TextButton(onClick = { actions.pressButton(setting) }) {
+                                Text(stringResource(R.string.source_run))
+                            }
+                        },
+                    )
+                    else -> ListItem(
+                        headlineContent = { Text(setting.title ?: setting.key) },
+                        supportingContent = {
+                            Text(stringValue(value).ifEmpty { stringResource(R.string.source_not_set) })
+                        },
+                    )
+                }
             }
             settingValue?.toggle != null -> {
                 ListItem(
@@ -212,28 +379,21 @@ private fun SettingRow(
                     headlineContent = { Text(setting.title ?: setting.key) },
                     supportingContent = {
                         val idx = options.indexOf(current)
-                        Text(if (idx >= 0 && idx < titles.size) titles[idx] else current.ifEmpty { "未选择" })
+                        Text(
+                            if (idx >= 0 && idx < titles.size) titles[idx]
+                            else current.ifEmpty { stringResource(R.string.source_not_selected) },
+                        )
                     },
                     modifier = Modifier.clickable { open = true },
                 )
                 if (open) {
-                    AlertDialog(
-                        onDismissRequest = { open = false },
-                        title = { Text(setting.title ?: setting.key) },
-                        text = {
-                            LazyColumn {
-                                items(options.size) { i ->
-                                    ListItem(
-                                        headlineContent = { Text(titles.getOrElse(i) { options[i] }) },
-                                        modifier = Modifier.clickable {
-                                            onChange(setting.key, jsonString(options[i]))
-                                            open = false
-                                        },
-                                    )
-                                }
-                            }
-                        },
-                        confirmButton = { TextButton(onClick = { open = false }) { Text("取消") } },
+                    SingleChoiceDialog(
+                        title = setting.title ?: setting.key,
+                        options = options,
+                        titles = titles,
+                        current = current,
+                        onPick = { onChange(setting.key, jsonString(it)) },
+                        onDismiss = { open = false },
                     )
                 }
             }
@@ -244,7 +404,10 @@ private fun SettingRow(
                 ListItem(
                     headlineContent = { Text(setting.title ?: setting.key) },
                     supportingContent = {
-                        Text(if (selected.isEmpty()) "未选择" else selected.joinToString("、"))
+                        Text(
+                            if (selected.isEmpty()) stringResource(R.string.source_not_selected)
+                            else selected.joinToString(stringResource(R.string.source_list_separator)),
+                        )
                     },
                     modifier = Modifier.clickable { open = true },
                 )
@@ -258,20 +421,39 @@ private fun SettingRow(
                                 items(multi.propertyValues.size) { i ->
                                     val option = multi.propertyValues[i]
                                     val label = multi.titles?.getOrElse(i) { option } ?: option
-                                    ListItem(
-                                        headlineContent = { Text(label) },
-                                        trailingContent = {
-                                            Checkbox(
-                                                checked = draft.contains(option),
-                                                onCheckedChange = {
-                                                    draft = if (it) draft + option else draft - option
+                                    val checked = draft.contains(option)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                if (checked) {
+                                                    MaterialTheme.colorScheme.secondaryContainer
+                                                } else {
+                                                    Color.Transparent
                                                 },
                                             )
-                                        },
-                                        modifier = Modifier.clickable {
-                                            draft = if (draft.contains(option)) draft - option else draft + option
-                                        },
-                                    )
+                                            .clickable {
+                                                draft = if (checked) draft - option else draft + option
+                                            }
+                                            .padding(end = 12.dp),
+                                    ) {
+                                        Checkbox(
+                                            checked = checked,
+                                            onCheckedChange = {
+                                                draft = if (it) draft + option else draft - option
+                                            },
+                                        )
+                                        Text(
+                                            label,
+                                            color = if (checked) {
+                                                MaterialTheme.colorScheme.onSecondaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -279,9 +461,13 @@ private fun SettingRow(
                             TextButton(onClick = {
                                 onChange(setting.key, jsonList(draft.toList()))
                                 open = false
-                            }) { Text("确定") }
+                            }) { Text(stringResource(R.string.source_confirm_count, draft.size)) }
                         },
-                        dismissButton = { TextButton(onClick = { open = false }) { Text("取消") } },
+                        dismissButton = {
+                            TextButton(onClick = { open = false }) {
+                                Text(stringResource(R.string.source_cancel))
+                            }
+                        },
                     )
                 }
             }
@@ -347,41 +533,41 @@ private fun SettingRow(
                         label = { Text(setting.title ?: setting.key) },
                         placeholder = { textDef.placeholder?.let { p -> Text(p) } },
                         singleLine = true,
+                        visualTransformation = if (textDef.secure == true) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
             settingValue?.editableList != null -> {
-                val list = listValue(value)
+                EditableStringListRow(setting, values, onChange, placeholder = settingValue.editableList!!.placeholder)
+            }
+            settingValue?.picker != null -> {
+                // Picker is a value/title single choice, same interaction as
+                // select (webui renders both as a choice list).
+                val picker = settingValue.picker!!
                 var open by remember { mutableStateOf(false) }
+                val current = stringValue(value).ifEmpty { picker.`default` ?: "" }
+                val titles = picker.titles ?: emptyList()
+                val options = picker.propertyValues
                 ListItem(
                     headlineContent = { Text(setting.title ?: setting.key) },
                     supportingContent = {
-                        Text(if (list.isEmpty()) "空列表" else "${list.size} 项")
+                        val idx = options.indexOf(current)
+                        Text(
+                            if (idx >= 0 && idx < titles.size) titles[idx]
+                            else current.ifEmpty { stringResource(R.string.source_not_selected) },
+                        )
                     },
                     modifier = Modifier.clickable { open = true },
                 )
                 if (open) {
-                    var draft by remember { mutableStateOf(list.joinToString("\n")) }
-                    AlertDialog(
-                        onDismissRequest = { open = false },
-                        title = { Text(setting.title ?: setting.key) },
-                        text = {
-                            OutlinedTextField(
-                                value = draft,
-                                onValueChange = { draft = it },
-                                placeholder = { settingValue.editableList!!.placeholder?.let { Text(it) } },
-                                minLines = 4,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                onChange(setting.key, jsonList(draft.lines().map { it.trim() }.filter { it.isNotEmpty() }))
-                                open = false
-                            }) { Text("确定") }
-                        },
-                        dismissButton = { TextButton(onClick = { open = false }) { Text("取消") } },
+                    SingleChoiceDialog(
+                        title = setting.title ?: setting.key,
+                        options = options,
+                        titles = titles,
+                        current = current,
+                        onPick = { onChange(setting.key, jsonString(it)) },
+                        onDismiss = { open = false },
                     )
                 }
             }
@@ -394,10 +580,13 @@ private fun SettingRow(
             settingValue?.link != null -> {
                 val context = LocalContext.current
                 ListItem(
-                    headlineContent = { Text(setting.title ?: "链接") },
+                    headlineContent = { Text(setting.title ?: stringResource(R.string.source_link)) },
                     supportingContent = { Text(settingValue.link!!.url) },
                     trailingContent = {
-                        Icon(Icons.Outlined.OpenInNew, contentDescription = "浏览器打开")
+                        Icon(
+                            Icons.Outlined.OpenInNew,
+                            contentDescription = stringResource(R.string.source_open_in_browser),
+                        )
                     },
                     modifier = Modifier.clickable {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(settingValue.link!!.url)))
@@ -431,11 +620,79 @@ private fun SettingRow(
             else -> {
                 ListItem(
                     headlineContent = { Text(setting.title ?: setting.key) },
-                    supportingContent = { Text("暂不支持的设置类型") },
+                    supportingContent = { Text(stringResource(R.string.source_unsupported_setting)) },
                 )
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+/** String-list editor shared by the EditableList object kind and the
+ *  bare-string "list" kind (local source paths/exclusions). One entry per
+ *  line in a dialog, mirroring webui's textarea editor. */
+@Composable
+private fun EditableStringListRow(
+    setting: SourceSetting,
+    values: Map<String, JsonElement>,
+    onChange: (String, JsonElement) -> Unit,
+    placeholder: String?,
+) {
+    val list = listValue(values[setting.key])
+    var open by remember { mutableStateOf(false) }
+    ListItem(
+        headlineContent = { Text(setting.title ?: setting.key) },
+        supportingContent = {
+            Text(
+                if (list.isEmpty()) stringResource(R.string.source_empty_list)
+                else stringResource(R.string.source_items_count, list.size),
+            )
+        },
+        modifier = Modifier.clickable { open = true },
+    )
+    if (open) {
+        var draft by remember { mutableStateOf(list.joinToString("\n")) }
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(setting.title ?: setting.key) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.source_list_edit_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        placeholder = {
+                            Text(placeholder ?: stringResource(R.string.source_list_edit_placeholder))
+                        },
+                        supportingText = {
+                            Text(
+                                stringResource(
+                                    R.string.source_items_total,
+                                    draft.lines().count { it.isNotBlank() },
+                                ),
+                            )
+                        },
+                        minLines = 5,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onChange(setting.key, jsonList(draft.lines().map { it.trim() }.filter { it.isNotEmpty() }))
+                    open = false
+                }) { Text(stringResource(R.string.source_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { open = false }) { Text(stringResource(R.string.source_cancel)) }
+            },
+        )
     }
 }
 
@@ -459,14 +716,39 @@ private fun LoginRow(
             var showFields by remember(setting.key, loggedIn) { mutableStateOf(!loggedIn) }
             Column {
                 ListItem(
-                    headlineContent = { Text(setting.title ?: "登录") },
+                    headlineContent = { Text(setting.title ?: stringResource(R.string.source_login)) },
                     supportingContent = {
-                        if (loggedIn) Text("已登录${if (username.isNotEmpty()) "（$username）" else ""}")
+                        if (loggedIn) {
+                            Text(
+                                if (username.isNotEmpty()) {
+                                    stringResource(R.string.source_logged_in_as, username)
+                                } else {
+                                    stringResource(R.string.source_logged_in)
+                                },
+                            )
+                        }
                     },
                     trailingContent = {
                         if (loggedIn) {
-                            TextButton(onClick = { showFields = !showFields }) {
-                                Text(if (showFields) "收起" else "重新登录")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { showFields = !showFields }) {
+                                    Text(
+                                        if (showFields) stringResource(R.string.source_collapse)
+                                        else stringResource(R.string.source_relogin),
+                                    )
+                                }
+                                // Design 13: every login method can log out,
+                                // not just web/oauth — parity with them.
+                                TextButton(
+                                    onClick = {
+                                        actions.logout(setting.key, login.clearCookiesOnLogOut == true)
+                                    },
+                                ) {
+                                    Text(
+                                        login.logoutTitle ?: stringResource(R.string.source_logout),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
                             }
                         }
                     },
@@ -476,7 +758,12 @@ private fun LoginRow(
                         OutlinedTextField(
                             value = username,
                             onValueChange = { username = it },
-                            label = { Text(if (login.useEmail == true) "邮箱" else "用户名") },
+                            label = {
+                                Text(
+                                    if (login.useEmail == true) stringResource(R.string.source_email)
+                                    else stringResource(R.string.source_username),
+                                )
+                            },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -484,7 +771,7 @@ private fun LoginRow(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("密码") },
+                            label = { Text(stringResource(R.string.source_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
@@ -494,7 +781,7 @@ private fun LoginRow(
                             onClick = { actions.basicLogin(setting.key, username, password) },
                             enabled = username.isNotBlank() && password.isNotBlank(),
                             modifier = Modifier.align(Alignment.End),
-                        ) { Text("登录") }
+                        ) { Text(stringResource(R.string.source_login)) }
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -503,20 +790,23 @@ private fun LoginRow(
         SettingValueOneOf8Login.Method.WEB -> {
             var showWebView by remember { mutableStateOf(false) }
             ListItem(
-                headlineContent = { Text(setting.title ?: "登录") },
+                headlineContent = { Text(setting.title ?: stringResource(R.string.source_login)) },
                 supportingContent = {
-                    Text(if (loggedIn) "已登录" else "在网页中登录，自动带回 Cookie")
+                    Text(
+                        if (loggedIn) stringResource(R.string.source_logged_in)
+                        else stringResource(R.string.source_web_login_subtitle),
+                    )
                 },
                 trailingContent = {
                     if (loggedIn) {
                         TextButton(onClick = {
                             actions.logout(setting.key, login.clearCookiesOnLogOut == true)
-                        }) { Text(login.logoutTitle ?: "登出") }
+                        }) { Text(login.logoutTitle ?: stringResource(R.string.source_logout)) }
                     } else {
                         TextButton(
                             onClick = { showWebView = true },
                             enabled = !login.url.isNullOrBlank(),
-                        ) { Text("打开登录页") }
+                        ) { Text(stringResource(R.string.source_open_login_page)) }
                     }
                 },
             )
@@ -535,19 +825,22 @@ private fun LoginRow(
         SettingValueOneOf8Login.Method.OAUTH -> {
             var authUrl by remember { mutableStateOf<String?>(null) }
             ListItem(
-                headlineContent = { Text(setting.title ?: "登录") },
+                headlineContent = { Text(setting.title ?: stringResource(R.string.source_login)) },
                 supportingContent = {
-                    Text(if (loggedIn) "已登录" else "OAuth 授权登录")
+                    Text(
+                        if (loggedIn) stringResource(R.string.source_logged_in)
+                        else stringResource(R.string.source_oauth_login),
+                    )
                 },
                 trailingContent = {
                     if (loggedIn) {
                         TextButton(onClick = {
                             actions.logout(setting.key, login.clearCookiesOnLogOut == true)
-                        }) { Text(login.logoutTitle ?: "登出") }
+                        }) { Text(login.logoutTitle ?: stringResource(R.string.source_logout)) }
                     } else {
                         TextButton(onClick = {
                             scope.launch { authUrl = actions.startOauth(setting.key) }
-                        }) { Text("开始授权") }
+                        }) { Text(stringResource(R.string.source_oauth_start)) }
                     }
                 },
             )
@@ -566,7 +859,7 @@ private fun LoginRow(
     }
 }
 
-/** WebView that loads the login page; "完成登录" captures cookies for the
+/** WebView that loads the login page; "Finish login" captures cookies for the
  *  current host (plus requested localStorage keys) and returns them —
  *  the Android-native advantage over webui's paste-cookies flow. */
 @Composable
@@ -580,7 +873,7 @@ private fun WebLoginDialog(
     var currentUrl by remember { mutableStateOf(url) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("网页登录") },
+        title = { Text(stringResource(R.string.source_web_login_title)) },
         text = {
             Column {
                 Text(currentUrl, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -626,9 +919,11 @@ private fun WebLoginDialog(
                         }
                     }
                 }
-            }) { Text("完成登录") }
+            }) { Text(stringResource(R.string.source_finish_login)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.source_cancel)) }
+        },
     )
 }
 
@@ -643,7 +938,7 @@ private fun OAuthDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("OAuth 授权") },
+        title = { Text(stringResource(R.string.source_oauth_title)) },
         text = {
             AndroidView(
                 factory = { context ->
@@ -673,6 +968,23 @@ private fun OAuthDialog(
                 modifier = Modifier.fillMaxWidth().height(420.dp),
             )
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.source_cancel)) } },
     )
+}
+
+/** Design 13: a settings group that owns a login item advertises the state in
+ *  its header ("Logged in · web"), so you do not have to scroll to the row. */
+@Composable
+private fun groupLoginTag(
+    group: org.sumidoku.android.core.api.model.SettingValueOneOfGroup,
+    values: Map<String, kotlinx.serialization.json.JsonElement>,
+): String? {
+    var loggedInMethod: String? = null
+    group.items.forEach { child ->
+        val login = child.value?.login ?: return@forEach
+        if (stringValue(values[child.key]).isNotEmpty()) {
+            loggedInMethod = login.method?.value ?: stringResource(R.string.source_login)
+        }
+    }
+    return loggedInMethod?.let { stringResource(R.string.source_logged_in_tag, it) }
 }
