@@ -14,8 +14,6 @@
     <string name="settings_source_repos_subtitle">Add, refresh, and remove source lists</string>
     <string name="settings_manage_servers">Server management</string>
     <string name="settings_manage_servers_subtitle">Switch between or add Sumidoku instances</string>
-    <string name="settings_instance_sync">Cross-instance sync</string>
-    <string name="settings_instance_sync_subtitle">The server has no peer API yet; it will be managed here once available</string>
     <string name="settings_trackers">Tracker accounts</string>
     <string name="settings_trackers_subtitle">AniList / MAL / Bangumi / MangaBaka linking and default provider</string>
     <string name="settings_backup_restore">Backup &amp; restore</string>

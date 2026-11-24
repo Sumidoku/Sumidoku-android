@@ -14,8 +14,6 @@
     <string name="settings_source_repos_subtitle">添加、刷新与删除来源列表</string>
     <string name="settings_manage_servers">服务器管理</string>
     <string name="settings_manage_servers_subtitle">切换或添加 Sumidoku 实例</string>
-    <string name="settings_instance_sync">实例间同步</string>
-    <string name="settings_instance_sync_subtitle">服务端尚无 peer 接口，接入后在此管理</string>
     <string name="settings_trackers">追踪器账号</string>
     <string name="settings_trackers_subtitle">AniList / MAL / Bangumi / MangaBaka 绑定与默认提供方</string>
     <string name="settings_backup_restore">备份与恢复</string>

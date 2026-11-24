@@ -10,11 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SyncAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -32,17 +29,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
-/** The "More" tab (komikku parity): secondary destinations — downloads,
- *  search, settings and the misc management pages — as a rounded-card entry
- *  list, keeping the bottom bar at five tabs. */
+/** The "More" tab (phone only — tablets have rail room for downloads and
+ *  settings directly): secondary destinations as a rounded-card entry list.
+ *  Categories / trackers / backups live in Settings, not here. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(
     onOpenDownloads: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenCategories: () -> Unit,
-    onOpenTrackers: () -> Unit,
-    onOpenBackups: () -> Unit,
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_more)) }) },
@@ -63,9 +57,6 @@ fun MoreScreen(
             ) {
                 Column(Modifier.padding(vertical = 8.dp)) {
                     MoreRow(Icons.Outlined.CloudDownload, R.string.tab_downloads, onOpenDownloads)
-                    MoreRow(Icons.Outlined.Category, R.string.more_categories, onOpenCategories)
-                    MoreRow(Icons.Outlined.SyncAlt, R.string.more_trackers, onOpenTrackers)
-                    MoreRow(Icons.Outlined.Backup, R.string.more_backups, onOpenBackups)
                     MoreRow(Icons.Outlined.Settings, R.string.tab_settings, onOpenSettings)
                 }
             }

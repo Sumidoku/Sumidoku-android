@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.NewReleases
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -126,14 +128,25 @@ class AppViewModel @Inject constructor(
 
 private data class Tab(val route: String, @androidx.annotation.StringRes val labelRes: Int, val icon: ImageVector)
 
-private val tabs = listOf(
+// Phone bottom bar: secondary destinations live behind "More" (5 tabs max,
+// Material guidance).
+private val phoneTabs = listOf(
     Tab("library", R.string.tab_library, Icons.Outlined.CollectionsBookmark),
     Tab("browse", R.string.tab_browse, Icons.Outlined.Explore),
     Tab("updates", R.string.tab_updates, Icons.Outlined.NewReleases),
     Tab("history", R.string.tab_history, Icons.Outlined.History),
-    // komikku parity: secondary destinations live behind "More" instead of
-    // crowding the bar (5 tabs max, Material guidance).
     Tab("more", R.string.tab_more, Icons.Outlined.MoreHoriz),
+)
+
+// Tablet rail: plenty of vertical room — downloads and settings get their
+// own entries instead of hiding behind "More".
+private val railTabs = listOf(
+    Tab("library", R.string.tab_library, Icons.Outlined.CollectionsBookmark),
+    Tab("browse", R.string.tab_browse, Icons.Outlined.Explore),
+    Tab("updates", R.string.tab_updates, Icons.Outlined.NewReleases),
+    Tab("history", R.string.tab_history, Icons.Outlined.History),
+    Tab("downloads", R.string.tab_downloads, Icons.Outlined.CloudDownload),
+    Tab("settings", R.string.tab_settings, Icons.Outlined.Settings),
 )
 
 @Composable
@@ -193,6 +206,8 @@ private fun MainTabs(
     val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
         currentWindowAdaptiveInfo(),
     )
+    val isBottomBar = layoutType == NavigationSuiteType.NavigationBar
+    val tabs = if (isBottomBar) phoneTabs else railTabs
     // Manual scaffold instead of NavigationSuiteScaffoldLayout: the layout
     // mismeasures a custom navigationSuite (the rail ended up centred
     // horizontally with a zero-width content area). A plain Row/Column is
@@ -373,6 +388,9 @@ private fun MainTabs(
             }
             composable("downloads") {
                 DownloadsScreen(
+                    // A rail tab needs no back arrow; reached from "More" on
+                    // phones it does.
+                    showBack = isBottomBar,
                     onBack = { innerNav.popBackStack() },
                     onOpenCache = { innerNav.navigate("cache") },
                 )
@@ -389,14 +407,12 @@ private fun MainTabs(
                 MoreScreen(
                     onOpenDownloads = { innerNav.navigate("downloads") },
                     onOpenSettings = { innerNav.navigate("settings") },
-                    onOpenCategories = { innerNav.navigate("categories") },
-                    onOpenTrackers = { innerNav.navigate("trackers") },
-                    onOpenBackups = { innerNav.navigate("backups") },
                 )
             }
             composable("settings") {
                 SettingsScreen(
-                    onBack = { innerNav.popBackStack() },
+                    // Rail tab: no back arrow. Phone (from "More"): pop back.
+                    onBack = if (isBottomBar) ({ innerNav.popBackStack() } as (() -> Unit)) else null,
                     onOpenRepos = { innerNav.navigate("repos") },
                     onManageServers = onManageServers,
                     onOpenTrackers = { innerNav.navigate("trackers") },

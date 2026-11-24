@@ -34,7 +34,6 @@ import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -266,13 +265,6 @@ private fun SettingsHub(
                         onClick = { open(SettingsPage.Servers, onManageServers) },
                     )
                     SettingsRow(
-                        icon = Icons.Outlined.Sync,
-                        title = stringResource(R.string.settings_instance_sync),
-                        subtitle = stringResource(R.string.settings_instance_sync_subtitle),
-                        enabled = false,
-                        onClick = {},
-                    )
-                    SettingsRow(
                         icon = Icons.Outlined.Public,
                         title = stringResource(R.string.settings_trackers),
                         subtitle = stringResource(R.string.settings_trackers_subtitle),
@@ -430,7 +422,7 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                             icon = { SegmentedButtonDefaults.Icon(active = active) },
                         ) {
-                            Text(label, maxLines = 1, softWrap = false)
+                            Text(label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
