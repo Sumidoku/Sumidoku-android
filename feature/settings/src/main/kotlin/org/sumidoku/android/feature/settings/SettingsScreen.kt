@@ -420,7 +420,9 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                             selected = active,
                             onClick = { viewModel.setTheme(value) },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                            icon = { SegmentedButtonDefaults.Icon(active = active) },
+                            // No check icon: four segments in the 360dp hub
+                            // pane leave no room for it and labels clip.
+                            icon = {},
                         ) {
                             Text(label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
                         }
