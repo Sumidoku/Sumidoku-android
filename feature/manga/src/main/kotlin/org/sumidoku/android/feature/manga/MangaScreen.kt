@@ -63,7 +63,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ElevatedSuggestionChip
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -89,7 +88,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -103,6 +101,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.toBitmap
+import com.materialkolor.DynamicMaterialTheme
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
@@ -164,10 +163,15 @@ fun MangaScreen(
         }
     }
 
-    // Average cover colour (KMReader computeCoverTint) accents the resume
-    // FAB; reset when the manga (and thus its cover) changes.
+    // Average cover colour (KMReader computeCoverTint) seeds a dynamic
+    // scheme for the whole page (komikku "theme based on cover"); reset when
+    // the manga (and thus its cover) changes.
     var coverTint by remember(state.manga?.id) { mutableStateOf<Color?>(null) }
 
+    // komikku "theme based on cover" parity: once the cover is decoded, the
+    // whole page — buttons, tags, FAB, sheets — follows a dynamic scheme
+    // generated from the cover colour, not just the header backdrop.
+    CoverSeedTheme(coverTint) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
@@ -176,9 +180,8 @@ fun MangaScreen(
             val manga = state.manga
             val resume = state.resumeChapter
             if (manga != null && resume != null && !selecting) {
-                // The average cover colour (when resolved) accents the
-                // resume FAB; falls back to the default FAB colours.
-                val fabTint = coverTint
+                // FAB colours come from the cover-seeded dynamic scheme
+                // (CoverSeedTheme), like komikku's themed detail page.
                 ExtendedFloatingActionButton(
                     onClick = { if (manga.id > 0) onOpenChapter(manga.id, resume.id) },
                     icon = { Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null) },
@@ -197,10 +200,6 @@ fun MangaScreen(
                             },
                         )
                     },
-                    containerColor = fabTint ?: FloatingActionButtonDefaults.containerColor,
-                    contentColor = fabTint
-                        ?.let { if (it.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White }
-                        ?: MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         },
@@ -360,7 +359,6 @@ fun MangaScreen(
                             MangaHeader(
                             state = state,
                             searchMeta = searchMeta,
-                            coverTint = coverTint,
                             onResume = {
                                 if (manga.id > 0) {
                                     state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
@@ -710,6 +708,27 @@ fun MangaScreen(
             onDismiss = { viewModel.closeLinkEditor() },
         )
     }
+    }
+}
+
+/** komikku "theme based on cover" parity: once the cover colour is known,
+ *  generate a full dynamic colour scheme from it (materialkolor, the same
+ *  library komikku uses) so every control on the page follows the cover;
+ *  without a cover colour the app theme passes through untouched. */
+@Composable
+private fun CoverSeedTheme(seedColor: Color?, content: @Composable () -> Unit) {
+    if (seedColor == null) {
+        content()
+    } else {
+        DynamicMaterialTheme(
+            seedColor = seedColor,
+            // The app theme may force dark/light, so read the applied scheme
+            // instead of asking the system.
+            isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f,
+            animate = true,
+            content = content,
+        )
+    }
 }
 
 /** M6 sheet targets on the manga detail screen. */
@@ -919,7 +938,6 @@ private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
 private fun MangaHeader(
     state: MangaUiState,
     searchMeta: SourceSearchMeta,
-    coverTint: Color? = null,
     onResume: () -> Unit,
     onToggleLibrary: () -> Unit,
     onFilterSearch: (List<FilterValue>) -> Unit,
@@ -1023,13 +1041,13 @@ private fun MangaHeader(
             if (infoExpanded) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     tags.forEach { tag ->
-                        TagChip(tag, searchMeta, onFilterSearch, coverTint)
+                        TagChip(tag, searchMeta, onFilterSearch)
                     }
                 }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(tags) { tag ->
-                        TagChip(tag, searchMeta, onFilterSearch, coverTint)
+                        TagChip(tag, searchMeta, onFilterSearch)
                     }
                 }
             }
@@ -1046,14 +1064,8 @@ private fun TagChip(
     tag: String,
     searchMeta: SourceSearchMeta,
     onFilterSearch: (List<FilterValue>) -> Unit,
-    coverTint: Color? = null,
 ) {
     val value = searchMeta.tagFilterValue(tag)
-    // The container leans 35% towards the average cover colour, so the tags
-    // pick up this manga's hue (cover-tint parity with the resume FAB).
-    val container = MaterialTheme.colorScheme.surfaceContainerHigh.let { base ->
-        coverTint?.let { lerp(base, it, 0.35f) } ?: base
-    }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ElevatedSuggestionChip(
             onClick = { value?.let { onFilterSearch(listOf(it)) } },
@@ -1066,7 +1078,9 @@ private fun TagChip(
                 )
             },
             colors = SuggestionChipDefaults.elevatedSuggestionChipColors(
-                containerColor = container,
+                // Under CoverSeedTheme this is already cover-hued; without a
+                // cover it is the plain theme colour (komikku behaviour).
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
         )
     }
