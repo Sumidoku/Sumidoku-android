@@ -1,5 +1,6 @@
 package org.sumidoku.android.feature.manga
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.FilterList
@@ -54,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -69,6 +72,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +85,7 @@ import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import coil3.toBitmap
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.MangaStatus
@@ -139,8 +145,33 @@ fun MangaScreen(
         }
     }
 
+    // Average cover colour (KMReader computeCoverTint) tints the header
+    // backdrop; reset when the manga (and thus its cover) changes.
+    var coverTint by remember(state.manga?.id) { mutableStateOf<Color?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        floatingActionButton = {
+            // Floating resume-reading button (hidden in multi-select, where
+            // the bottom action bar owns the corner).
+            val manga = state.manga
+            val resume = state.resumeChapter
+            if (manga != null && resume != null && !selecting) {
+                ExtendedFloatingActionButton(
+                    onClick = { if (manga.id > 0) onOpenChapter(manga.id, resume.id) },
+                    icon = { Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null) },
+                    text = {
+                        Text(
+                            if (resume.lastPageRead > 0 && !resume.isRead) {
+                                stringResource(R.string.manga_resume_page, resume.lastPageRead + 1)
+                            } else {
+                                stringResource(R.string.manga_resume)
+                            },
+                        )
+                    },
+                )
+            }
+        },
         bottomBar = {
             if (selecting && selectedIds.isNotEmpty()) {
                 val finishedCount = state.chapters.count { it.id in selectedIds && it.hasFinishedDownload }
@@ -276,9 +307,24 @@ fun MangaScreen(
             }
             else -> {
                 val manga = state.manga!!
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                ) {
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    // Cover-tinted backdrop behind the header, fading into the
+                    // page background (KMReader cover-tint parity).
+                    coverTint?.let { tint ->
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(360.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(tint.copy(alpha = 0.32f), Color.Transparent),
+                                    ),
+                                ),
+                        )
+                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
                     item {
                         MangaHeader(
                             state = state,
@@ -290,6 +336,10 @@ fun MangaScreen(
                             },
                             onToggleLibrary = { viewModel.toggleLibrary() },
                             onFilterSearch = { values -> onFilterSearch(manga.sourceId, values) },
+                            onCoverBitmap = { bitmap ->
+                                // Purely decorative; a bitmap failure must not crash the page
+                                runCatching { computeCoverTint(bitmap) }.getOrNull()?.let { coverTint = it }
+                            },
                         )
                     }
                     item {
@@ -443,6 +493,7 @@ fun MangaScreen(
 							onDeleteDownload = { viewModel.deleteDownloadsFor(listOf(chapter.id)) },
 						)
                     }
+                }
                 }
             }
         }
@@ -754,12 +805,13 @@ private fun MangaHeader(
     onResume: () -> Unit,
     onToggleLibrary: () -> Unit,
     onFilterSearch: (List<FilterValue>) -> Unit,
+    onCoverBitmap: (Bitmap) -> Unit = {},
 ) {
     val manga = state.manga!!
     val profile = state.profile
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row {
-            CoverImage(manga.id, manga.cover, profile, Modifier.size(108.dp, 144.dp), manga.sourceId)
+            CoverImage(manga.id, manga.cover, profile, Modifier.size(108.dp, 144.dp), manga.sourceId, onCoverBitmap)
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(manga.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -1105,6 +1157,8 @@ internal fun CoverImage(
     /** Needed only while mangaId is the -1 unregistered placeholder: the
      *  cover then comes from the source-image proxy, not /manga/{id}/cover. */
     sourceId: Long = -1L,
+    /** Decoded cover pixels (used to derive the header tint). */
+    onBitmap: ((Bitmap) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     // Same as webui coverUrl(manga.id, manga.cover): the server resolves the
@@ -1130,7 +1184,44 @@ internal fun CoverImage(
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentScale = ContentScale.Crop,
+        onSuccess = { result ->
+            onBitmap?.let { callback -> runCatching { callback(result.result.image.toBitmap()) } }
+        },
     )
+}
+
+/** KMReader-style cover tint (ui/components computeCoverTint): the 8×8
+ *  average colour of the cover with HSV saturation capped at 0.8 and value
+ *  clamped to 0.2–0.45, so the header backdrop stays readable in both
+ *  light and dark themes. */
+private fun computeCoverTint(bitmap: Bitmap): Color? {
+    val software = if (bitmap.config == Bitmap.Config.HARDWARE) {
+        bitmap.copy(Bitmap.Config.ARGB_8888, false) ?: return null
+    } else {
+        bitmap
+    }
+    val scaled = Bitmap.createScaledBitmap(software, 8, 8, true)
+    var r = 0L
+    var g = 0L
+    var b = 0L
+    for (y in 0 until 8) {
+        for (x in 0 until 8) {
+            val pixel = scaled.getPixel(x, y)
+            r += (pixel shr 16) and 0xFF
+            g += (pixel shr 8) and 0xFF
+            b += pixel and 0xFF
+        }
+    }
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (r / 64f).toInt().coerceIn(0, 255),
+        (g / 64f).toInt().coerceIn(0, 255),
+        (b / 64f).toInt().coerceIn(0, 255),
+        hsv,
+    )
+    hsv[1] = hsv[1].coerceAtMost(0.8f)
+    hsv[2] = hsv[2].coerceIn(0.2f, 0.45f)
+    return Color.hsv(hsv[0], hsv[1], hsv[2])
 }
 
 private fun formatNumber(value: Float): String =

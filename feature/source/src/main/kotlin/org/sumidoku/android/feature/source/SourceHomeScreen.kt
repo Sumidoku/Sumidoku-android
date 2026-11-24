@@ -87,6 +87,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1818,8 +1819,11 @@ private fun MangaGrid(
                 if (total > 0 && last != null && last >= total - 6) onLoadMore()
             }
     }
+    // Same rule as the library grid: tablets (smallest width ≥ 600dp) grow
+    // the minimum cell to KMReader's large grid size (152dp).
+    val minCell = if (LocalConfiguration.current.smallestScreenWidthDp >= 600) 152.dp else 110.dp
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 110.dp),
+        columns = GridCells.Adaptive(minSize = minCell),
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(12.dp),

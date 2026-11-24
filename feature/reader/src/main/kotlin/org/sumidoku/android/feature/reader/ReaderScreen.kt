@@ -1114,18 +1114,11 @@ private fun ReaderOverlay(
             }
         }
 
-        // ---- bottom: chapter navigator capsule + centred action capsule ----
+        // ---- bottom: centred action capsule, progress capsule pinned last ----
         Column(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ChapterNavigator(
-                state = state,
-                viewModel = viewModel,
-                contentColor = chromeContent,
-                containerColor = chromeScrim,
-                border = capsuleBorder,
-            )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Row(
                     Modifier
@@ -1167,6 +1160,15 @@ private fun ReaderOverlay(
                     OverlayAction(Icons.Outlined.Tune, stringResource(R.string.reader_settings), tint = chromeContent) { showSettings = true }
                 }
             }
+            // Chapter progress (prev/next + slider) sits at the very bottom,
+            // closest to the thumb (KMReader bottom overlay order).
+            ChapterNavigator(
+                state = state,
+                viewModel = viewModel,
+                contentColor = chromeContent,
+                containerColor = chromeScrim,
+                border = capsuleBorder,
+            )
         }
     }
 

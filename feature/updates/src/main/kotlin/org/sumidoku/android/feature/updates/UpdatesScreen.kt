@@ -68,7 +68,7 @@ import org.sumidoku.android.core.model.ServerProfile
  * Updates tab — day-grouped new-chapter feed with a run summary card.
  * Preview 10-updates.html: section headers (`Today · 5 series with new chapters`),
  * rows of `Manga title / Chapter N · 2 hours ago`, trailing new-chapter badge, and
- * the update summary card at the end (skip rules live on the server).
+ * the update summary card at the top (skip rules live on the server).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +128,8 @@ fun UpdatesScreen(
                 if (state.summary?.running == true) {
                     item { RunningCard(state.summary) }
                 }
+                // Run recap leads the feed (top), not a footer after it.
+                item { SummaryCard(state.summary) }
                 if (state.error != null && state.entries.isEmpty()) {
                     item { FeedError(state.error!!) { viewModel.refresh() } }
                 }
@@ -154,9 +156,6 @@ fun UpdatesScreen(
                     items(rows, key = { "row-${it.mangaId}-$day" }) { row ->
                         UpdateRowItem(row, state.profile) { onOpenManga(row.mangaId) }
                     }
-                }
-                if (groups.isNotEmpty()) {
-                    item { SummaryCard(state.summary) }
                 }
                 if (state.loadingMore) {
                     item {
