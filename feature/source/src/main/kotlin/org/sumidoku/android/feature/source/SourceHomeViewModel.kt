@@ -44,6 +44,7 @@ import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourceFilter
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.data.SourceSettingsAvailabilityStore
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.HttpException
@@ -156,6 +157,7 @@ class SourceHomeViewModel @Inject constructor(
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
     private val filterPrefs: SourceFilterPrefs,
+    private val availabilityStore: SourceSettingsAvailabilityStore,
 ) : ViewModel() {
 
     val sourceId: Long = checkNotNull(savedStateHandle["sourceId"])
@@ -220,11 +222,28 @@ class SourceHomeViewModel @Inject constructor(
                 // anything else is a real, visible error (webui emptyOnUnsupported).
                 val listings = runCatching { api.getSourceListings(sourceId).await() }.getOrDefault(emptyList())
                 val filters = runCatching { api.getSourceFilters(sourceId).await() }.getOrDefault(emptyList())
-                // Browse list parity: sources with an empty settings schema
-                // get no gear icon (BrowseViewModel.settingsAvailable).
-                val hasSettings = runCatching {
-                    api.getSourceSettings(sourceId).await().settings.isNotEmpty()
-                }.getOrDefault(true)
+                // Settings availability comes from the shared persistent
+                // store (browse list parity): cached per profile+source,
+                // re-probed only after the source version changes. Probe
+                // failures stay fail-open and are never cached.
+                val availabilityCache = runCatching { availabilityStore.load() }.getOrDefault(emptyMap())
+                val hasSettings = availabilityCache
+                    .let { source?.let { s -> availabilityStore.lookup(it, profile.id, s.id, s.version) } }
+                    ?: run {
+                        val probed = runCatching {
+                            api.getSourceSettings(sourceId).await().settings.isNotEmpty()
+                        }.getOrNull()
+                        if (probed != null && source != null) {
+                            runCatching {
+                                availabilityStore.save(
+                                    availabilityCache,
+                                    profile.id,
+                                    listOf(Triple(source.id, source.version, probed)),
+                                )
+                            }
+                        }
+                        probed ?: true
+                    }
                 // Home is fetched only when the user can actually see it: a
                 // deep link lands on the grid (Aidoku parity), so spending a
                 // home request here would be pure background waste. A source

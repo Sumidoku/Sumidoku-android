@@ -28,6 +28,7 @@ import org.sumidoku.android.core.api.model.RepoSource
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourcePatch
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.data.SourceSettingsAvailabilityStore
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
@@ -101,6 +102,7 @@ class BrowseViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val availabilityStore: SourceSettingsAvailabilityStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseUiState())
@@ -275,32 +277,52 @@ class BrowseViewModel @Inject constructor(
     }
 
     /** Whether each source has configurable settings (drives the gear icon).
-     *  A probe failure used to hide the gear entirely — which made the
-     *  settings look "completely unavailable" whenever the settings payload
-     *  failed to decode. Fail-open instead (webui parity: the gear always
-     *  shows and the settings screen itself surfaces any error with a
-     *  retry). OPDS sources have no settings schema. */
+     *  The judgment is persisted per profile+source in the availability
+     *  store and stays valid until the source's version changes — only
+     *  stale or missing entries hit the network. Probe failures stay
+     *  fail-open (the gear shows and the settings screen itself surfaces
+     *  the error with a retry) and are never cached. OPDS sources have no
+     *  settings schema. */
     private fun probeSettingsAvailability(profile: ServerProfile, sources: List<Source>) {
         viewModelScope.launch {
             val api = clientFactory.create<SourcesApi>(profile)
+            val cache = runCatching { availabilityStore.load() }.getOrDefault(emptyMap())
+            val candidates = sources.filter { it.kind != Source.Kind.OPDS }
+            val cached = mutableMapOf<Long, Boolean>()
+            val stale = mutableListOf<Source>()
+            candidates.forEach { source ->
+                val hit = availabilityStore.lookup(cache, profile.id, source.id, source.version)
+                if (hit != null) cached[source.id] = hit else stale += source
+            }
+            if (cached.isNotEmpty()) {
+                _state.update { it.copy(settingsAvailable = it.settingsAvailable + cached) }
+            }
+            if (stale.isEmpty()) return@launch
             val probed = coroutineScope {
-                sources
-                    .filter { it.kind != Source.Kind.OPDS }
+                stale
                     .map { source ->
                         async {
                             val has = try {
                                 api.getSourceSettings(source.id).await().settings.isNotEmpty()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
-                                true // fail-open: show the gear, let the settings screen report the error
+                                null // fail-open, never cached
                             }
-                            source.id to has
+                            Triple(source.id, source.version, has)
                         }
                     }
                     .map { it.await() }
-                    .toMap()
             }
-            _state.update { it.copy(settingsAvailable = it.settingsAvailable + probed) }
+            _state.update {
+                it.copy(
+                    settingsAvailable = it.settingsAvailable +
+                        probed.associate { p -> p.first to (p.third ?: true) },
+                )
+            }
+            val successes = probed.mapNotNull { (id, version, has) ->
+                has?.let { Triple(id, version, it) }
+            }
+            runCatching { availabilityStore.save(cache, profile.id, successes) }
         }
     }
 
