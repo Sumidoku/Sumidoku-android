@@ -1,6 +1,9 @@
 # Android Client Architecture
 
-Status: design proposal (no client code exists yet)
+Status: implemented. This document was written before the code existed and
+is kept as the design record; the client in this repository follows it, and
+source comments cite its sections. The README carries the current module map
+and build instructions.
 Scope: a native Android client for the Sumidoku server with **feature
 parity with the web UI**, modeled architecturally on Aidoku's
 built-in-source pattern.
@@ -11,7 +14,10 @@ The server exposes a complete REST surface: an OpenAPI 3.0.3 document
 (`crates/server/assets/api-docs/openapi.json`, 108 paths / 127
 operations, kept in lockstep with the router and guarded by CI),
 bearer-token authentication designed for non-browser clients, an SSE
-event stream, and NDJSON partial-result streaming.
+event stream, and NDJSON partial-result streaming. This client pins a
+snapshot of that document at `api/openapi.json` (hash in
+`api/openapi.json.sha256`) and generates its Retrofit client from it —
+see README, "API contract".
 
 The product rule for this client: **everything the web UI can do, the
 Android client does natively** — library, browsing, reading, downloads,
@@ -145,6 +151,19 @@ Rationale for the split:
   NDJSON are hand-written protocols outside the OpenAPI document
   (the web UI does the same split: generated `types.ts` vs
   hand-maintained `protocol.ts`).
+- `:core:common` also owns the coroutine failure convention: view-model
+  work starts with `viewModelScope.launchGuarded { }`
+  (`core/common/src/main/kotlin/org/sumidoku/android/core/common/CoroutineSafety.kt`).
+  `viewModelScope` has no `CoroutineExceptionHandler`, so before this
+  wrapper any exception escaping a `launch` body went to the thread's
+  uncaught-exception handler and killed the process — which is exactly
+  what an unreachable server did to a detail page: two `async` children,
+  a `try`/`catch` around the first `await`, and a process crash instead
+  of the "could not reach server" state. `launchGuarded` reports such
+  failures to `CoroutineFailures` (logged from `SumidokuApp.onCreate`)
+  and lets the screen keep rendering its error state. New coroutines
+  belong on `launchGuarded`; keep `try`/`catch` where the UI needs a
+  specific message.
 
 ## 5. Tech stack
 

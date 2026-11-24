@@ -11,9 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// Palette lifted from the design preview (design/preview/assets/mock.css):
+// Baseline palette of the original design spec (docs/android-client.md §14):
 // --bg #101014, --surface #16161c, --accent #A8B5FF. Light mode keeps
-// the same accent on a light background (design §14 M9 theming).
+// the same accent on a light background.
 private val SumidokuDark = darkColorScheme(
     primary = Color(0xFFA8B5FF),
     onPrimary = Color(0xFF1A1D33),

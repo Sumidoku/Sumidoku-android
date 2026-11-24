@@ -1,36 +1,104 @@
-# sumidoku-android
+# Sumidoku for Android
 
-Sumidoku 的原生 Android 客户端（Kotlin + Jetpack Compose）。
+The official Android client for **Sumidoku** — a self-hosted manga server that exposes a REST `/api/v1` API, runs its sources as WASM modules and streams events over SSE.
 
-- 架构设计：[docs/android-client.md](docs/android-client.md)——定位（与 webui 功能全量对齐的薄计算客户端）、模块分层、技术栈、API codegen、下载/离线、认证、SSE、里程碑 M0–M9。
-- 界面设计稿：[design/preview/index.html](design/preview/index.html)——主要屏幕的 HTML 静态预览（浏览器直接打开）。
+The app brings the Sumidoku web UI to Android natively, and adds what a browser cannot do: real offline reading, background downloads, background update checks and hardware image decoding. Computation stays on the server — sources, tracker pushes, the update scheduler and the server-side download queue all keep running there; the client is a native interface to every one of them.
 
-服务端仓库：Sumidoku（REST `/api/v1`，OpenAPI 契约）。设计血统：Aidoku 内置源模式（Komga/Kavita/Suwayomi 把服务器包装成统一 Source 抽象）。
+Targets Android 8.0 (API 26) and up, built with Kotlin and Jetpack Compose (Material 3).
 
-## 构建
+## Features
 
-需要 JDK 17+ 与 Android SDK（compileSdk 37，minSdk 26）。首次构建：
+- **Servers** — multiple profiles, API-key bearer authentication, mirror failover on connection-level failures, server version detection, reachability indicator when a server is offline.
+- **Library** — cover grid with categories and filter groups, five sort modes, pull-to-refresh, sentinel paging, unread badges, batch selection, top-bar search, per-orientation grid density (compact / comfortable / list), cover-seeded theme colour.
+- **Browse and sources** — grouped source list (updatable / pinned / installed), one-tap install from aggregate repository lists, source home built from the server's home components (carousels, scrollers, image scrollers, chapter lists, links, filters), schema-driven source settings editor, saved search filter groups, internal sources (local and OPDS catalogs), `.aix` import, three login flows (basic form, WebView cookie capture, OAuth redirect interception), pin / disable / reorder, local trash.
+- **Manga detail and reader** — continue-reading, three-state chapter rows with batch operations, chapter filter/sort sheet; paged reader (HorizontalPager with zoom arbitration), webtoon continuous scrolling, text pages, chapter transition screens, pull-to-next-chapter, double pages including a no-cover variant, wide-page splitting, prefetch, debounced progress sync with an offline retry queue; five tap-zone layouts with a graphical preview, four page-fit modes, reader background options, brightness / grayscale / sepia filters.
+- **Search** — single-source and cross-source search with dynamic filters, tri-state filter UI, NDJSON progressive rendering (falls back to the plain response when streaming fails).
+- **Downloads** — server-side queue management driven by SSE; on-device offline engine (CBZ fetch and unpack, offline reading straight from local files, storage checks, WorkManager resume).
+- **Updates and history** — SSE live channel with `Last-Event-ID` and exponential backoff, WorkManager update checks every six hours with system notifications, history list.
+- **Metadata and trackers** — metadata editor with field locks, match-metadata preview with binding, cover picker, source-metadata restore; tracker bind / sync / unbind and account binding via WebView OAuth, sync-pull preview before applying.
+- **Migration and backups** — batch migration wizard (source → sources → targets → auto-match → confirm → run) and single-manga migration; full JSON backup export and import, restore from server-side scheduled backups, Aidoku `.aib` and Mihon `.tachibk` import wizards with dry-run preview and per-source mapping.
+- **Settings and polish** — server settings editor, categories, filter groups, cache management, API-key management and password change, incognito mode, theme (follow system / dark / light, AMOLED black), adaptive layout (bottom bar on phones, navigation rail on wide screens), library two-pane layout on large screens.
+
+## Architecture
+
+25 Gradle modules with a strict dependency direction (`app` → `feature` → `core`):
+
+| Layer | Modules | Responsibility |
+| --- | --- | --- |
+| `app` | 1 | Application shell, navigation host, theme, update worker |
+| `feature:*` | 15 | One Compose screen plus its ViewModel per feature: `servers`, `library`, `browse`, `search`, `manga`, `reader`, `source`, `repos`, `updates`, `history`, `downloads`, `migrate`, `trackers`, `settings`, `backups` |
+| `core:*` | 9 | `api` (generated Retrofit client), `network` (client factory, auth, failover), `data` (Room, DataStore, repositories), `source`, `stream` (SSE), `download`, `model`, `common`, `ui` (design system) |
+
+Hilt provides dependency injection; Room and DataStore hold local state; Coil decodes covers; Retrofit talks to the server.
+
+### API contract
+
+`api/openapi.json` is a pinned snapshot of the server's OpenAPI document (`api/openapi.json.sha256` pins its hash). The `core:api` module generates a kotlinx-serialization Retrofit client from it at build time and applies a small, deterministic set of `patchGeneratedSources` fixes for known generator quirks (sealed `oneOf` bodies, `kotlin.Any` properties that need `JsonElement`, union fields the wire sends as omitted, and free-form scalar wrappers).
+
+The spec is the contract: regenerate deliberately when the server moves, never edit generated output by hand.
+
+## Requirements
+
+- JDK 17
+- Android SDK with platform 37 (`compileSdk = 37`, `minSdk = 26`, `targetSdk = 36`)
+- Android Studio with AGP 9.5 support, or the Gradle wrapper on its own
+
+Point the build at your SDK either with `ANDROID_HOME` / `ANDROID_SDK_ROOT` or with a `local.properties` file:
+
+```properties
+sdk.dir=/path/to/Android/Sdk
+```
+
+## Build
+
+```bash
+./gradlew assembleDebug          # PowerShell: .\gradlew.bat assembleDebug
+```
+
+The APK lands in `app/build/outputs/apk/debug/app-debug.apk`.
+
+Release builds are unsigned — no signing configuration ships with the repository:
+
+```bash
+./gradlew assembleRelease
+```
+
+Unit tests:
+
+```bash
+./gradlew test
+```
+
+## Localization
+
+English is the default, with Simplified Chinese (`values-zh-rCN`) and Traditional Chinese (`values-zh-rTW`) translations. The app follows the system language.
+
+## Known limitations
+
+- `usesCleartextTraffic` is enabled because self-hosted servers on a LAN are the primary target; a per-host `networkSecurityConfig` is the intended pre-release fix.
+- Button-type source settings fall back to a plain row instead of a rendered button.
+- No "clear source cache" action yet.
+- Incoming deep links (opening a shared manga or chapter) are not parsed yet.
+- Settings do not yet use a dual-pane layout or handle foldable hinges.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## 中文说明
+
+Sumidoku 官方 Android 客户端，把服务端 web UI 的全部能力搬到原生界面，并补上浏览器做不到的部分：真正的离线阅读、后台下载、后台更新检查与硬件解码。计算仍然留在服务端（WASM 图源、tracker 推送、更新调度、服务端下载队列），客户端是它们的原生入口。
+
+工程分为 `app`、15 个 `feature` 模块与 9 个 `core` 模块；接口客户端由 `api/openapi.json` 快照在构建期生成。
+
+构建（需要 JDK 17 与 Android SDK platform 37）：
 
 ```powershell
 .\gradlew.bat assembleDebug
 ```
 
-产物：`app/build/outputs/apk/debug/app-debug.apk`。
+产物位于 `app/build/outputs/apk/debug/app-debug.apk`。签名需自行配置，仓库不含签名信息。
 
-## 已实现（按里程碑）
-
-- **M0 骨架**：20 模块 Gradle 工程（app / core:{common,model,api,network,data,source,stream,download} / feature:{servers,library,browse,search,manga,reader,source,repos,updates,history,downloads,migrate,trackers,settings,backups}）；OpenAPI codegen（`api/openapi.json` 快照 + sha256，openapi-generator kotlin/jvm-retrofit2，含 6 项针对生成怪癖的 patch 任务）；AGP 9.5.1 / Kotlin 2.4.21 / Compose BOM 2026.09.00。
-- **M0 服务器管理**：多服务器 + 镜像故障转移（连接级失败按序重试镜像，HTTP 响应不重试——Aidoku KomgaHelper 模式）、API key bearer 认证、版本探测。
-- **M1 书库/浏览**：书库网格（分类/过滤组弹层、5 种排序、下拉刷新、哨兵翻页、未读角标）；浏览页 Aidoku 式分组（可更新/置顶/已安装，⚠ 缺失仓库徽标，⚙ 设置入口，全部更新）；添加图源聚合列表（一键安装）；跨源搜索（三态筛选 + NDJSON 渐进渲染）。
-- **M2 详情 + 阅读器**：详情页（无痕开关、继续阅读、章节三态、批量已读）；阅读器（HorizontalPager + 缩放仲裁、点按区五布局、Webtoon 连续滚动、文本页渲染、章节过渡页、pull-to-next-chapter、失败重试、700ms 防抖进度回写、离线进度队列、双页/拆宽页、预取）。
-- **M3 下载**：Tier A 服务端队列管理（SSE 驱动）；Tier B 本机离线引擎（CBZ 拉取解压、离线阅读直接读本地文件、存储空间检查、全部清除、WorkManager 续传）。
-- **M4 实时/后台**：SSE 通道（core:stream，Last-Event-ID + 指数退避）；WorkManager 每 6h 更新检查 + 系统通知；NDJSON 渐进搜索（opt-in，异常回退非流式）。
-- **M5 图源管理**：图源主页（HomeLayout 组件栈 + 过滤器面板）、schema 驱动设置编辑器、仓库管理、内部源创建（local/OPDS）、.aix 导入、登录三法（basic 表单 / WebView 抓 cookie / OAuth 回调拦截——反超 webui 粘贴流）、置顶/停用/置顶顺序、本地回收站、任务队列查看器。
-- **M6 元数据 + tracker**：编辑元数据（字段锁）、匹配元数据（预览勾选 + bind）、备选封面、恢复图源元数据；tracker 链接（绑定/同步/解绑）与账号绑定（WebView OAuth 拦截 code/state）、sync-pull preview 确认。
-- **M7 迁移与管理**：批量迁移向导（来源源→多选→多目标→自动匹配→确认→执行）+ 单条迁移（详情页）+ 三种模式；分类管理、过滤组管理、服务器设置编辑器、缓存管理、API key 管理与修改密码。
-- **M8 备份**：导出完整备份 JSON 到本机、从文件恢复、服务器定时备份列表恢复、Aidoku .aib 与 Mihon .tachibk 导入向导（dry-run 预览 + 逐源映射）、计划备份设置。
-- **M9 打磨**：NavigationSuiteScaffold（窄屏底栏/宽屏导航轨）、ListDetailPaneScaffold 书库双栏（≥840dp）、自适应网格；双页布局（含不含封面变体）；点按区五布局 + 图形预览；页面缩放四模式、背景四选项、亮度/灰度/棕褐滤镜；主题（跟随系统/深色/浅色）；CI（android.yml 构建检查 + release.yml 签名发布）。
-
-## 已知缺口
-
-Button 类型的图源设置（生成器丢弃了 button 变体，落兜底行）、清图源缓存按钮、deep-link 分享解析、设置页双栏与折叠屏铰链细节避让。
+许可证：MIT。

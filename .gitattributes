@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+# Windows entry points keep CRLF; the POSIX wrapper keeps LF and its exec bit.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+gradlew text eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.jar binary
+*.jks binary
+*.keystore binary
