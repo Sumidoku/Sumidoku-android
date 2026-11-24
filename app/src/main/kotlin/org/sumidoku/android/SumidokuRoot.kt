@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.NewReleases
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -133,9 +131,9 @@ private val tabs = listOf(
     Tab("browse", R.string.tab_browse, Icons.Outlined.Explore),
     Tab("updates", R.string.tab_updates, Icons.Outlined.NewReleases),
     Tab("history", R.string.tab_history, Icons.Outlined.History),
-    Tab("downloads", R.string.tab_downloads, Icons.Outlined.CloudDownload),
-    Tab("search", R.string.tab_search, Icons.Outlined.Search),
-    Tab("settings", R.string.tab_settings, Icons.Outlined.Settings),
+    // komikku parity: secondary destinations live behind "More" instead of
+    // crowding the bar (5 tabs max, Material guidance).
+    Tab("more", R.string.tab_more, Icons.Outlined.MoreHoriz),
 )
 
 @Composable
@@ -308,7 +306,6 @@ private fun MainTabs(
                         val encoded = if (query.isBlank()) "" else "?query=${Uri.encode(query)}"
                         innerNav.navigate("source/$sourceId$encoded")
                     },
-                    showBack = false,
                 )
             }
             composable(
@@ -375,7 +372,6 @@ private fun MainTabs(
                 DownloadsScreen(
                     onBack = { innerNav.popBackStack() },
                     onOpenCache = { innerNav.navigate("cache") },
-                    showBack = false,
                 )
             }
             composable("history") {
@@ -386,8 +382,19 @@ private fun MainTabs(
                     },
                 )
             }
+            composable("more") {
+                MoreScreen(
+                    onOpenDownloads = { innerNav.navigate("downloads") },
+                    onOpenSearch = { innerNav.navigate("search") },
+                    onOpenSettings = { innerNav.navigate("settings") },
+                    onOpenCategories = { innerNav.navigate("categories") },
+                    onOpenTrackers = { innerNav.navigate("trackers") },
+                    onOpenBackups = { innerNav.navigate("backups") },
+                )
+            }
             composable("settings") {
                 SettingsScreen(
+                    onBack = { innerNav.popBackStack() },
                     onOpenRepos = { innerNav.navigate("repos") },
                     onManageServers = onManageServers,
                     onOpenTrackers = { innerNav.navigate("trackers") },

@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.DarkMode
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -119,6 +121,7 @@ fun SettingsScreen(
     onOpenFilterGroups: () -> Unit = {},
     onOpenServerSettings: () -> Unit = {},
     onOpenReaderDefaults: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
     splitDetail: (@Composable (page: SettingsPage, onDismiss: () -> Unit, onNavigate: (SettingsPage) -> Unit) -> Unit)? = null,
 ) {
     val configuration = LocalConfiguration.current
@@ -140,6 +143,7 @@ fun SettingsScreen(
             selectedPage = selectedPage.takeIf { split },
             onManageServers = onManageServers,
             onOpenRepos = onOpenRepos,
+            onBack = onBack,
             onOpenTrackers = onOpenTrackers,
             onOpenBackups = onOpenBackups,
             onOpenApiKeys = onOpenApiKeys,
@@ -189,6 +193,7 @@ private fun SettingsHub(
     selectedPage: SettingsPage?,
     onManageServers: () -> Unit,
     onOpenRepos: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenTrackers: () -> Unit,
     onOpenBackups: () -> Unit,
     onOpenApiKeys: () -> Unit,
@@ -203,7 +208,18 @@ private fun SettingsHub(
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        }
+                    }
+                },
+            )
+        },
     ) { padding ->
         // komikku settings hub parity: the whole list lives inside one
         // rounded card, rows carry no dividers, and the open pane's row is a
