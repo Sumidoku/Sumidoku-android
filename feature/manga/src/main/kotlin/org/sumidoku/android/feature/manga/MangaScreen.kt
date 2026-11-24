@@ -89,6 +89,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -359,6 +360,7 @@ fun MangaScreen(
                             MangaHeader(
                             state = state,
                             searchMeta = searchMeta,
+                            coverTint = coverTint,
                             onResume = {
                                 if (manga.id > 0) {
                                     state.resumeChapter?.let { onOpenChapter(manga.id, it.id) }
@@ -917,6 +919,7 @@ private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
 private fun MangaHeader(
     state: MangaUiState,
     searchMeta: SourceSearchMeta,
+    coverTint: Color? = null,
     onResume: () -> Unit,
     onToggleLibrary: () -> Unit,
     onFilterSearch: (List<FilterValue>) -> Unit,
@@ -1020,13 +1023,13 @@ private fun MangaHeader(
             if (infoExpanded) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     tags.forEach { tag ->
-                        TagChip(tag, searchMeta, onFilterSearch)
+                        TagChip(tag, searchMeta, onFilterSearch, coverTint)
                     }
                 }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(tags) { tag ->
-                        TagChip(tag, searchMeta, onFilterSearch)
+                        TagChip(tag, searchMeta, onFilterSearch, coverTint)
                     }
                 }
             }
@@ -1043,8 +1046,14 @@ private fun TagChip(
     tag: String,
     searchMeta: SourceSearchMeta,
     onFilterSearch: (List<FilterValue>) -> Unit,
+    coverTint: Color? = null,
 ) {
     val value = searchMeta.tagFilterValue(tag)
+    // The container leans 35% towards the average cover colour, so the tags
+    // pick up this manga's hue (cover-tint parity with the resume FAB).
+    val container = MaterialTheme.colorScheme.surfaceContainerHigh.let { base ->
+        coverTint?.let { lerp(base, it, 0.35f) } ?: base
+    }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ElevatedSuggestionChip(
             onClick = { value?.let { onFilterSearch(listOf(it)) } },
@@ -1057,7 +1066,7 @@ private fun TagChip(
                 )
             },
             colors = SuggestionChipDefaults.elevatedSuggestionChipColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                containerColor = container,
             ),
         )
     }
