@@ -1,38 +1,62 @@
 package org.sumidoku.android.feature.reader
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.NavigateBefore
 import androidx.compose.material.icons.automirrored.outlined.NavigateNext
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewCarousel
+import androidx.compose.material.icons.outlined.ViewColumn
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -40,7 +64,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -49,14 +72,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Button
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,25 +86,34 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import coil3.imageLoader
@@ -93,24 +124,34 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
+import org.sumidoku.android.core.common.chapterLabel
 
-/** Reader MVP: paged (HorizontalPager + pinch zoom + tap zones) and webtoon
- *  (continuous LazyColumn) modes; debounced progress PATCH on settle.
- *  Previews 07-reader-paged / 08-reader-webtoon. */
+/** Reader (design previews 07 paged / 08 webtoon / 24 settings /
+ *  25 chapters / 39 spread / 40 transition / 41 quick panel).
+ *
+ *  Reading mode, direction and page layout resolve in three tiers —
+ *  per-manga override › manga.viewer metadata › global default — the
+ *  same chain the webui stores under `sumidoku.reader.<key>.<mangaId>`.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     onBack: () -> Unit,
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    // Canvas background (design §12, webui sumidoku.reader.bg parity):
-    // dark/gray/light are fixed, auto follows the app theme surface.
+    val configuration = LocalConfiguration.current
+    val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val canvasColor = when (state.background) {
         "gray" -> Color(0xFF1E1E26)
         "light" -> Color(0xFFFFFFFF)
         "auto" -> MaterialTheme.colorScheme.surface
         else -> Color.Black
     }
+
+    // Immersive full screen: bars hide with the overlay and come back
+    // when it is shown (design 07/08 — no system chrome while reading).
+    ImmersiveEffect(overlay = state.overlay || state.loading)
 
     Box(Modifier.fillMaxSize().background(canvasColor)) {
         when {
@@ -123,78 +164,107 @@ fun ReaderScreen(
                     TextButton(onClick = { viewModel.openChapter(state.chapterId) }) { Text("重试") }
                 }
             }
-            else -> {
-                if (state.webtoon) {
-                    WebtoonBody(state, viewModel)
-                } else {
-                    PagedBody(state, viewModel)
-                }
-            }
+            state.vertical -> VerticalReaderBody(state, viewModel)
+            else -> PagedReaderBody(state, viewModel, landscape)
         }
 
         if (state.overlay && !state.loading) {
-            ReaderOverlay(state, viewModel, onBack)
+            ReaderOverlay(state, viewModel, onBack, landscape, canvasColor)
+        }
+
+        if (state.chapterSheet) {
+            ChapterSheet(state, viewModel)
         }
     }
 }
 
-/** One display slot in paged mode: a whole page, the left/right half
- *  of a wide page when split-wide is on, or a spread of one or two
- *  pages when double-page is on (design §12: ltr reads left first,
- *  rtl reads right first; landscape pages always get their own
- *  spread; progress and the slider stay in real page units). */
+/** Hides the system bars while reading (previews 07/08 are edge-to-edge). */
+@Composable
+private fun ImmersiveEffect(overlay: Boolean) {
+    val view = LocalView.current
+    LaunchedEffect(overlay) {
+        val activity = view.context.findActivity() ?: return@LaunchedEffect
+        val window = activity.window
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (overlay) {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+// ---------------------------------------------------------------------------
+// Paged reader
+// ---------------------------------------------------------------------------
+
+/** One display slot in paged mode: a whole page, the left/right half of a
+ *  wide page when split-wide is on, or a spread of one or two pages.
+ *  Progress and the slider always stay in real page units. */
 private data class DisplayPage(val pages: List<Page>, val crop: Int) // 0 whole, 1 left, 2 right
 {
     constructor(page: Page, crop: Int) : this(listOf(page), crop)
     val page: Page get() = pages.first()
 }
 
+private fun Page.isWide(): Boolean {
+    val w = width ?: 0
+    val h = height ?: 0
+    return w > 0 && h > 0 && w > h
+}
+
+/** Spread builder (webui spreads.ts / Aidoku orderedViews parity):
+ *  consecutive portrait pages pair in reading order, landscape pages get
+ *  their own slot, and the cover can be singled out (doubleNoCover). */
+private fun buildSpreads(
+    pages: List<Page>,
+    rtl: Boolean,
+    coverFirst: Boolean,
+): List<DisplayPage> {
+    val spreads = mutableListOf<DisplayPage>()
+    var i = 0
+    var coverSingled = false
+    while (i < pages.size) {
+        val page = pages[i]
+        if (page.isWide() || (coverFirst && !coverSingled)) {
+            spreads.add(DisplayPage(page, 0))
+            if (!page.isWide()) coverSingled = true
+            i++
+            continue
+        }
+        val next = pages.getOrNull(i + 1)
+        if (next == null || next.isWide()) {
+            spreads.add(DisplayPage(page, 0))
+            i++
+        } else {
+            spreads.add(DisplayPage(if (rtl) listOf(next, page) else listOf(page, next), 0))
+            i += 2
+        }
+    }
+    return spreads
+}
+
 @Composable
-private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
+private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, landscape: Boolean) {
     val rtl = state.dir == "rtl"
-    val double = state.doublePage > 0 && !state.splitWide
-    val displayPages = remember(state.pages, state.splitWide, state.doublePage, rtl) {
+    val double = state.doubleSpread(landscape)
+    val displayPages = remember(state.pages, state.splitWide, state.layout, rtl, state.coverFirst, double) {
         if (double) {
-            // Double-page spreads (design §12): consecutive portrait
-            // pages pair up in reading order; landscape pages stand
-            // alone; doubleNoCover singles out the cover page first.
-            val spreads = mutableListOf<DisplayPage>()
-            var i = 0
-            val pages = state.pages
-            var coverSingled = false
-            while (i < pages.size) {
-                val p = pages[i]
-                val wide = (p.width ?: 0) > 0 && (p.height ?: 0) > 0 && p.width!! > p.height!!
-                if (wide || (state.doublePage == 2 && !coverSingled)) {
-                    spreads.add(DisplayPage(p, 0))
-                    if (!wide) coverSingled = true
-                    i++
-                } else if (i + 1 < pages.size) {
-                    val q = pages[i + 1]
-                    val qWide = (q.width ?: 0) > 0 && (q.height ?: 0) > 0 && q.width!! > q.height!!
-                    if (qWide) {
-                        spreads.add(DisplayPage(p, 0))
-                        i++
-                    } else {
-                        spreads.add(DisplayPage(if (rtl) listOf(q, p) else listOf(p, q), 0))
-                        i += 2
-                    }
-                } else {
-                    spreads.add(DisplayPage(p, 0))
-                    i++
-                }
-            }
-            spreads
+            buildSpreads(state.pages, rtl, state.coverFirst)
         } else {
             buildList {
                 state.pages.forEach { page ->
-                    val wide = state.splitWide && !page.hasDescription &&
-                        (page.width ?: 0) > 0 && (page.height ?: 0) > 0 && page.width!! > page.height!!
-                    if (wide) {
-                        val first = if (rtl) 2 else 1
-                        val second = if (rtl) 1 else 2
-                        add(DisplayPage(page, first))
-                        add(DisplayPage(page, second))
+                    if (state.splitWide && page.isWide() && page.content.text == null) {
+                        add(DisplayPage(page, if (rtl) 2 else 1))
+                        add(DisplayPage(page, if (rtl) 1 else 2))
                     } else {
                         add(DisplayPage(page, 0))
                     }
@@ -202,12 +272,9 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             }
         }
     }
-    val initialDisplay = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
+    val initialDisplay = displayPages
+        .indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
         .coerceAtLeast(0)
-    // M2 chapter transition pages (design §12, webui TransitionPage
-    // parity): virtual slots before the first and after the last
-    // display page when adjacent chapters exist. Landing on a slot
-    // does not advance; the reader confirms explicitly.
     val prevSlot = if (state.prevChapter != null) 1 else 0
     val pagerState = rememberPagerState(
         initialPage = initialDisplay + prevSlot,
@@ -220,20 +287,31 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
     LaunchedEffect(state.chapterId) {
         if (state.index > 0) {
-            val target = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } } + prevSlot
+            val target = displayPages
+                .indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } } + prevSlot
             if (target > 0 && pagerState.currentPage != target) {
                 pagerState.scrollToPage(target)
             }
         }
     }
 
-    // M2: prefetch the next two display slots so swipes hit the disk
-    // cache instead of the network (design §12).
+    LaunchedEffect(state.seekRequest) {
+        if (state.seekRequest > 0) {
+            val target = displayPages
+                .indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
+            if (target >= 0) pagerState.scrollToPage(target + prevSlot)
+        }
+    }
+
     val prefetchContext = LocalContext.current
     LaunchedEffect(state.index, displayPages.size) {
-        val currentSlot = displayPages.indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
+        val current = displayPages
+            .indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
             .takeIf { it >= 0 } ?: 0
-        for (i in (currentSlot + 1) until (currentSlot + 3).coerceAtMost(displayPages.size)) {
+        // Prefetch both neighbours: with RTL the "next" swipe is the slot
+        // before the current one, so a one-sided window would miss it.
+        for (i in (current - 1)..(current + 2)) {
+            if (i !in displayPages.indices) continue
             for (page in displayPages[i].pages) {
                 if (page.content.text != null) continue
                 prefetchContext.imageLoader.enqueue(
@@ -251,14 +329,19 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
 
     var zoomed by remember { mutableStateOf(false) }
-    // Tap zones navigate through the pager so transition slots are
-    // reachable by tapping too (settledPage drives progress writes).
+    // A zoomed page keeps the pager locked; the flag must clear when the
+    // settled slot changes (pinch state resets per page).
+    LaunchedEffect(pagerState.settledPage) { zoomed = false }
     val pagerScope = rememberCoroutineScope()
     val pageBack: () -> Unit = {
-        if (pagerState.currentPage > 0) pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        if (pagerState.currentPage > 0) {
+            pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        }
     }
     val pageForward: () -> Unit = {
-        if (pagerState.currentPage < pagerState.pageCount - 1) pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+        if (pagerState.currentPage < pagerState.pageCount - 1) {
+            pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+        }
     }
     CompositionLocalProvider(
         LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
@@ -270,25 +353,25 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             beyondViewportPageCount = 1,
         ) { slot ->
             val contentIndex = slot - prevSlot
-            if (contentIndex == -1 || contentIndex == displayPages.size) {
-                // Transition slot: confirm or go back (design §12).
-                val isNext = contentIndex == displayPages.size
+            if (contentIndex < 0 || contentIndex >= displayPages.size) {
+                val isNext = contentIndex >= displayPages.size
                 val chapter = if (isNext) state.nextChapter else state.prevChapter
                 if (chapter != null) {
                     TransitionPage(
                         chapter = chapter,
                         isNext = isNext,
+                        currentChapter = state.currentChapter,
                         onConfirm = { viewModel.openChapter(chapter.id) },
-                        onBack = { pagerScope.launch { pagerState.animateScrollToPage(slot - 1) } },
+                        onBack = {
+                            val back = if (isNext) slot - 1 else slot + 1
+                            pagerScope.launch { pagerState.animateScrollToPage(back) }
+                        },
                     )
                 }
                 return@HorizontalPager
             }
             val display = displayPages[contentIndex]
             if (display.pages.size == 2) {
-                // Double-page spread: two fit-height pages side by
-                // side in reading order (design §12). Zoom stays off
-                // for spreads; tap zones still navigate.
                 SpreadPage(
                     pages = display.pages,
                     urlFor = { viewModel.pageImageUrl(it) },
@@ -308,7 +391,7 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
                     apiKey = state.profile?.apiKey,
                     tapZones = state.tapZones,
                     rtl = rtl,
-                    pageScale = state.pageScale,
+                    pageScale = state.scale,
                     colorFilter = readerColorFilter(state),
                     onZoomChange = { zoomed = it },
                     onTapLeft = pageBack,
@@ -320,58 +403,100 @@ private fun PagedBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     }
 }
 
-/** M2 transition page (design §12, webui TransitionPage parity): the
- *  virtual slot between chapters. It only confirms the advance — no
- *  auto-navigation, no progress write. */
+/** Chapter transition slot (preview 40, webui TransitionPage / Aidoku
+ *  ReaderInfoPageView parity): shows the neighbouring chapter, a gap
+ *  warning when chapter numbers skip, and an explicit continue action —
+ *  landing on the slot never advances on its own. */
 @Composable
 private fun TransitionPage(
     chapter: ChapterWithDownload,
     isNext: Boolean,
+    currentChapter: ChapterWithDownload?,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val skipped = missingBetween(currentChapter, chapter)
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            if (isNext) "本章结束" else "到达第一章",
-            style = MaterialTheme.typography.titleMedium,
+            if (isNext) "下一话" else "上一话",
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.size(16.dp))
+        Spacer(Modifier.size(8.dp))
         Text(
-            (if (isNext) "下一章" else "上一章") + " · " + chapterLabel(chapter),
+            chapterCardLabel(chapter),
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
+        val meta = buildString {
+            append("${chapter.pageCount} 页")
+            if (chapter.isRead) append(" · 已读")
+            if (chapter.isDownloaded || chapter.hasFinishedDownload) append(" · 已下载")
+        }
+        Spacer(Modifier.size(6.dp))
+        Text(
+            meta,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (skipped > 0) {
+            Spacer(Modifier.size(14.dp))
+            Text(
+                "⚠ 缺 $skipped 话 · 目录不连续",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+        }
         Spacer(Modifier.size(24.dp))
-        Button(onClick = onConfirm) { Text("继续阅读") }
-        Spacer(Modifier.size(8.dp))
-        TextButton(onClick = onBack) { Text("返回本章") }
+        Button(onClick = onConfirm) { Text(if (isNext) "继续阅读" else "回到上一话") }
+        Spacer(Modifier.size(4.dp))
+        TextButton(onClick = onBack) { Text("留在本话") }
     }
 }
 
-/** Chapter card label: prefer the title, fall back to the number
- *  (12.0 renders as 12). */
-private fun chapterLabel(chapter: ChapterWithDownload): String {
-    chapter.title?.takeIf { it.isNotBlank() }?.let { return it }
-    val n = chapter.chapterNumber
-    return if (n != null) "第 ${if (n % 1f == 0f) n.toInt().toString() else n.toString()} 话" else "未命名章节"
+private fun chapterCardLabel(chapter: ChapterWithDownload): String =
+    chapterLabel(chapter.volumeNumber, chapter.chapterNumber, chapter.title)
+
+/** Number of chapters skipped between two neighbours (Aidoku
+ *  SKIPPING_CHAPTERS parity); 0 when the numbers are consecutive or
+ *  missing. */
+private fun missingBetween(a: ChapterWithDownload?, b: ChapterWithDownload?): Int {
+    val x = a?.chapterNumber ?: return 0
+    val y = b?.chapterNumber ?: return 0
+    val delta = y - x
+    return if (delta > 1.01f) (delta - 1f).toInt() else 0
 }
 
+// ---------------------------------------------------------------------------
+// Vertical reader (webtoon + continuous)
+// ---------------------------------------------------------------------------
+
 @Composable
-private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
+private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = state.index)
+    // Switching chapters reuses this list: jump to the resumed page.
+    LaunchedEffect(state.chapterId) {
+        if (state.index > 0 && state.index < state.pages.size) {
+            listState.scrollToItem(state.index)
+        }
+    }
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.setIndex(it) }
     }
-    // M2 pull-to-next-chapter (design §12, webui pullNextChapter
-    // parity): dragging past the end rubber-bands a hint, releasing
-    // past the threshold (160dp) advances to the next chapter.
+    LaunchedEffect(state.seekRequest) {
+        if (state.seekRequest > 0 && state.index in 0 until state.pages.size) {
+            listState.scrollToItem(state.index)
+        }
+    }
+    // webtoon gap 0 / continuous 12dp (Aidoku webtoon vs continuous).
+    val gap = if (state.mode == ReadingMode.CONTINUOUS) 12.dp else 0.dp
+
     val density = LocalDensity.current
-    val pullThreshold = with(density) { 160.dp.toPx() }
+    val pullThreshold = with(density) { 120.dp.toPx() }
     var pull by remember { mutableFloatStateOf(0f) }
     val nextChapter = state.nextChapter
     val nestedScroll = remember(nextChapter) {
@@ -390,67 +515,186 @@ private fun WebtoonBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (pull <= -pullThreshold) {
-                    nextChapter?.let { viewModel.openChapter(it.id) }
-                }
+                if (pull <= -pullThreshold) nextChapter?.let { viewModel.openChapter(it.id) }
                 pull = 0f
                 return Velocity.Zero
             }
         }
     }
-    // Snap the hint back when the finger lifts without flinging.
     LaunchedEffect(pull) {
         if (pull != 0f) {
-            delay(500)
+            delay(600)
             pull = 0f
         }
     }
-    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScroll)) {
-        items(state.pages.size, key = { state.pages[it].index }) { position ->
-            val page = state.pages[position]
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.toggleOverlay() },
-            ) {
-                val textPage = page.content.text
-                if (textPage != null) {
-                    TextPageContent(textPage, fillWidth = true)
-                } else {
-                    ReaderImage(
-                        url = viewModel.pageImageUrl(page),
-                        apiKey = state.profile?.apiKey,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentScale = ContentScale.FillWidth,
-                        colorFilter = readerColorFilter(state),
-                    )
+
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().nestedScroll(nestedScroll),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            items(state.pages.size, key = { state.pages[it].index }) { position ->
+                val page = state.pages[position]
+                Box(Modifier.fillMaxWidth().clickable { viewModel.toggleOverlay() }) {
+                    val text = page.content.text
+                    if (text != null) {
+                        TextPageContent(text, fillWidth = true)
+                    } else {
+                        ReaderImage(
+                            url = viewModel.pageImageUrl(page),
+                            apiKey = state.profile?.apiKey,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentScale = ContentScale.FillWidth,
+                            colorFilter = readerColorFilter(state),
+                        )
+                    }
+                }
+            }
+            if (nextChapter != null) {
+                item(key = "next-chapter-footer") {
+                    Column(
+                        Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            when {
+                                pull <= -pullThreshold -> "松手进入下一话"
+                                pull < 0f -> "继续拖动进入下一话"
+                                else -> "已到本话末尾"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { viewModel.openChapter(nextChapter.id) }) {
+                            Text("下一话 · " + chapterCardLabel(nextChapter))
+                        }
+                    }
                 }
             }
         }
-        if (nextChapter != null) {
-            item(key = "next-chapter-footer") {
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    if (pull != 0f) {
-                        Text(
-                            if (pull <= -pullThreshold) "松开进入下一章" else "继续下拉进入下一章",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+        VerticalScrollBar(
+            state = state,
+            listState = listState,
+            onNextChapter = state.nextChapter?.let { ch -> { viewModel.openChapter(ch.id) } },
+            modifier = Modifier.align(Alignment.CenterEnd),
+        )
+    }
+}
+
+/** Right-edge drag rail (preview 08, webui reader scrollbar / Aidoku
+ *  webtoon scrubber parity): 24dp hot zone, a slim thumb, and a page
+ *  bubble that follows the drag. */
+@Composable
+private fun VerticalScrollBar(
+    state: ReaderUiState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onNextChapter: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val total = state.pages.size
+    if (total <= 1) return
+    val info = listState.layoutInfo
+    var dragging by remember { mutableStateOf(false) }
+    var fraction by remember { mutableFloatStateOf(0f) }
+    val liveFraction = remember(listState.firstVisibleItemIndex, info.visibleItemsInfo.size) {
+        val first = listState.firstVisibleItemIndex
+        (first.toFloat() / (total - 1).coerceAtLeast(1))
+    }
+    val shown = if (dragging) fraction else liveFraction
+    val scope = rememberCoroutineScope()
+    BoxWithConstraints(modifier.fillMaxHeight().width(24.dp)) {
+        val trackHeight = maxHeight
+        val thumbHeight = (trackHeight * 0.22f).coerceAtLeast(36.dp)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(total) {
+                    detectVerticalDragGestures(
+                        onDragStart = { dragging = true; fraction = shown },
+                        onDragEnd = { dragging = false },
+                        onDragCancel = { dragging = false },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        val range = (trackHeight - thumbHeight).toPx().coerceAtLeast(1f)
+                        fraction = (fraction + dragAmount / range).coerceIn(0f, 1f)
+                        val target = (fraction * (total - 1)).toInt()
+                        scope.launch { listState.scrollToItem(target.coerceIn(0, total - 1)) }
                     }
-                    TextButton(onClick = { viewModel.openChapter(nextChapter.id) }) {
-                        Text("下一章 · " + chapterLabel(nextChapter))
-                    }
+                },
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+                    .width(3.dp)
+                    .height(trackHeight)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f)),
+            )
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 2.dp)
+                    .offset(y = (trackHeight - thumbHeight) * shown)
+                    .width(6.dp)
+                    .height(thumbHeight)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.55f)),
+            )
+            // Chapter anchors (preview 08): the rail spans one chapter, so
+            // the top notch is this chapter's start and the bottom notch is
+            // the next chapter — tapping it continues reading.
+            ChapterAnchor(Alignment.TopEnd, null)
+            ChapterAnchor(Alignment.BottomEnd, onNextChapter)
+        }
+        if (dragging) {
+            Surface(
+                color = Color(0xE6141418),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 20.dp, top = 40.dp),
+            ) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text(
+                        "${(shown * (total - 1)).toInt() + 1} / $total",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Text(
+                        state.chapterNumberLabel,
+                        color = Color.White.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 }
             }
         }
     }
 }
 
-/** Custom reader filters (design §12, webui filters parity simplified):
- *  brightness factor plus grayscale/sepia, rendered as a ColorMatrix. */
+/** Small notch on the scrolling rail. A clickable notch continues into the
+ *  neighbouring chapter, so the rail doubles as a chapter affordance. */
+@Composable
+private fun BoxScope.ChapterAnchor(alignment: Alignment, onClick: (() -> Unit)?) {
+    Box(
+        Modifier
+            .align(alignment)
+            .size(18.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .width(9.dp)
+                .height(2.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(Color.White.copy(alpha = if (onClick != null) 0.55f else 0.3f)),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pages, images, tap zones
+// ---------------------------------------------------------------------------
 private fun readerColorFilter(state: ReaderUiState): ColorFilter? {
     if (state.brightness == 1f && !state.grayscale && !state.sepia) return null
     val m = if (state.sepia) {
@@ -472,9 +716,6 @@ private fun readerColorFilter(state: ReaderUiState): ColorFilter? {
     return ColorFilter.colorMatrix(m)
 }
 
-/** Text chapters: the novel/Novel-style content the server embeds in
- *  the pages response renders as scrollable, selectable text instead
- *  of an image (design §12, text page support). */
 @Composable
 private fun TextPageContent(text: String, fillWidth: Boolean) {
     SelectionContainer {
@@ -513,15 +754,10 @@ private fun ReaderPage(
     Box(Modifier.fillMaxSize()) {
         val textPage = page.content.text
         if (pageScale != "fit" && crop == 0) {
-            // Page-scale modes (design §12, webui sumidoku.reader.scale
-            // parity): width fills width and scrolls vertically, height
-            // fills height and scrolls horizontally, original renders
-            // unscaled in both directions. Zoom stays off; tap zones
-            // overlay the scroller.
             val scrollModifier = when (pageScale) {
                 "width" -> Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                "height" -> Modifier.fillMaxHeight().horizontalScroll(rememberScrollState())
-                else -> Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+                "height" -> Modifier.fillMaxHeight()
+                else -> Modifier.fillMaxSize()
             }
             val contentScale = when (pageScale) {
                 "width" -> ContentScale.FillWidth
@@ -568,9 +804,6 @@ private fun ReaderPage(
                     translationY = offset.y
                 }
         } else {
-            // Split-wide half: draw the page scaled 2x horizontally and
-            // translated so the requested half fills the slot (the
-            // container clips the rest). Zoom stays available per slot.
             Modifier
                 .fillMaxSize()
                 .clipToBounds()
@@ -604,11 +837,10 @@ private fun ReaderPage(
     }
 }
 
-/** Tap zones (design §12, webui TapZoneLayout parity): lr = prev/menu/
- *  next thirds, rl mirrors, edge narrows the side zones to 15%, kindle
- *  reserves the top quarter for the menu and splits the rest 75/25,
- *  off disables zone taps. `rtl` mirrors left/right actions so prev
- *  always means "previous in reading order". Preview 24 zone map. */
+/** Tap zones (webui TapZoneLayout parity): lr = prev/menu/next thirds,
+ *  rl mirrored, edge narrows the sides to 15%, kindle reserves the top
+ *  quarter for the menu, off disables. `rtl` mirrors left/right so prev
+ *  always means "previous in reading order". */
 @Composable
 private fun TapZoneOverlay(
     layout: String,
@@ -637,8 +869,6 @@ private fun TapZoneOverlay(
             }
         }
         else -> {
-            // "lr": left prev, right next; "rl": mirrored before the
-            // reading-direction mirror applies.
             val baseLeftIsPrev = layout != "rl"
             val leftIsPrev = if (rtl) !baseLeftIsPrev else baseLeftIsPrev
             Row(Modifier.fillMaxSize()) {
@@ -650,15 +880,11 @@ private fun TapZoneOverlay(
     }
 }
 
-/** Graphical tap-zone mini-map for the settings sheet (webui
- *  TapZonePreview parity): prev = #A4706F, next = #6F9A80,
- *  menu = #6F86A8, none = surfaceVariant. */
 @Composable
 private fun TapZonePreview(layout: String, rtl: Boolean) {
     val prevColor = Color(0xFFA4706F)
     val nextColor = Color(0xFF6F9A80)
     val menuColor = Color(0xFF6F86A8)
-    val noneColor = MaterialTheme.colorScheme.surfaceVariant
     Box(
         Modifier
             .size(width = 84.dp, height = 120.dp)
@@ -704,9 +930,8 @@ private fun TapZonePreview(layout: String, rtl: Boolean) {
     }
 }
 
-/** Double-page spread: two pages side by side in reading order
- *  (already ordered ltr/rtl by the spread builder). Zoom is disabled
- *  for spreads; the prev/menu/next tap thirds still work. */
+/** Double-page spread: two pages side by side already ordered for the
+ *  reading direction; landscape pages never get here. */
 @Composable
 private fun SpreadPage(
     pages: List<Page>,
@@ -757,224 +982,782 @@ private fun ReaderImage(
     colorFilter: ColorFilter? = null,
 ) {
     val context = LocalContext.current
-    val model = ImageRequest.Builder(context).data(url).apply {
-        apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
-    }.build()
     var failed by remember(url) { mutableStateOf(false) }
-    var retryKey by remember(url) { mutableStateOf(0) }
+    var retryKey by remember(url) { mutableIntStateOf(0) }
     if (failed) {
+        // Failed pages keep the slot's aspect box so the pager does not
+        // jump; the retry button sits above the tap zones (preview 07).
         Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("页面加载失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = { failed = false; retryKey++ }) { Text("重试") }
             }
         }
-    } else {
-        AsyncImage(
-            model = model,
-            contentDescription = null,
-            modifier = modifier,
-            contentScale = contentScale,
-            colorFilter = colorFilter,
-            onError = { failed = true },
+        return
+    }
+    val model = ImageRequest.Builder(context).data(url).apply {
+        apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
+    }.build()
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = contentScale,
+        colorFilter = colorFilter,
+        onError = { failed = true },
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Overlay: top bar, chapter navigator, bottom action bar
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ReaderOverlay(
+    state: ReaderUiState,
+    viewModel: ReaderViewModel,
+    onBack: () -> Unit,
+    landscape: Boolean,
+    canvasColor: Color,
+) {
+    var showQuickPanel by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    // KMReader-style floating chrome (ui/reader ReaderScreen "solid mode"):
+    // capsules tinted with the reader background colour instead of solid
+    // black bars. A 1 dp content-tinted edge keeps a capsule visible on
+    // same-coloured pages, and the gaps between capsules stay clear so
+    // taps there still turn pages.
+    val chromeContent = if (canvasColor.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White
+    val chromeScrim = canvasColor.copy(alpha = 0.88f)
+    val capsuleShape = RoundedCornerShape(24.dp)
+    val capsuleBorder = BorderStroke(1.dp, chromeContent.copy(alpha = 0.25f))
+
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+        // ---- top: left capsule (back + incognito + title) ----
+        Row(
+            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                Modifier
+                    // Hug the content, but shrink (title ellipsizes) when space is tight
+                    .weight(1f, fill = false)
+                    .clip(capsuleShape)
+                    .background(chromeScrim)
+                    .border(capsuleBorder, capsuleShape)
+                    // Swallow stray taps inside the capsule; taps in the gap still turn pages
+                    .pointerInput(Unit) { detectTapGestures { } }
+                    // Asymmetric padding: the back IconButton already contributes its own
+                    // internal padding on the left, so the trailing side gets 16 dp
+                    .padding(start = 4.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = chromeContent)
+                }
+                if (state.incognito) {
+                    Icon(
+                        Icons.Outlined.VisibilityOff,
+                        contentDescription = "无痕阅读",
+                        tint = chromeContent.copy(alpha = 0.85f),
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+                Column(Modifier.padding(start = if (state.incognito) 8.dp else 0.dp)) {
+                    Text(
+                        state.chapterTitle,
+                        color = chromeContent,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (state.chapterNumberLabel.isNotEmpty()) {
+                            Text(
+                                state.chapterNumberLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = chromeContent.copy(alpha = 0.7f),
+                            )
+                            Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
+                        }
+                        Text(
+                            "${state.index + 1} / ${state.pages.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = chromeContent.copy(alpha = 0.7f),
+                        )
+                        if (!state.vertical) {
+                            Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
+                            Text(
+                                when {
+                                    !state.doubleSpread(landscape) -> "单页"
+                                    else -> "双页"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = chromeContent.copy(alpha = 0.7f),
+                            )
+                        }
+                        if (state.dir == "rtl") {
+                            Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
+                            Text(
+                                "右→左",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = chromeContent.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- bottom: chapter navigator capsule + centred action capsule ----
+        Column(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ChapterNavigator(
+                state = state,
+                viewModel = viewModel,
+                contentColor = chromeContent,
+                containerColor = chromeScrim,
+                border = capsuleBorder,
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Row(
+                    Modifier
+                        .clip(capsuleShape)
+                        .background(chromeScrim)
+                        .border(capsuleBorder, capsuleShape)
+                        .pointerInput(Unit) { detectTapGestures { } }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OverlayAction(Icons.Outlined.FormatListNumbered, "章节", tint = chromeContent) {
+                        viewModel.openChapterSheet(true)
+                    }
+                    OverlayAction(
+                        if (state.vertical) Icons.Outlined.ViewCarousel else Icons.Outlined.ViewAgenda,
+                        "阅读模式",
+                        tint = chromeContent,
+                        accent = true,
+                        dot = state.overridden.contains(ReaderField.MODE),
+                        onLongClick = { viewModel.setMode(nextMode(state.mode)) },
+                    ) { showQuickPanel = true }
+                    OverlayAction(
+                        when (state.layout) {
+                            PageLayout.SINGLE -> Icons.Outlined.ViewAgenda
+                            PageLayout.DOUBLE -> Icons.Outlined.ViewColumn
+                            PageLayout.AUTO -> Icons.Outlined.ViewColumn
+                        },
+                        "布局",
+                        tint = chromeContent,
+                        dot = state.overridden.contains(ReaderField.LAYOUT),
+                    ) { viewModel.setLayout(nextLayout(state.layout)) }
+                    OverlayAction(
+                        Icons.Outlined.SwapHoriz,
+                        "方向",
+                        tint = chromeContent,
+                        dot = state.overridden.contains(ReaderField.DIR),
+                    ) { viewModel.setDir(nextDir(state.dirPreference)) }
+                    OverlayAction(Icons.Outlined.Tune, "设置", tint = chromeContent) { showSettings = true }
+                }
+            }
+        }
+    }
+
+    if (showQuickPanel) {
+        QuickPanelSheet(state, viewModel) { showQuickPanel = false }
+    }
+    if (showSettings) {
+        ReaderSettingsSheet(state, viewModel) { showSettings = false }
+    }
+}
+
+@Composable
+private fun OverlayAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    accent: Boolean = false,
+    dot: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(onClick, onLongClick) {
+                        detectTapGestures(
+                            onTap = { onClick() },
+                            onLongPress = { onLongClick?.invoke() },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = if (accent) MaterialTheme.colorScheme.primary else tint,
+                )
+            }
+            if (dot) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 10.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
+        }
+    }
+}
+
+private fun nextLayout(layout: PageLayout): PageLayout = when (layout) {
+    PageLayout.SINGLE -> PageLayout.DOUBLE
+    PageLayout.DOUBLE -> PageLayout.AUTO
+    PageLayout.AUTO -> PageLayout.SINGLE
+}
+
+private fun nextDir(pref: String): String = when (pref) {
+    "ltr" -> "rtl"
+    "rtl" -> "default"
+    else -> "ltr"
+}
+
+/** Long-pressing the mode key flips paged ⇄ webtoon without opening the
+ *  panel (preview 07: 模式 · 长按切换). */
+private fun nextMode(mode: String): String = when (mode) {
+    ReadingMode.WEBTOON -> ReadingMode.PAGED
+    else -> ReadingMode.WEBTOON
+}
+
+/** Chapter navigator pill (previews 07/39, webui ReaderPager /
+ *  Aidoku bottom slider parity): previous chapter, current page over
+ *  total, reversed slider and swapped arrows under RTL. */
+@Composable
+private fun ChapterNavigator(
+    state: ReaderUiState,
+    viewModel: ReaderViewModel,
+    contentColor: Color,
+    containerColor: Color,
+    border: BorderStroke,
+) {
+    val rtl = state.dir == "rtl"
+    val range = 0f..(state.pages.size - 1).coerceAtLeast(0).toFloat()
+    val sliderValue = if (rtl) (range.endInclusive - state.index) else state.index.toFloat()
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(24.dp),
+        border = border,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = { state.prevChapter?.let { viewModel.openChapter(it.id) } },
+                enabled = state.prevChapter != null,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    if (rtl) Icons.AutoMirrored.Outlined.NavigateNext else Icons.AutoMirrored.Outlined.NavigateBefore,
+                    contentDescription = "上一章",
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Text(
+                if (state.doubleSpread(false) && !state.vertical) "${state.index + 1}–${(state.index + 2).coerceAtMost(state.pages.size)}"
+                else "${state.index + 1}",
+                color = contentColor,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Slider(
+                value = sliderValue,
+                onValueChange = { raw ->
+                    val target = if (rtl) range.endInclusive - raw else raw
+                    viewModel.seekTo(target.toInt())
+                },
+                valueRange = range,
+                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+            )
+            Text(
+                "/ ${state.pages.size}",
+                color = contentColor.copy(alpha = 0.65f),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            IconButton(
+                onClick = { state.nextChapter?.let { viewModel.openChapter(it.id) } },
+                enabled = state.nextChapter != null,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    if (rtl) Icons.AutoMirrored.Outlined.NavigateBefore else Icons.AutoMirrored.Outlined.NavigateNext,
+                    contentDescription = "下一章",
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Chapter drawer (preview 25)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
+    var filter by remember { mutableStateOf("all") }
+    var descending by remember { mutableStateOf(false) }
+
+    val unread = state.chapters.count { !it.isRead }
+    val downloaded = state.chapters.count { it.isDownloaded || it.hasFinishedDownload }
+    val visible = remember(state.chapters, filter, descending) {
+        val filtered = when (filter) {
+            "unread" -> state.chapters.filter { !it.isRead }
+            "downloaded" -> state.chapters.filter { it.isDownloaded || it.hasFinishedDownload }
+            else -> state.chapters
+        }
+        if (descending) filtered.reversed() else filtered
+    }
+    // Open at the current chapter (Aidoku ScrollViewReader /
+    // Komikku rememberLazyListState(initial index) parity).
+    val initial = remember(state.chapterId, visible) {
+        visible.indexOfFirst { it.id == state.chapterId }.coerceAtLeast(0)
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initial)
+
+    ReaderDialog(onDismissRequest = { viewModel.openChapterSheet(false) }) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("章节", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${state.chapters.size} 话 · ${state.chapters.count { it.isRead }} 已读 · ${unread.coerceAtLeast(0)} 未读",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = { descending = !descending }) {
+                    Icon(Icons.Outlined.Sort, contentDescription = if (descending) "改为升序" else "改为降序")
+                }
+                IconButton(onClick = { viewModel.openChapterSheet(false) }) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "关闭")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                FilterChip(selected = filter == "all", onClick = { filter = "all" }, label = { Text("全部") })
+                FilterChip(
+                    selected = filter == "unread",
+                    onClick = { filter = "unread" },
+                    label = { Text("未读 $unread") },
+                )
+                FilterChip(
+                    selected = filter == "downloaded",
+                    onClick = { filter = "downloaded" },
+                    label = { Text("已下载 $downloaded") },
+                )
+            }
+            if (visible.any { it.id == state.chapterId }) {
+                Text(
+                    "已定位到当前话",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            when {
+                state.chaptersError != null -> {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            state.chaptersError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                        )
+                        TextButton(onClick = { viewModel.retryChapters() }) { Text("重试") }
+                    }
+                }
+                visible.isEmpty() -> {
+                    Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            when (filter) {
+                                "unread" -> "没有未读章节"
+                                "downloaded" -> "没有已下载章节"
+                                else -> "暂无章节"
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().height(420.dp)) {
+                        visible.forEachIndexed { index, chapter ->
+                            val prev = visible.getOrNull(index - 1)
+                            val gap = missingBetween(if (descending) chapter else prev, if (descending) prev else chapter)
+                            if (gap > 0) {
+                                item(key = "gap-${chapter.id}") { ChapterGapRow(gap) }
+                            }
+                            item(key = chapter.id) {
+                                ChapterRow(
+                                    chapter = chapter,
+                                    current = chapter.id == state.chapterId,
+                                    onClick = {
+                                        viewModel.openChapter(chapter.id)
+                                        viewModel.openChapterSheet(false)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ChapterGapRow(missing: Int) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("⚠", color = MaterialTheme.colorScheme.tertiary)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "缺 $missing 话 · 目录不连续",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: () -> Unit) {
+    val number = chapterLabel(chapter.volumeNumber, chapter.chapterNumber, null)
+    Surface(
+        color = if (current) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+        else Color.Transparent,
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).clickable(onClick = onClick),
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                number,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(52.dp),
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    chapter.title?.takeIf { it.isNotBlank() } ?: "第 $number 话",
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (chapter.isRead) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+                )
+                val meta = buildString {
+                    append("${chapter.pageCount} 页")
+                    if (chapter.lastPageRead > 0) append(" · 读到 P.${chapter.lastPageRead + 1}")
+                }
+                Text(
+                    meta,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (chapter.isBookmarked) {
+                Icon(
+                    Icons.Outlined.BookmarkBorder,
+                    contentDescription = "已加书签",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            if (chapter.locked) {
+                Icon(
+                    Icons.Outlined.Lock,
+                    contentDescription = "已锁定",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            if (chapter.isDownloaded || chapter.hasFinishedDownload) {
+                Icon(
+                    Icons.Outlined.Download,
+                    contentDescription = "已下载",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            } else if (chapter.isRead) {
+                Icon(
+                    Icons.Outlined.Check,
+                    contentDescription = "已读",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Quick panel (preview 41): mode / layout / direction, applied at once
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun QuickPanelSheet(state: ReaderUiState, viewModel: ReaderViewModel, onDismiss: () -> Unit) {
+    ReaderDialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("阅读设置", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(8.dp))
+                ChainTag(overridden = state.overridden.isNotEmpty())
+            }
+            ModeSection(state, viewModel)
+            LayoutSection(state, viewModel)
+            DirSection(state, viewModel)
+            Text(
+                "改动即时生效 · 与解析值相同会自动取消覆盖",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChainTag(overridden: Boolean) {
+    Surface(
+        color = if (overridden) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        else MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(6.dp),
+    ) {
+        Text(
+            if (overridden) "本漫画覆盖" else "跟随解析",
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
-private fun ReaderOverlay(state: ReaderUiState, viewModel: ReaderViewModel, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-        Surface(color = Color.Black.copy(alpha = 0.82f)) {
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = Color.White)
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(state.chapterTitle, color = Color.White, maxLines = 1)
-                    Text(
-                        "${state.index + 1} / ${state.pages.size}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.7f),
-                    )
-                }
-            }
-        }
-        Surface(color = Color.Black.copy(alpha = 0.82f)) {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Slider(
-                    value = state.index.toFloat(),
-                    onValueChange = { viewModel.setIndex(it.toInt()) },
-                    valueRange = 0f..(state.pages.size - 1).coerceAtLeast(0).toFloat(),
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(
-                        onClick = { state.prevChapter?.let { viewModel.openChapter(it.id) } },
-                        enabled = state.prevChapter != null,
-                    ) {
-                        Icon(Icons.AutoMirrored.Outlined.NavigateBefore, contentDescription = "上一章", tint = Color.White)
-                    }
-                    IconButton(onClick = { viewModel.setWebtoon(!state.webtoon) }) {
-                        Icon(
-                            if (state.webtoon) Icons.Outlined.ViewCarousel else Icons.Outlined.ViewAgenda,
-                            contentDescription = "切换模式",
-                            tint = Color.White,
-                        )
-                    }
-                    var showSettings by remember { mutableStateOf(false) }
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(Icons.Outlined.Tune, contentDescription = "阅读设置", tint = Color.White)
-                    }
-                    if (showSettings) {
-                        ReaderSettingsSheet(state, viewModel) { showSettings = false }
-                    }
-                    IconButton(
-                        onClick = { state.nextChapter?.let { viewModel.openChapter(it.id) } },
-                        enabled = state.nextChapter != null,
-                    ) {
-                        Icon(Icons.AutoMirrored.Outlined.NavigateNext, contentDescription = "下一章", tint = Color.White)
-                    }
-                }
+private fun ModeSection(state: ReaderUiState, viewModel: ReaderViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("模式", style = MaterialTheme.typography.titleSmall)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf(
+                ReadingMode.PAGED to "分页",
+                ReadingMode.CONTINUOUS to "连续",
+                ReadingMode.WEBTOON to "条漫",
+            ).forEachIndexed { index, (value, label) ->
+                SegmentedButton(
+                    selected = state.mode == value,
+                    onClick = { viewModel.setMode(value) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                ) { Text(label) }
             }
         }
     }
 }
 
-/** Reader settings sheet (design §12): reading mode, direction
- *  (mirrors tap zones and the pager), and split-wide-page in paged
- *  mode. Preview 24-reader-settings. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReaderSettingsSheet(
-    state: ReaderUiState,
-    viewModel: ReaderViewModel,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("阅读设置", style = MaterialTheme.typography.titleMedium)
-
-            Text("阅读模式", style = MaterialTheme.typography.titleSmall)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+private fun LayoutSection(state: ReaderUiState, viewModel: ReaderViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("双页布局", style = MaterialTheme.typography.titleSmall)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            PageLayout.entries.forEachIndexed { index, value ->
                 SegmentedButton(
-                    selected = !state.webtoon,
-                    onClick = { viewModel.setWebtoon(false) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                ) { Text("分页") }
-                SegmentedButton(
-                    selected = state.webtoon,
-                    onClick = { viewModel.setWebtoon(true) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                ) { Text("条漫（连续）") }
-            }
-
-            HorizontalDivider()
-            Text("阅读方向", style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("default" to "跟随漫画", "ltr" to "从左到右", "rtl" to "从右到左").forEach { (value, label) ->
-                    FilterChip(
-                        selected = state.dir == value || (value == "default" && state.dir !in listOf("ltr", "rtl")),
-                        onClick = { viewModel.setDir(if (value == "default") "ltr" else value) },
-                        label = { Text(label) },
+                    selected = state.layout == value,
+                    onClick = { viewModel.setLayout(value) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = PageLayout.entries.size),
+                    enabled = !state.vertical,
+                ) {
+                    Text(
+                        when (value) {
+                            PageLayout.SINGLE -> "单页"
+                            PageLayout.DOUBLE -> "双页"
+                            PageLayout.AUTO -> "自动"
+                        },
                     )
                 }
             }
+        }
+        Text(
+            "自动 = 横屏双页 · 竖屏单页",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun DirSection(state: ReaderUiState, viewModel: ReaderViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("方向", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("default" to "跟随漫画", "ltr" to "左→右", "rtl" to "右→左").forEach { (value, label) ->
+                FilterChip(
+                    selected = state.dirPreference == value,
+                    onClick = { viewModel.setDir(value) },
+                    label = { Text(label) },
+                )
+            }
+        }
+        Text(
+            "解析为右→左时：滑杆反向、上一话/下一话对调、点按区镜像",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Full settings sheet (preview 24)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel, onDismiss: () -> Unit) {
+    ReaderDialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("阅读设置", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(8.dp))
+                ChainTag(overridden = state.overridden.isNotEmpty())
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { viewModel.resetMangaOverrides() }) { Text("恢复默认") }
+            }
+            // Resolution chain block (preview 24): shows where the values
+            // come from, so the user never wonders why a page paired up.
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "解析链：本漫画覆盖 › manga.viewer 元数据 › 全局默认",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text("模式 ${state.mode}", style = MaterialTheme.typography.bodySmall)
+                    Text("方向 ${if (state.dir == "rtl") "右→左" else "左→右"}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            ModeSection(state, viewModel)
+            HorizontalDivider()
+            LayoutSection(state, viewModel)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("首页单独成页", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "封面不参与跨页配对（对齐 webui doubleNoCover）",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.coverFirst,
+                    onCheckedChange = { viewModel.setCoverFirst(it) },
+                    enabled = !state.vertical,
+                )
+            }
+            HorizontalDivider()
+            DirSection(state, viewModel)
 
             HorizontalDivider()
             Text("点按区域", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("lr" to "左右", "rl" to "右左", "edge" to "边缘", "kindle" to "Kindle", "off" to "关").forEach { (value, label) ->
-                    FilterChip(
-                        selected = state.tapZones == value,
-                        onClick = { viewModel.setTapZones(value) },
-                        label = { Text(label) },
-                    )
-                }
+                listOf("lr" to "左右", "rl" to "右左", "edge" to "边缘", "kindle" to "Kindle", "off" to "关")
+                    .forEach { (value, label) ->
+                        FilterChip(
+                            selected = state.tapZones == value,
+                            onClick = { viewModel.setTapZones(value) },
+                            label = { Text(label) },
+                        )
+                    }
             }
-            // Graphical mini-map of the selected layout (webui
-            // TapZonePreview parity: prev/next/menu colours).
             if (state.tapZones != "off") {
                 TapZonePreview(layout = state.tapZones, rtl = state.dir == "rtl")
             }
 
             HorizontalDivider()
-            Text("双页布局", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "连续两页并排显示；横页始终独占整版（与拆分宽页互斥，仅分页模式）",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("页面缩放", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0 to "关", 1 to "双页", 2 to "双页（不含封面）").forEach { (value, label) ->
-                    FilterChip(
-                        selected = state.doublePage == value,
-                        onClick = { viewModel.setDoublePage(value) },
-                        enabled = !state.webtoon,
-                        label = { Text(label) },
+                listOf("fit" to "适应", "width" to "宽度", "height" to "高度", "original" to "原始")
+                    .forEach { (value, label) ->
+                        FilterChip(
+                            selected = state.scale == value,
+                            onClick = { viewModel.setScale(value) },
+                            label = { Text(label) },
+                            enabled = !state.vertical && state.layout == PageLayout.SINGLE,
+                        )
+                    }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("拆分宽页", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "横页按阅读方向拆成两半，进度仍按真实页码",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                Switch(
+                    checked = state.splitWide,
+                    onCheckedChange = { viewModel.setSplitWide(it) },
+                    enabled = !state.vertical,
+                )
             }
-
-            HorizontalDivider()
-            Text("缩放", style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    "fit" to "适应",
-                    "width" to "宽度",
-                    "height" to "高度",
-                    "original" to "原始",
-                ).forEach { (value, label) ->
-                    FilterChip(
-                        selected = state.pageScale == value,
-                        onClick = { viewModel.setPageScale(value) },
-                        label = { Text(label) },
-                        enabled = !state.webtoon && state.doublePage == 0,
-                    )
-                }
-            }
-            Text(
-                "宽度/高度/原始模式可拖动查看；条漫恒为填充宽度，双页固定适应",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
             HorizontalDivider()
             Text("背景", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    "dark" to "纯黑",
-                    "gray" to "深灰",
-                    "light" to "白色",
-                    "auto" to "跟随主题",
-                ).forEach { (value, label) ->
-                    FilterChip(
-                        selected = state.background == value,
-                        onClick = { viewModel.setBackground(value) },
-                        label = { Text(label) },
-                    )
-                }
+                listOf("dark" to "纯黑", "gray" to "深灰", "light" to "白色", "auto" to "跟随主题")
+                    .forEach { (value, label) ->
+                        FilterChip(
+                            selected = state.background == value,
+                            onClick = { viewModel.setBackground(value) },
+                            label = { Text(label) },
+                        )
+                    }
             }
 
             HorizontalDivider()
-            Text("滤镜", style = MaterialTheme.typography.titleSmall)
+            Text("滤镜 · 全局", style = MaterialTheme.typography.titleSmall)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("亮度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text("亮度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(48.dp))
                 Slider(
                     value = state.brightness,
                     onValueChange = { viewModel.setBrightness(it) },
                     valueRange = 0.5f..1.5f,
-                    modifier = Modifier.weight(3f),
+                    modifier = Modifier.weight(1f),
                 )
-                Text("${(state.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${(state.brightness * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(44.dp),
+                    textAlign = TextAlign.End,
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("灰度", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -984,26 +1767,7 @@ private fun ReaderSettingsSheet(
                 Text("棕褐", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 Switch(checked = state.sepia, onCheckedChange = { viewModel.setSepia(it) })
             }
-
-            HorizontalDivider()
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("拆分宽页", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "横页按阅读方向拆成两半（仅分页模式；进度仍按真实页码记录）",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = state.splitWide,
-                    onCheckedChange = { viewModel.setSplitWide(it) },
-                    enabled = !state.webtoon,
-                )
-            }
         }
     }
 }
+
