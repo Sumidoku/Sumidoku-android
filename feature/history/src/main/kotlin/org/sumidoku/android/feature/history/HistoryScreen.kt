@@ -139,7 +139,7 @@ fun HistoryScreen(
                         item(key = "group-$day") {
                             Surface(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
                                 Column {

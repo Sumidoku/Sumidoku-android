@@ -160,7 +160,7 @@ fun UpdatesScreen(
                     item(key = "group-$day") {
                         Surface(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {
                             Column {
@@ -262,7 +262,7 @@ private fun UpdateRowItem(row: UpdateRowItemData, profile: ServerProfile?, onCli
 @Composable
 private fun RunningCard(summary: UpdateSummary?) {
     val s = summary ?: return
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), shape = RoundedCornerShape(16.dp)) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -293,7 +293,7 @@ private fun RunningCard(summary: UpdateSummary?) {
 /** Update summary — the run recap card from preview 10-updates.html. */
 @Composable
 private fun SummaryCard(summary: UpdateSummary?) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), shape = RoundedCornerShape(16.dp)) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
             Text(
                 stringResource(R.string.updates_summary_title),
