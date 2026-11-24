@@ -58,6 +58,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -588,8 +589,17 @@ private fun HomeComponentView(
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (listing != null) {
-                        TextButton(onClick = { onOpenListing(listing.id, listing.name) }) {
-                            Text(stringResource(R.string.source_view_all))
+                        // MD3 tonal capsule (komikku section-header parity):
+                        // pill-shaped button instead of a bare text link.
+                        FilledTonalButton(
+                            onClick = { onOpenListing(listing.id, listing.name) },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.source_view_all),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                            )
                         }
                     }
                 }
