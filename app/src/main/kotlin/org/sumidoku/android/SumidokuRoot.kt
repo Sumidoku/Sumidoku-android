@@ -1,7 +1,10 @@
 package org.sumidoku.android
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
@@ -11,9 +14,14 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -182,24 +190,49 @@ private fun MainTabs(
     val backStack by innerNav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
 
-    NavigationSuiteScaffold(
-        layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
-            currentWindowAdaptiveInfo(),
-        ),
-        navigationSuiteItems = {
-            tabs.forEach { tab ->
-                item(
-                    selected = currentRoute == tab.route,
-                    onClick = {
-                        innerNav.navigate(tab.route) {
-                            popUpTo(innerNav.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+    val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
+        currentWindowAdaptiveInfo(),
+    )
+    NavigationSuiteScaffoldLayout(
+        layoutType = layoutType,
+        navigationSuite = {
+            val navigateTo: (Tab) -> Unit = { tab ->
+                innerNav.navigate(tab.route) {
+                    popUpTo(innerNav.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+            if (layoutType == NavigationSuiteType.NavigationBar) {
+                NavigationBar {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = currentRoute == tab.route,
+                            onClick = { navigateTo(tab) },
+                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                            label = { Text(stringResource(tab.labelRes)) },
+                        )
+                    }
+                }
+            } else {
+                // komikku parity (its custom NavigationRail does the same):
+                // rail items centred vertically instead of pinned to the top.
+                NavigationRail {
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        tabs.forEach { tab ->
+                            NavigationRailItem(
+                                selected = currentRoute == tab.route,
+                                onClick = { navigateTo(tab) },
+                                icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                                label = { Text(stringResource(tab.labelRes)) },
+                            )
                         }
-                    },
-                    icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
-                    label = { Text(stringResource(tab.labelRes)) },
-                )
+                    }
+                }
             }
         },
     ) {
