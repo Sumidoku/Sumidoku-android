@@ -385,7 +385,6 @@ private fun MainTabs(
             composable("more") {
                 MoreScreen(
                     onOpenDownloads = { innerNav.navigate("downloads") },
-                    onOpenSearch = { innerNav.navigate("search") },
                     onOpenSettings = { innerNav.navigate("settings") },
                     onOpenCategories = { innerNav.navigate("categories") },
                     onOpenTrackers = { innerNav.navigate("trackers") },
