@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -19,15 +20,21 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.sumidoku.android.feature.settings.IncognitoUiState
+import org.sumidoku.android.feature.settings.IncognitoViewModel
 
 /** The "More" tab (phone only — tablets have rail room for downloads and
  *  settings directly): secondary destinations as a rounded-card entry list.
@@ -37,7 +44,9 @@ import androidx.compose.ui.unit.dp
 fun MoreScreen(
     onOpenDownloads: () -> Unit,
     onOpenSettings: () -> Unit,
+    incognitoViewModel: IncognitoViewModel = hiltViewModel(),
 ) {
+    val incognitoState by incognitoViewModel.state.collectAsStateWithLifecycle()
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_more)) }) },
     ) { padding ->
@@ -56,12 +65,33 @@ fun MoreScreen(
                     .padding(vertical = 8.dp),
             ) {
                 Column(Modifier.padding(vertical = 8.dp)) {
+                    IncognitoRow(incognitoState, incognitoViewModel::setEnabled)
                     MoreRow(Icons.Outlined.CloudDownload, R.string.tab_downloads, onOpenDownloads)
                     MoreRow(Icons.Outlined.Settings, R.string.tab_settings, onOpenSettings)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun IncognitoRow(state: IncognitoUiState, onToggle: (Boolean) -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.more_incognito)) },
+        leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
+        trailingContent = {
+            Switch(
+                checked = state.enabled,
+                enabled = !state.busy,
+                onCheckedChange = onToggle,
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = !state.busy) { onToggle(!state.enabled) },
+    )
 }
 
 @Composable

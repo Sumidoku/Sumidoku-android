@@ -11,7 +11,5 @@
     <string name="update_new_chapters_one">「%1$s」有新章节</string>
     <string name="update_new_chapters_many">%1$d 部漫画有新章节</string>
     <string name="tab_more">更多</string>
-    <string name="more_categories">分类</string>
-    <string name="more_trackers">追踪器</string>
-    <string name="more_backups">备份</string>
+    <string name="more_incognito">无痕阅读</string>
 </resources>
