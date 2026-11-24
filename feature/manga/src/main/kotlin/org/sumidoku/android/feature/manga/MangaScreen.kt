@@ -8,11 +8,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,10 +61,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -70,9 +78,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -88,6 +100,7 @@ import coil3.toBitmap
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.FilterValue
+import org.sumidoku.android.core.api.model.Manga
 import org.sumidoku.android.core.api.model.MangaStatus
 import org.sumidoku.android.core.api.model.MigrateMode
 import org.sumidoku.android.core.api.model.SearchManga
@@ -145,8 +158,8 @@ fun MangaScreen(
         }
     }
 
-    // Average cover colour (KMReader computeCoverTint) tints the header
-    // backdrop; reset when the manga (and thus its cover) changes.
+    // Average cover colour (KMReader computeCoverTint) accents the resume
+    // FAB; reset when the manga (and thus its cover) changes.
     var coverTint by remember(state.manga?.id) { mutableStateOf<Color?>(null) }
 
     Scaffold(
@@ -157,6 +170,9 @@ fun MangaScreen(
             val manga = state.manga
             val resume = state.resumeChapter
             if (manga != null && resume != null && !selecting) {
+                // The average cover colour (when resolved) accents the
+                // resume FAB; falls back to the default FAB colours.
+                val fabTint = coverTint
                 ExtendedFloatingActionButton(
                     onClick = { if (manga.id > 0) onOpenChapter(manga.id, resume.id) },
                     icon = { Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null) },
@@ -169,6 +185,10 @@ fun MangaScreen(
                             },
                         )
                     },
+                    containerColor = fabTint ?: FloatingActionButtonDefaults.containerColor,
+                    contentColor = fabTint
+                        ?.let { if (it.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White }
+                        ?: MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         },
@@ -221,6 +241,9 @@ fun MangaScreen(
         topBar = {
             TopAppBar(
                 title = {},
+                // Transparent: the blurred-cover backdrop reaches behind the
+                // bar (the list below skips the scaffold's top padding).
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.manga_back))
@@ -307,26 +330,22 @@ fun MangaScreen(
             }
             else -> {
                 val manga = state.manga!!
-                Box(Modifier.fillMaxSize().padding(padding)) {
-                    // Cover-tinted backdrop behind the header, fading into the
-                    // page background (KMReader cover-tint parity).
-                    coverTint?.let { tint ->
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(360.dp)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(tint.copy(alpha = 0.32f), Color.Transparent),
-                                    ),
-                                ),
-                        )
-                    }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
+                // The header backdrop reaches behind the transparent app
+                // bar, so the list skips the scaffold's top padding and the
+                // header item pads its content down instead.
+                val topPadding = padding.calculateTopPadding()
+                val bottomPadding = padding.calculateBottomPadding()
+                // Info pane (blurred-cover header + tracker links) and
+                // chapter pane (header row + selection bar + list) as
+                // LazyListScope lambdas: the tablet layout below gives each
+                // pane its own scroll container, the phone layout stacks
+                // them in one list.
+                val infoPane: LazyListScope.() -> Unit = {
                     item {
-                        MangaHeader(
+                        Box {
+                            CoverBackdrop(manga, state.profile)
+                            Column(Modifier.padding(top = topPadding)) {
+                            MangaHeader(
                             state = state,
                             searchMeta = searchMeta,
                             onResume = {
@@ -340,7 +359,9 @@ fun MangaScreen(
                                 // Purely decorative; a bitmap failure must not crash the page
                                 runCatching { computeCoverTint(bitmap) }.getOrNull()?.let { coverTint = it }
                             },
-                        )
+                            )
+                            }
+                        }
                     }
                     item {
                         TrackerSection(
@@ -353,6 +374,8 @@ fun MangaScreen(
                             },
                         )
                     }
+                }
+                val chapterPane: LazyListScope.() -> Unit = {
                     item {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -494,6 +517,30 @@ fun MangaScreen(
 						)
                     }
                 }
+                val isTablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
+                if (isTablet) {
+                    // Two-panel (komikku TwoPanelBox parity): the info pane
+                    // takes half the width capped at 450dp, the chapter list
+                    // takes the rest; each pane scrolls on its own.
+                    BoxWithConstraints(Modifier.fillMaxSize().padding(bottom = bottomPadding)) {
+                        val leftWidth = (maxWidth / 2).coerceAtMost(450.dp)
+                        Row(Modifier.fillMaxSize()) {
+                            LazyColumn(Modifier.width(leftWidth).fillMaxHeight(), content = infoPane)
+                            VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                            LazyColumn(
+                                Modifier.weight(1f).fillMaxHeight(),
+                                contentPadding = PaddingValues(top = topPadding),
+                                content = chapterPane,
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        Modifier.fillMaxSize().padding(bottom = bottomPadding),
+                    ) {
+                        infoPane()
+                        chapterPane()
+                    }
                 }
             }
         }
@@ -795,6 +842,55 @@ private fun SearchMangaCoverThumb(profile: ServerProfile?, candidate: SearchMang
             .clip(RoundedCornerShape(6.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentScale = ContentScale.Crop,
+    )
+}
+
+/** Komikku-style header backdrop (MangaInfoHeader parity): the cover itself,
+ *  blurred and dimmed, fills the whole header area — the height follows the
+ *  header content, not a fixed value. A surfaceTint veil keeps the text
+ *  readable, and a gradient starting halfway down fades the backdrop into
+ *  the page background. Loads the same image request as [CoverImage], so it
+ *  is a coil cache hit. */
+@Composable
+private fun BoxScope.CoverBackdrop(manga: Manga, profile: ServerProfile?) {
+    val context = LocalContext.current
+    val url = profile?.baseUrl?.let { base ->
+        if (manga.id <= 0) {
+            manga.cover?.let { sourceImageUrl(base, manga.sourceId, it) }
+        } else {
+            coverUrl(base, manga.id, manga.cover)
+        }
+    }
+    val model = profile?.let {
+        ImageRequest.Builder(context).data(url).apply {
+            it.apiKey?.let { key ->
+                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+            }
+        }.build()
+    } ?: return
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = Modifier
+            .matchParentSize()
+            .blur(7.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+            .alpha(0.2f),
+        contentScale = ContentScale.Crop,
+    )
+    Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.4f)))
+    val background = MaterialTheme.colorScheme.background
+    Box(
+        Modifier
+            .matchParentSize()
+            .drawBehind {
+                drawRect(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, background),
+                        startY = size.height / 2,
+                        endY = size.height,
+                    ),
+                )
+            },
     )
 }
 

@@ -14,3 +14,5 @@ local.properties
 # Signing (never commit)
 *.jks
 *.keystore
+
+.acl-recovery/
