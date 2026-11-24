@@ -20,7 +20,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +54,7 @@ import org.sumidoku.android.core.api.model.ChapterCacheSettings
 import org.sumidoku.android.core.api.model.DownloadSettings
 import org.sumidoku.android.core.common.formatEpochMs
 import org.sumidoku.android.core.common.relativeEpochMs
+import org.sumidoku.android.core.ui.SettingsGroupCard
 
 /** Structured server-settings editor (design §14 M7): sections map
  *  1:1 onto GET /api/v1/settings; Save PUTs the complete structured
@@ -116,6 +116,7 @@ fun ServerSettingsScreen(
             ) {
                 item { SectionHeader(stringResource(R.string.server_settings_section_library)) }
                 item {
+                    SettingsGroupCard {
                     SettingChipsRow(
                         label = stringResource(R.string.server_settings_default_category),
                         hint = stringResource(R.string.server_settings_default_category_hint),
@@ -129,18 +130,12 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(library = it.library.copy(defaultCategory = v)) }
                         },
                     )
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_show_uncategorized), stringResource(R.string.server_settings_show_uncategorized_hint), s.library.showUncategorized) { v ->
                         viewModel.update { it.copy(library = it.library.copy(showUncategorized = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_refresh_metadata), stringResource(R.string.server_settings_refresh_metadata_hint), s.library.refreshMetadata) { v ->
                         viewModel.update { it.copy(library = it.library.copy(refreshMetadata = v)) }
                     }
-                }
-                item {
                     UpdateIntervalRow(
                         valueHours = s.library.updateIntervalHours,
                         presets = libraryUpdateIntervalPresets(),
@@ -148,16 +143,12 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(library = it.library.copy(updateIntervalHours = hours)) }
                         },
                     )
-                }
-                item {
                     Text(
                         stringResource(R.string.server_settings_skip_titles),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp),
                     )
-                }
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         listOf(
                             "hasUnread" to stringResource(R.string.server_settings_skip_has_unread),
                             "completed" to stringResource(R.string.server_settings_skip_completed),
@@ -177,9 +168,6 @@ fun ServerSettingsScreen(
                             }
                         }
                     }
-                }
-
-                item {
                     ExcludedCategoriesRow(
                         title = stringResource(R.string.server_settings_excluded_update_title),
                         subtitle = stringResource(R.string.server_settings_excluded_update_subtitle),
@@ -189,30 +177,26 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(library = it.library.copy(excludedUpdateCategories = next)) }
                         },
                     )
+                    }
                 }
 
                 item { SectionHeader(stringResource(R.string.server_settings_section_download)) }
                 item {
+                    SettingsGroupCard {
                     ToggleRow(stringResource(R.string.server_settings_auto_download_new), stringResource(R.string.server_settings_auto_download_new_hint), s.download.autoDownloadNewChapters) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoDownloadNewChapters = v)) }
                     }
-                }
-                item {
                     NumberRow(stringResource(R.string.server_settings_auto_download_limit), s.download.autoDownloadLimit.toString()) { v ->
                         v.toLongOrNull()?.let { limit ->
                             viewModel.update { it.copy(download = it.download.copy(autoDownloadLimit = limit)) }
                         }
                     }
-                }
-                item {
                     NumberRow(stringResource(R.string.server_settings_download_ahead_count), s.download.downloadAheadCount.toString()) { v ->
                         v.toLongOrNull()?.let { count ->
                             viewModel.update { it.copy(download = it.download.copy(downloadAheadCount = count)) }
                         }
                     }
-                }
-                item {
-                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                         Text(stringResource(R.string.server_settings_download_format), style = MaterialTheme.typography.bodyMedium)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                             DownloadSettings.DownloadFormat.entries.forEachIndexed { index, format ->
@@ -226,45 +210,29 @@ fun ServerSettingsScreen(
                             }
                         }
                     }
-                }
-                item {
                     NumberRow(stringResource(R.string.server_settings_download_concurrency), s.download.downloadConcurrency.toString()) { v ->
                         v.toLongOrNull()?.let { c ->
                             viewModel.update { it.copy(download = it.download.copy(downloadConcurrency = c)) }
                         }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_auto_skip_unread), stringResource(R.string.server_settings_auto_skip_unread_hint), s.download.autoSkipMangaWithUnread) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoSkipMangaWithUnread = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_auto_ignore_reuploads), stringResource(R.string.server_settings_auto_ignore_reuploads_hint), s.download.autoIgnoreReuploads) { v ->
                         viewModel.update { it.copy(download = it.download.copy(autoIgnoreReuploads = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_delete_after_manual_read), stringResource(R.string.server_settings_delete_after_manual_read_hint), s.download.deleteAfterManualRead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(deleteAfterManualRead = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_delete_after_read), stringResource(R.string.server_settings_delete_after_read_hint), s.download.deleteAfterRead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(deleteAfterRead = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_allow_delete_bookmarked), stringResource(R.string.server_settings_allow_delete_bookmarked_hint), s.download.allowDeleteBookmarked) { v ->
                         viewModel.update { it.copy(download = it.download.copy(allowDeleteBookmarked = v)) }
                     }
-                }
-                item {
                     ToggleRow(stringResource(R.string.server_settings_download_ahead), stringResource(R.string.server_settings_download_ahead_hint), s.download.downloadAhead) { v ->
                         viewModel.update { it.copy(download = it.download.copy(downloadAhead = v)) }
                     }
-                }
-                item {
                     ExcludedCategoriesRow(
                         title = stringResource(R.string.server_settings_excluded_download_title),
                         subtitle = stringResource(R.string.server_settings_excluded_download_subtitle),
@@ -274,8 +242,6 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(library = it.library.copy(excludedDownloadCategories = next)) }
                         },
                     )
-                }
-                item {
                     TextRow(
                         label = stringResource(R.string.server_settings_move_path_label),
                         value = s.download.movePath ?: "",
@@ -285,29 +251,25 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(download = it.download.copy(movePath = v.ifBlank { null })) }
                         },
                     )
+                    }
                 }
 
                 item { SectionHeader(stringResource(R.string.server_settings_section_backup)) }
                 item {
+                    SettingsGroupCard {
                     ToggleRow(stringResource(R.string.server_settings_backup_enabled), stringResource(R.string.server_settings_backup_enabled_hint), s.backup.enabled) { v ->
                         viewModel.update { it.copy(backup = it.backup.copy(enabled = v)) }
                     }
-                }
-                item {
                     NumberRow(stringResource(R.string.server_settings_backup_interval), s.backup.intervalHours.toString()) { v ->
                         v.toLongOrNull()?.let { h ->
                             viewModel.update { it.copy(backup = it.backup.copy(intervalHours = h)) }
                         }
                     }
-                }
-                item {
                     NumberRow(stringResource(R.string.server_settings_backup_retention), s.backup.retentionCount.toString()) { v ->
                         v.toLongOrNull()?.let { r ->
                             viewModel.update { it.copy(backup = it.backup.copy(retentionCount = r)) }
                         }
                     }
-                }
-                item {
                     TextRow(
                         label = stringResource(R.string.server_settings_backup_dir),
                         value = s.backup.dir ?: "",
@@ -317,10 +279,7 @@ fun ServerSettingsScreen(
                             viewModel.update { it.copy(backup = it.backup.copy(dir = v.ifBlank { null })) }
                         },
                     )
-                }
-
-                item {
-                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                         Text(stringResource(R.string.server_settings_backup_last), style = MaterialTheme.typography.bodyLarge)
                         // lastRun is maintained by the server (0/empty means it has never run)
                         Text(
@@ -331,10 +290,8 @@ fun ServerSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-                item {
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
@@ -347,16 +304,19 @@ fun ServerSettingsScreen(
                         }
                         TextButton(onClick = onOpenBackups) { Text(stringResource(R.string.server_settings_open)) }
                     }
+                    }
                 }
 
                 item { SectionHeader(stringResource(R.string.server_settings_section_cache)) }
                 item {
+                    SettingsGroupCard {
                     NumberRow(stringResource(R.string.server_settings_chapter_cache_max), ((s.cache?.chapterMaxBytes ?: 0L) / 1048576L).toString()) { v ->
                         v.toLongOrNull()?.let { mb ->
                             viewModel.update {
                                 it.copy(cache = (it.cache ?: ChapterCacheSettings(chapterMaxBytes = 0L)).copy(chapterMaxBytes = mb * 1048576L))
                             }
                         }
+                    }
                     }
                 }
 
@@ -374,21 +334,19 @@ fun ServerSettingsScreen(
 
 @Composable
 private fun SectionHeader(title: String) {
-    Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        HorizontalDivider(Modifier.padding(top = 6.dp))
-    }
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 14.dp),
+    )
 }
 
 @Composable
 private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -407,7 +365,7 @@ private fun NumberRow(label: String, value: String, onValid: (String) -> Unit) {
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
 }
 
@@ -423,7 +381,7 @@ private fun SettingChipsRow(
     onSelect: (String) -> Unit,
 ) {
     val all = if (options.any { it.first == selected }) options else options + (selected to selected)
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Row(
             Modifier
@@ -470,7 +428,7 @@ private fun UpdateIntervalRow(
     var draft by remember { mutableStateOf("") }
     val current = valueHours.toString()
     val isPreset = presets.any { it.first == current }
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(stringResource(R.string.server_settings_update_interval), style = MaterialTheme.typography.bodyLarge)
         Row(
             Modifier
@@ -554,7 +512,7 @@ private fun ExcludedCategoriesRow(
 ) {
     var showDialog by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -632,6 +590,6 @@ private fun TextRow(
         placeholder = placeholderContent,
         supportingText = supportingContent,
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
 }

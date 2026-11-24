@@ -21,7 +21,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -49,6 +48,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.sumidoku.android.core.api.model.TrackerProvider
 import org.sumidoku.android.core.model.ServerProfile
+import org.sumidoku.android.core.ui.SettingsGroupCard
 
 private fun providerLabel(provider: TrackerProvider): String = trackerProviderLabel(provider)
 
@@ -146,31 +146,33 @@ fun TrackersScreen(
                 }
 
                 item {
+                    SettingsGroupCard {
+                        Text(
+                            stringResource(R.string.trackers_sync_strategy_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        TrackerStrategyRow(
+                            title = stringResource(R.string.trackers_strategy_push_title),
+                            detail = stringResource(R.string.trackers_strategy_push_detail),
+                        )
+                        TrackerStrategyRow(
+                            title = stringResource(R.string.trackers_strategy_pull_title),
+                            detail = stringResource(R.string.trackers_strategy_pull_detail),
+                        )
+                        TrackerStrategyRow(
+                            title = stringResource(R.string.trackers_strategy_binding_title),
+                            detail = stringResource(R.string.trackers_strategy_binding_detail),
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.trackers_sync_strategy_title), style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(6.dp))
-                    TrackerStrategyRow(
-                        title = stringResource(R.string.trackers_strategy_push_title),
-                        detail = stringResource(R.string.trackers_strategy_push_detail),
-                    )
-                    TrackerStrategyRow(
-                        title = stringResource(R.string.trackers_strategy_pull_title),
-                        detail = stringResource(R.string.trackers_strategy_pull_detail),
-                    )
-                    TrackerStrategyRow(
-                        title = stringResource(R.string.trackers_strategy_binding_title),
-                        detail = stringResource(R.string.trackers_strategy_binding_detail),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
-                    var showDefaultMenu by remember { mutableStateOf(false) }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
+                    SettingsGroupCard {
+                        var showDefaultMenu by remember { mutableStateOf(false) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        ) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.trackers_default_label), style = MaterialTheme.typography.titleSmall)
                             Text(
@@ -202,6 +204,7 @@ fun TrackersScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

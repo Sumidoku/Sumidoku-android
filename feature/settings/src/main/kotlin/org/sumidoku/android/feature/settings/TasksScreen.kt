@@ -25,6 +25,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +55,7 @@ import org.sumidoku.android.core.api.model.Task
 import org.sumidoku.android.core.common.relativeEpochMs
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
+import org.sumidoku.android.core.ui.SettingsGroupCard
 import retrofit2.await
 import javax.inject.Inject
 
@@ -173,9 +176,12 @@ fun TasksScreen(
                 state.tasks.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.tasks_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
-                    items(state.tasks, key = { it.id }) { task ->
+                else -> LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    item {
+                        SettingsGroupCard {
+                            state.tasks.forEach { task ->
                         ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             leadingContent = { Icon(taskStatusIcon(task.status), contentDescription = null) },
                             headlineContent = {
                                 Text(task.kind, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -207,6 +213,8 @@ fun TasksScreen(
                                 }
                             },
                         )
+                            }
+                        }
                     }
                 }
             }
