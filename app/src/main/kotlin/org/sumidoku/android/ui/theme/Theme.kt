@@ -1,11 +1,15 @@
 package org.sumidoku.android.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 
 // Palette lifted from the design preview (design/preview/assets/mock.css):
 // --bg #101014, --surface #16161c, --accent #A8B5FF. Light mode keeps
@@ -74,8 +78,14 @@ fun SumidokuTheme(themePref: String = "system", content: @Composable () -> Unit)
         "dark", "amoled" -> true
         else -> isSystemInDarkTheme()
     }
+    // Monet: Android 12+ can pull the scheme from the wallpaper. Anything
+    // older (or a restored backup naming "dynamic") falls back to the static
+    // palette, behaving like "system".
+    val dynamic = themePref == "dynamic" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val scheme = when {
         themePref == "amoled" -> SumidokuAmoled
+        dynamic && dark -> dynamicDarkColorScheme(LocalContext.current)
+        dynamic -> dynamicLightColorScheme(LocalContext.current)
         dark -> SumidokuDark
         else -> SumidokuLight
     }

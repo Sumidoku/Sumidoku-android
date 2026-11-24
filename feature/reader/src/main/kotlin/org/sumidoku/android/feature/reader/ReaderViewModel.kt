@@ -23,6 +23,7 @@ import org.sumidoku.android.core.api.model.ProgressPatch
 import org.sumidoku.android.core.api.model.SortOrder
 import org.sumidoku.android.core.api.model.Viewer
 import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.coverUrl
 import org.sumidoku.android.core.data.OfflineProgressStore
 import org.sumidoku.android.core.data.PendingProgress
 import org.sumidoku.android.core.data.ServerProfileRepository
@@ -34,6 +35,8 @@ import javax.inject.Inject
 data class ReaderUiState(
     val loading: Boolean = true,
     val profile: ServerProfile? = null,
+    /** Cover URL used to seed the reader's dynamic colour scheme. */
+    val coverUrl: String? = null,
     val pages: List<Page> = emptyList(),
     /** Chapters in source order (ascending) — drives prev/next transitions
      *  and the chapter drawer. */
@@ -199,6 +202,9 @@ class ReaderViewModel @Inject constructor(
         try {
             val manga = clientFactory.create<MangaApi>(profile).getManga(mangaId).await()
             viewer = manga.viewer.takeIf { it != Viewer.UNKNOWN }
+            _state.value = _state.value.copy(
+                coverUrl = coverUrl(profile.baseUrl, mangaId, manga.cover),
+            )
             refreshPreferences()
         } catch (_: Exception) {
             // Metadata is advisory: a failure leaves the global default.

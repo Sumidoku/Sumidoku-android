@@ -39,6 +39,7 @@
     <string name="settings_theme">主题</string>
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_dynamic">动态</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_amoled">AMOLED 纯黑</string>
     <string name="settings_theme_amoled_subtitle">背景 #000 纯黑，卡片与弹层保留近黑分层</string>

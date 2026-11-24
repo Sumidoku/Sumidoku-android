@@ -1,5 +1,7 @@
 package org.sumidoku.android.feature.settings
 
+import android.os.Build
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -393,12 +395,16 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // komikku parity: a full-width segmented control instead of
-                // loose filter chips (follow-system / light / dark).
-                val options = listOf(
-                    "system" to stringResource(R.string.settings_theme_system),
-                    "light" to stringResource(R.string.settings_theme_light),
-                    "dark" to stringResource(R.string.settings_theme_dark),
-                )
+                // loose filter chips (follow-system / light / dark). Android
+                // 12+ also offers Monet (wallpaper-derived colours).
+                val options = buildList {
+                    add("system" to stringResource(R.string.settings_theme_system))
+                    add("light" to stringResource(R.string.settings_theme_light))
+                    add("dark" to stringResource(R.string.settings_theme_dark))
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        add("dynamic" to stringResource(R.string.settings_theme_dynamic))
+                    }
+                }
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     options.forEachIndexed { index, (value, label) ->
                         val active = theme == value || (value == "dark" && amoled)
@@ -412,6 +418,9 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                         }
                     }
                 }
+                // AMOLED true black only applies to the static dark palette;
+                // Monet derives its own surfaces from the wallpaper.
+                if (theme != "dynamic") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.settings_theme_amoled), style = MaterialTheme.typography.bodyMedium)
@@ -425,6 +434,7 @@ private fun AppearanceRow(viewModel: AppearanceViewModel = hiltViewModel()) {
                         checked = amoled,
                         onCheckedChange = { on -> viewModel.setTheme(if (on) "amoled" else "dark") },
                     )
+                }
                 }
             }
         },

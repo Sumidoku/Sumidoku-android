@@ -121,6 +121,8 @@ import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -128,6 +130,8 @@ import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 import org.sumidoku.android.core.common.chapterLabel
 import org.sumidoku.android.core.ui.AppModalDialog
+import org.sumidoku.android.core.ui.CoverSeedTheme
+import org.sumidoku.android.core.ui.computeCoverTint
 
 /** Reader (design previews 07 paged / 08 webtoon / 24 settings /
  *  25 chapters / 39 spread / 40 transition / 41 quick panel).
@@ -156,6 +160,25 @@ fun ReaderScreen(
     // when it is shown (design 07/08 — no system chrome while reading).
     ImmersiveEffect(overlay = state.overlay || state.loading)
 
+    // Seed the whole reader (transition pages, progress bar, loading
+    // indicator, chrome capsules) with the cover colour — same materialkolor
+    // scheme as the manga detail page. canvasColor stays computed from the
+    // outer app theme so the page background itself is never tinted.
+    val context = LocalContext.current
+    var coverTint by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(state.coverUrl) {
+        coverTint = null
+        val url = state.coverUrl ?: return@LaunchedEffect
+        val request = ImageRequest.Builder(context).data(url).apply {
+            state.profile?.apiKey?.let { key ->
+                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $key").build())
+            }
+        }.build()
+        val image = (context.imageLoader.execute(request) as? SuccessResult)?.image
+        image?.let { coverTint = runCatching { computeCoverTint(it.toBitmap()) }.getOrNull() }
+    }
+
+    CoverSeedTheme(coverTint) {
     Box(Modifier.fillMaxSize().background(canvasColor)) {
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -178,6 +201,7 @@ fun ReaderScreen(
         if (state.chapterSheet) {
             ChapterSheet(state, viewModel)
         }
+    }
     }
 }
 
