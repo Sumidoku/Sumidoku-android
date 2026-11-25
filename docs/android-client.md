@@ -440,6 +440,12 @@ lineage from existing work:
   placeholders use the width/height from `GET /chapter/{id}/pages`
   (the same intrinsic-aspect reservation the web UI uses) so layout is
   stable before decode.
+- Implementation status: text chapters are detected from the loaded
+  page array (every page carries `page.content.text`) and always read
+  in the continuous column — no page rail, percent progress instead of
+  page numbers. Typeface, text size and line spacing are global
+  preferences (`ReaderField.FONT` / `FSIZE` / `FLINE`) shared between
+  the in-reader sheet and the reader defaults screen.
 - Images: the server sends original bytes
   (`GET /chapter/{id}/page/{index}`,
   `Cache-Control: private, max-age=3600`); scaling is a client duty by

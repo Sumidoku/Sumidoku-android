@@ -107,6 +107,18 @@
     <string name="reader_sepia">Sepia</string>
     <string name="reader_double_tap_zoom">Double-tap zoom</string>
     <string name="reader_double_tap_zoom_hint">Zoom multiplier applied when double-tapping a page (1–8x).</string>
+    <string name="reader_text_progress">%1$d%% read</string>
+    <string name="reader_text_pages">%1$d passages</string>
+    <string name="reader_typography_global">Text · Global</string>
+    <string name="reader_font">Typeface</string>
+    <string name="reader_font_hint">Typeface for text chapters (EPUB books and text files).</string>
+    <string name="reader_font_default">Default</string>
+    <string name="reader_font_sans">Sans</string>
+    <string name="reader_font_serif">Serif</string>
+    <string name="reader_font_mono">Mono</string>
+    <string name="reader_font_size">Text size</string>
+    <string name="reader_line_height">Line spacing</string>
+    <string name="reader_typography_hint">Applies to text chapters only; image chapters are unaffected.</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">Reader defaults</string>
@@ -131,6 +143,8 @@
     <string name="reader_defaults_bg_light">Light</string>
     <string name="reader_defaults_bg_auto">Auto</string>
     <string name="reader_defaults_brightness_hint">Brightness only affects the reader, not the system brightness.</string>
+    <string name="reader_defaults_typography">Text typography</string>
+    <string name="reader_defaults_typography_hint">Typeface, text size and line spacing for text chapters (EPUB books and text files). Image chapters ignore these.</string>
 
     <!-- ViewModel errors -->
     <string name="reader_no_server">No server selected</string>

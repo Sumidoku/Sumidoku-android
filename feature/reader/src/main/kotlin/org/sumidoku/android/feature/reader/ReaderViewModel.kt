@@ -68,6 +68,11 @@ data class ReaderUiState(
     val brightness: Float = 1f,
     /** Double-tap zoom multiplier (1–8x), global-only like the filters. */
     val doubleTapZoom: Float = 3f,
+    /** Text page typeface, size and line-height multiplier (webui
+     *  typography.ts parity), global-only like the visual filters. */
+    val font: String = ReaderField.FONT.fallback,
+    val fontSize: Float = 1f,
+    val lineHeight: Float = 1.8f,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
     /** manga.viewer metadata driving dir/mode until the manga is overridden. */
@@ -107,6 +112,15 @@ data class ReaderUiState(
             ?.let { chapters.getOrNull(it + 1) }
     /** Vertical continuous rendering (webtoon / continuous). */
     val vertical: Boolean get() = ReadingMode.isVertical(mode)
+    /** Text chapter (EPUB book or local text file): every page carries
+     *  text, so the reader leaves the image pager behind and reads the
+     *  chapter as continuous prose. */
+    val textChapter: Boolean
+        get() = pages.isNotEmpty() && pages.all { it.content.text != null }
+    /** Reading progress in percent; text chapters have no meaningful page
+     *  count, so the chrome reports percent instead of "3 / 40". */
+    val textProgress: Int
+        get() = if (pages.isEmpty()) 0 else (((index + 1) * 100) / pages.size).coerceIn(1, 100)
     /** Spread of two pages is displayed for this layout/orientation. */
     fun doubleSpread(landscape: Boolean): Boolean =
         !vertical && !splitWide && when (layout) {
@@ -138,6 +152,8 @@ class ReaderViewModel @Inject constructor(
     private var progressJob: Job? = null
     private var brightnessJob: Job? = null
     private var doubleTapZoomJob: Job? = null
+    /** Debounced write for the typography sliders (size / line-height). */
+    private var typographyJob: Job? = null
     /** Tier B: extracted local page files for the open chapter, when a
      *  finished on-device copy exists — the reader serves these instead
      *  of network URLs, which is what makes offline reading work. */
@@ -231,6 +247,9 @@ class ReaderViewModel @Inject constructor(
             background = (overrideRaw[ReaderField.BG] ?: global.background),
             brightness = merged.brightness,
             doubleTapZoom = merged.doubleTapZoom,
+            font = merged.font,
+            fontSize = merged.fontSize,
+            lineHeight = merged.lineHeight,
             grayscale = (overrideRaw[ReaderField.GRAY] ?: global.raw(ReaderField.GRAY)).toBoolean(),
             sepia = (overrideRaw[ReaderField.SEPIA] ?: global.raw(ReaderField.SEPIA)).toBoolean(),
             viewer = viewer,
@@ -449,6 +468,35 @@ class ReaderViewModel @Inject constructor(
         doubleTapZoomJob = viewModelScope.launchGuarded {
             delay(250)
             settingsStore.setGlobal(ReaderField.DTZOOM, snapped.toString())
+        }
+    }
+
+    /** Text typography is global-only: the webui stores it under a single
+     *  `sumidoku.reader.typography` key rather than per manga. Typeface
+     *  chips write immediately; the two sliders debounce like brightness. */
+    fun setFont(value: String) {
+        val font = value.takeIf { it in ReaderPrefs.FONTS } ?: return
+        _state.value = _state.value.copy(font = font)
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.FONT, font) }
+    }
+
+    fun setFontSize(value: Float) {
+        val snapped = ((value * 20f).roundToInt() / 20f).coerceIn(ReaderPrefs.FONT_SIZE_RANGE)
+        _state.value = _state.value.copy(fontSize = snapped)
+        typographyJob?.cancel()
+        typographyJob = viewModelScope.launchGuarded {
+            delay(250)
+            settingsStore.setGlobal(ReaderField.FSIZE, snapped.toString())
+        }
+    }
+
+    fun setLineHeight(value: Float) {
+        val snapped = ((value * 10f).roundToInt() / 10f).coerceIn(ReaderPrefs.LINE_HEIGHT_RANGE)
+        _state.value = _state.value.copy(lineHeight = snapped)
+        typographyJob?.cancel()
+        typographyJob = viewModelScope.launchGuarded {
+            delay(250)
+            settingsStore.setGlobal(ReaderField.FLINE, snapped.toString())
         }
     }
 

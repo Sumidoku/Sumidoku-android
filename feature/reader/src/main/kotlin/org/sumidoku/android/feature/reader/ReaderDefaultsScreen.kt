@@ -204,6 +204,47 @@ fun ReaderDefaultsScreen(
             }
 
             SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {
+                SectionTitle(stringResource(R.string.reader_defaults_typography))
+                ChipRow(
+                    options = listOf(
+                        "default" to stringResource(R.string.reader_font_default),
+                        "sans" to stringResource(R.string.reader_font_sans),
+                        "serif" to stringResource(R.string.reader_font_serif),
+                        "mono" to stringResource(R.string.reader_font_mono),
+                    ),
+                    selected = state.font,
+                    onSelect = viewModel::setFont,
+                )
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("%.0f%%".format(state.fontSize * 100), style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Slider(
+                        value = state.fontSize,
+                        onValueChange = viewModel::setFontSize,
+                        valueRange = ReaderPrefs.FONT_SIZE_RANGE,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("%.1f".format(state.lineHeight), style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Slider(
+                        value = state.lineHeight,
+                        onValueChange = viewModel::setLineHeight,
+                        valueRange = ReaderPrefs.LINE_HEIGHT_RANGE,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Caption(stringResource(R.string.reader_defaults_typography_hint))
+            }
+
+            SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {
                 SectionTitle(stringResource(R.string.reader_brightness))
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp),

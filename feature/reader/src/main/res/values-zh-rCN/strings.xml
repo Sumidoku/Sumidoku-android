@@ -107,6 +107,18 @@
     <string name="reader_sepia">棕褐</string>
     <string name="reader_double_tap_zoom">双击缩放</string>
     <string name="reader_double_tap_zoom_hint">双击页面时放大的倍率（1–8 倍）。</string>
+    <string name="reader_text_progress">已读 %1$d%%</string>
+    <string name="reader_text_pages">共 %1$d 段</string>
+    <string name="reader_typography_global">文本 · 全局</string>
+    <string name="reader_font">字体</string>
+    <string name="reader_font_hint">文本章节（EPUB 书籍与文本文件）使用的字体。</string>
+    <string name="reader_font_default">默认</string>
+    <string name="reader_font_sans">无衬线</string>
+    <string name="reader_font_serif">衬线</string>
+    <string name="reader_font_mono">等宽</string>
+    <string name="reader_font_size">字号</string>
+    <string name="reader_line_height">行距</string>
+    <string name="reader_typography_hint">仅对文本章节生效，图片章节不受影响。</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">阅读器默认</string>
@@ -131,6 +143,8 @@
     <string name="reader_defaults_bg_light">浅色</string>
     <string name="reader_defaults_bg_auto">自动</string>
     <string name="reader_defaults_brightness_hint">亮度只影响阅读器，不改变系统亮度。</string>
+    <string name="reader_defaults_typography">文本排版</string>
+    <string name="reader_defaults_typography_hint">文本章节（EPUB 书籍与文本文件）的字体、字号与行距；图片章节不使用这些设置。</string>
 
     <!-- ViewModel errors -->
     <string name="reader_no_server">未选择服务器</string>

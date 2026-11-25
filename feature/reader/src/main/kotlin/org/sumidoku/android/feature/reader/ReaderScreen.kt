@@ -92,6 +92,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -113,6 +114,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -143,6 +145,28 @@ import org.sumidoku.android.core.common.chapterNumberLabel
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.ui.CoverSeedTheme
 import org.sumidoku.android.core.ui.computeCoverTint
+
+/** Effective typography for text pages — the reader half of the webui
+ *  `typography.ts` contract (typeface, size and line-height multipliers)
+ *  plus the ink colour that keeps prose legible on the chosen canvas. */
+private data class ReaderTypography(
+    val font: String = ReaderField.FONT.fallback,
+    val size: Float = 1f,
+    val lineHeight: Float = 1.8f,
+    val color: Color = Color(0xFFE8E8E8),
+) {
+    val family: FontFamily
+        get() = when (font) {
+            "sans" -> FontFamily.SansSerif
+            "serif" -> FontFamily.Serif
+            "mono" -> FontFamily.Monospace
+            else -> FontFamily.Default
+        }
+}
+
+/** Provided once by [ReaderScreen]; every text page reads it, so the
+ *  per-page call sites never have to thread the preferences through. */
+private val LocalReaderTypography = staticCompositionLocalOf { ReaderTypography() }
 
 /** Reader (design previews 07 paged / 08 webtoon / 24 settings /
  *  25 chapters / 39 spread / 40 transition / 41 quick panel).
@@ -189,7 +213,20 @@ fun ReaderScreen(
         image?.let { coverTint = runCatching { computeCoverTint(it.toBitmap()) }.getOrNull() }
     }
 
+    // Prose ink follows the canvas: a light canvas needs dark text, the
+    // dark/gray canvases a near-white one (the webui pairs the two the
+    // same way, so the text pages never float white-on-white).
+    val ink = when (state.background) {
+        "light" -> Color(0xFF1B1B1F)
+        "auto" -> MaterialTheme.colorScheme.onSurface
+        else -> Color(0xFFE8E8E8)
+    }
+    val typography = remember(state.font, state.fontSize, state.lineHeight, ink) {
+        ReaderTypography(state.font, state.fontSize, state.lineHeight, ink)
+    }
+
     CoverSeedTheme(coverTint) {
+    CompositionLocalProvider(LocalReaderTypography provides typography) {
     Box(Modifier.fillMaxSize().background(canvasColor)) {
         when {
             state.loading -> Box(
@@ -211,7 +248,11 @@ fun ReaderScreen(
                     TextButton(onClick = { viewModel.openChapter(state.chapterId) }) { Text(stringResource(R.string.reader_retry)) }
                 }
             }
-            state.vertical -> VerticalReaderBody(state, viewModel)
+            // Text chapters always read vertically: paging a book-like
+            // chapter one screenful at a time is the behaviour the reader
+            // is supposed to leave behind (the pager would also try to
+            // request each text page as an image).
+            state.vertical || state.textChapter -> VerticalReaderBody(state, viewModel)
             else -> PagedReaderBody(state, viewModel, landscape)
         }
 
@@ -224,6 +265,7 @@ fun ReaderScreen(
         if (state.chapterSheet) {
             ChapterSheet(state, viewModel)
         }
+    }
     }
     }
 }
@@ -639,7 +681,8 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
         }
     }
     // webtoon gap 0 / continuous 12dp (Aidoku webtoon vs continuous).
-    val gap = if (state.mode == ReadingMode.CONTINUOUS) 12.dp else 0.dp
+    // Prose has no page seams, so a text chapter always reads flush.
+    val gap = if (!state.textChapter && state.mode == ReadingMode.CONTINUOUS) 12.dp else 0.dp
 
     val density = LocalDensity.current
     val pullThreshold = with(density) { 120.dp.toPx() }
@@ -693,7 +736,7 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                 ) {
                     val text = page.content.text
                     if (text != null) {
-                        TextPageContent(text, fillWidth = true)
+                        TextPageContent(text, fillWidth = true, scrollable = false)
                     } else {
                         ReaderImage(
                             url = viewModel.pageImageUrl(page),
@@ -727,12 +770,15 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                 }
             }
         }
-        VerticalScrollBar(
-            state = state,
-            listState = listState,
-            onNextChapter = state.nextChapter?.let { ch -> { viewModel.openChapter(ch.id) } },
-            modifier = Modifier.align(Alignment.CenterEnd),
-        )
+        // The drag rail tracks image pages; prose flows, so it stays out.
+        if (!state.textChapter) {
+            VerticalScrollBar(
+                state = state,
+                listState = listState,
+                onNextChapter = state.nextChapter?.let { ch -> { viewModel.openChapter(ch.id) } },
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
     }
 }
 
@@ -870,18 +916,28 @@ private fun readerColorFilter(state: ReaderUiState): ColorFilter? {
     return ColorFilter.colorMatrix(m)
 }
 
+/** A text page: selectable prose laid out with the reader typography.
+ *  [scrollable] is off inside the continuous list — a nested scroll there
+ *  would trap the gesture instead of scrolling the chapter. */
 @Composable
-private fun TextPageContent(text: String, fillWidth: Boolean) {
+private fun TextPageContent(text: String, fillWidth: Boolean, scrollable: Boolean = true) {
+    val typography = LocalReaderTypography.current
+    val base = MaterialTheme.typography.bodyLarge
+    val size = typography.size
     SelectionContainer {
         Column(
             (if (fillWidth) Modifier.fillMaxWidth() else Modifier.fillMaxSize())
-                .verticalScroll(rememberScrollState())
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(horizontal = 20.dp, vertical = 24.dp),
         ) {
             Text(
                 text,
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5,
+                style = base.copy(
+                    fontFamily = typography.family,
+                    fontSize = (base.fontSize.value * size).sp,
+                    lineHeight = (base.fontSize.value * size * typography.lineHeight).sp,
+                    color = typography.color,
+                ),
             )
         }
     }
@@ -1388,11 +1444,15 @@ private fun ReaderOverlay(
                             Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
                         }
                         Text(
-                            stringResource(R.string.reader_page_progress, state.index + 1, state.pages.size),
+                            if (state.textChapter) {
+                                stringResource(R.string.reader_text_progress, state.textProgress)
+                            } else {
+                                stringResource(R.string.reader_page_progress, state.index + 1, state.pages.size)
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = chromeContent.copy(alpha = 0.7f),
                         )
-                        if (!state.vertical) {
+                        if (!state.vertical && !state.textChapter) {
                             Text(" · ", style = MaterialTheme.typography.labelSmall, color = chromeContent.copy(alpha = 0.4f))
                             Text(
                                 stringResource(
@@ -1583,7 +1643,26 @@ private fun ChapterNavigator(
             border = border,
             modifier = Modifier.weight(1f),
         ) {
-            Row(
+            if (state.textChapter) {
+                // Prose has no page granularity worth scrubbing: report how
+                // far the reader has got and how many passages remain.
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.reader_text_progress, state.textProgress),
+                        color = contentColor,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        stringResource(R.string.reader_text_pages, state.pages.size),
+                        color = contentColor.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            } else Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2091,6 +2170,56 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
                 value = state.doubleTapZoom,
                 onValueChange = { viewModel.setDoubleTapZoom(it) },
                 valueRange = 1f..8f,
+            )
+
+            HorizontalDivider()
+            Text(stringResource(R.string.reader_typography_global), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.reader_typography_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(stringResource(R.string.reader_font), style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    "default" to stringResource(R.string.reader_font_default),
+                    "sans" to stringResource(R.string.reader_font_sans),
+                    "serif" to stringResource(R.string.reader_font_serif),
+                    "mono" to stringResource(R.string.reader_font_mono),
+                )
+                    .forEach { (value, label) ->
+                        FilterChip(
+                            selected = state.font == value,
+                            onClick = { viewModel.setFont(value) },
+                            label = { Text(label) },
+                        )
+                    }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_font_size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("%.0f%%".format(state.fontSize * 100), style = MaterialTheme.typography.bodySmall)
+            }
+            Slider(
+                value = state.fontSize,
+                onValueChange = { viewModel.setFontSize(it) },
+                valueRange = ReaderPrefs.FONT_SIZE_RANGE,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_line_height),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("%.1f".format(state.lineHeight), style = MaterialTheme.typography.bodySmall)
+            }
+            Slider(
+                value = state.lineHeight,
+                onValueChange = { viewModel.setLineHeight(it) },
+                valueRange = ReaderPrefs.LINE_HEIGHT_RANGE,
             )
 
             HorizontalDivider()

@@ -29,6 +29,9 @@ data class ReaderDefaultsState(
     val doubleTapZoom: Float = 3f,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
+    val font: String = ReaderField.FONT.fallback,
+    val fontSize: Float = 1f,
+    val lineHeight: Float = 1.8f,
 )
 
 @HiltViewModel
@@ -55,6 +58,9 @@ class ReaderDefaultsViewModel @Inject constructor(
                 doubleTapZoom = prefs.doubleTapZoom,
                 grayscale = prefs.grayscale,
                 sepia = prefs.sepia,
+                font = prefs.font,
+                fontSize = prefs.fontSize,
+                lineHeight = prefs.lineHeight,
             )
         }
     }
@@ -74,6 +80,24 @@ class ReaderDefaultsViewModel @Inject constructor(
         _state.value = _state.value.copy(doubleTapZoom = snapped)
         write(ReaderField.DTZOOM, snapped.toString())
     }
+    fun setFont(value: String) {
+        val font = value.takeIf { it in ReaderPrefs.FONTS } ?: return
+        _state.value = _state.value.copy(font = font)
+        write(ReaderField.FONT, font)
+    }
+
+    fun setFontSize(value: Float) {
+        val snapped = ((value * 20f).roundToInt() / 20f).coerceIn(ReaderPrefs.FONT_SIZE_RANGE)
+        _state.value = _state.value.copy(fontSize = snapped)
+        write(ReaderField.FSIZE, snapped.toString())
+    }
+
+    fun setLineHeight(value: Float) {
+        val snapped = ((value * 10f).roundToInt() / 10f).coerceIn(ReaderPrefs.LINE_HEIGHT_RANGE)
+        _state.value = _state.value.copy(lineHeight = snapped)
+        write(ReaderField.FLINE, snapped.toString())
+    }
+
     fun setGrayscale(value: Boolean) = write(ReaderField.GRAY, value.toString())
     fun setSepia(value: Boolean) = write(ReaderField.SEPIA, value.toString())
 
@@ -103,6 +127,9 @@ class ReaderDefaultsViewModel @Inject constructor(
                 brightness = prefs.brightness,
                 grayscale = prefs.grayscale,
                 sepia = prefs.sepia,
+                font = prefs.font,
+                fontSize = prefs.fontSize,
+                lineHeight = prefs.lineHeight,
             )
         }
     }
@@ -121,4 +148,7 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.DTZOOM -> copy(doubleTapZoom = raw.toFloatOrNull() ?: doubleTapZoom)
     ReaderField.GRAY -> copy(grayscale = raw.toBooleanStrictOrNull() ?: grayscale)
     ReaderField.SEPIA -> copy(sepia = raw.toBooleanStrictOrNull() ?: sepia)
+    ReaderField.FONT -> copy(font = raw)
+    ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull() ?: fontSize)
+    ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull() ?: lineHeight)
 }

@@ -29,6 +29,9 @@ enum class ReaderField(val key: String, val fallback: String) {
     GRAY("gray", "false"),
     SEPIA("sepia", "false"),
     DTZOOM("dtzoom", "3"),      // double-tap zoom multiplier, 1–8x
+    FONT("font", "default"),    // text page typeface: default | sans | serif | mono
+    FSIZE("fsize", "1"),        // text page size multiplier, 0.7–2.0x
+    FLINE("fline", "1.8"),      // text page line-height multiplier, 1.0–2.5x
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -45,6 +48,9 @@ data class ReaderPrefs(
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
     val doubleTapZoom: Float = 3f,
+    val font: String = ReaderField.FONT.fallback,
+    val fontSize: Float = 1f,
+    val lineHeight: Float = 1.8f,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
@@ -61,6 +67,9 @@ data class ReaderPrefs(
         ReaderField.GRAY -> grayscale.toString()
         ReaderField.SEPIA -> sepia.toString()
         ReaderField.DTZOOM -> doubleTapZoom.toString()
+        ReaderField.FONT -> font
+        ReaderField.FSIZE -> fontSize.toString()
+        ReaderField.FLINE -> lineHeight.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -79,6 +88,9 @@ data class ReaderPrefs(
             ReaderField.GRAY -> copy(grayscale = raw.toBoolean())
             ReaderField.SEPIA -> copy(sepia = raw.toBoolean())
             ReaderField.DTZOOM -> copy(doubleTapZoom = raw.toFloatOrNull()?.coerceIn(1f, 8f) ?: doubleTapZoom)
+            ReaderField.FONT -> copy(font = raw.takeIf { it in FONTS } ?: font)
+            ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull()?.coerceIn(FONT_SIZE_RANGE) ?: fontSize)
+            ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull()?.coerceIn(LINE_HEIGHT_RANGE) ?: lineHeight)
         }
     }
 
@@ -94,6 +106,10 @@ data class ReaderPrefs(
         val SCALES = setOf("fit", "width", "height", "original")
         val TAPS = setOf("lr", "rl", "edge", "kindle", "off")
         val BACKGROUNDS = setOf("dark", "gray", "light", "auto")
+        /** Text page typefaces, matching the webui ReaderFont union. */
+        val FONTS = setOf("default", "sans", "serif", "mono")
+        val FONT_SIZE_RANGE = 0.7f..2f
+        val LINE_HEIGHT_RANGE = 1f..2.5f
 
         fun from(raw: Map<ReaderField, String>): ReaderPrefs =
             ReaderPrefs().overlay(raw)
