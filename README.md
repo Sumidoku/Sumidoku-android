@@ -23,7 +23,7 @@ Targets Android 8.0 (API 26) and up, built with Kotlin and Jetpack Compose (Mate
 - **Updates and history** — SSE live channel with `Last-Event-ID` and exponential backoff, WorkManager update checks every six hours with system notifications, history list.
 - **Metadata and trackers** — metadata editor with field locks, match-metadata preview with binding, cover picker, source-metadata restore; tracker bind / sync / unbind and account binding via WebView OAuth, sync-pull preview before applying.
 - **Migration and backups** — batch migration wizard (source → sources → targets → auto-match → confirm → run) and single-manga migration; full JSON backup export and import, restore from server-side scheduled backups, Aidoku `.aib` and Mihon `.tachibk` import wizards with dry-run preview and per-source mapping.
-- **Settings and polish** — server settings editor, categories, filter groups, cache management, API-key management and password change, incognito mode, theme (follow system / dark / light, AMOLED black), adaptive layout (bottom bar on phones, navigation rail on wide screens), library two-pane layout on large screens.
+- **Settings and polish** — server settings editor, categories, filter groups, cache management, API-key management and password change, incognito mode, in-app update checks against the latest GitHub release (daily at most, dismissable), theme (follow system / dark / light, AMOLED black), adaptive layout (bottom bar on phones, navigation rail on wide screens), library two-pane layout on large screens.
 
 ## Architecture
 

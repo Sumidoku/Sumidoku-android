@@ -34,7 +34,9 @@ import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -68,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import org.sumidoku.android.core.common.relativeEpochMs
 
 /** Settings pages a hub row can open. On a phone a row pushes the page as
  *  a full-screen route; on a wide tablet the row selects the page in the
@@ -119,6 +122,10 @@ fun SettingsScreen(
     onOpenFilterGroups: () -> Unit = {},
     onOpenServerSettings: () -> Unit = {},
     onOpenReaderDefaults: () -> Unit = {},
+    /** Shared with the app root: the root owns the instance that runs the launch
+     *  check and draws the dialog, so this About section reports into the same
+     *  state instead of keeping a second, silent copy. */
+    updateViewModel: AppUpdateViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null,
     splitDetail: (@Composable (page: SettingsPage, onDismiss: () -> Unit, onNavigate: (SettingsPage) -> Unit) -> Unit)? = null,
 ) {
@@ -152,6 +159,7 @@ fun SettingsScreen(
             onOpenFilterGroups = onOpenFilterGroups,
             onOpenServerSettings = onOpenServerSettings,
             onOpenReaderDefaults = onOpenReaderDefaults,
+            updateViewModel = updateViewModel,
             modifier = modifier,
         )
     }
@@ -202,6 +210,7 @@ private fun SettingsHub(
     onOpenFilterGroups: () -> Unit,
     onOpenServerSettings: () -> Unit,
     onOpenReaderDefaults: () -> Unit,
+    updateViewModel: AppUpdateViewModel,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -336,6 +345,7 @@ private fun SettingsHub(
                         onClick = { open(SettingsPage.Trash, onOpenTrash) },
                     )
                     SectionHeader(stringResource(R.string.settings_section_about))
+                    UpdatesSection(updateViewModel)
                     VersionRow()
                 }
             }
@@ -385,6 +395,71 @@ private fun VersionRow() {
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+/** The update check's two rows: the daily auto-check switch and "Check now",
+ *  which doubles as the status line (last checked / failure) and as the way back
+ *  into the dialog once a release is known (KMReader's About-page section). */
+@Composable
+private fun UpdatesSection(viewModel: AppUpdateViewModel) {
+    val state by viewModel.state.collectAsState()
+    val update = state.update
+    ListItem(
+        leadingContent = { Icon(Icons.Outlined.Update, contentDescription = null) },
+        headlineContent = { Text(stringResource(R.string.settings_updates_auto_check)) },
+        supportingContent = {
+            Text(
+                stringResource(R.string.settings_updates_auto_check_desc),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailingContent = {
+            Switch(
+                checked = state.autoCheckEnabled,
+                onCheckedChange = viewModel::setAutoCheckEnabled,
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+    ListItem(
+        leadingContent = { Icon(Icons.Outlined.SystemUpdate, contentDescription = null) },
+        headlineContent = { Text(stringResource(R.string.settings_updates_check_now)) },
+        supportingContent = {
+            Text(updateStatus(state), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        trailingContent = {
+            when {
+                update != null -> Text(
+                    text = stringResource(R.string.settings_updates_available, update.version),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                state.upToDate -> Text(
+                    text = stringResource(R.string.settings_updates_up_to_date),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = !state.checking) {
+                if (update != null) viewModel.showAvailableUpdate() else viewModel.checkNow()
+            },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+@Composable
+private fun updateStatus(state: AppUpdateState): String = when {
+    state.checking -> stringResource(R.string.settings_updates_checking)
+    state.error != null -> "${stringResource(R.string.settings_updates_failed)} · ${state.error}"
+    state.lastCheckedAt == 0L -> stringResource(R.string.settings_updates_never_checked)
+    else -> stringResource(
+        R.string.settings_updates_last_checked,
+        relativeEpochMs(state.lastCheckedAt),
     )
 }
 
