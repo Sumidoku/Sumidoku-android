@@ -119,6 +119,9 @@
     <string name="reader_font_size">Text size</string>
     <string name="reader_line_height">Line spacing</string>
     <string name="reader_typography_hint">Applies to text chapters only; image chapters are unaffected.</string>
+<string name="reader_typography_scope">Changing these while reading pins them to this manga; matching the global default removes the override.</string>
+<string name="reader_text_columns">Multi-column text</string>
+<string name="reader_text_columns_hint">Split prose into viewport-wide columns and page through them on wide screens and in landscape.</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">Reader defaults</string>

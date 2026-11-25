@@ -119,6 +119,9 @@
     <string name="reader_font_size">字級</string>
     <string name="reader_line_height">行距</string>
     <string name="reader_typography_hint">僅對文字章節生效，圖片章節不受影響。</string>
+<string name="reader_typography_scope">在閱讀中修改會固定為本漫畫的設定；改回全域預設即取消覆寫。</string>
+<string name="reader_text_columns">多欄文字</string>
+<string name="reader_text_columns_hint">在寬螢幕與橫向時把正文分成多欄，逐頁翻動。</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">閱讀器預設</string>

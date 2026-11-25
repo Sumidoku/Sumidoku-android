@@ -32,6 +32,7 @@ enum class ReaderField(val key: String, val fallback: String) {
     FONT("font", "default"),    // text page typeface: default | sans | serif | mono
     FSIZE("fsize", "1"),        // text page size multiplier, 0.7–2.0x
     FLINE("fline", "1.8"),      // text page line-height multiplier, 1.0–2.5x
+    TCOLS("tcols", "true"),     // text pages: paged multi-column layout on wide screens
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -51,6 +52,7 @@ data class ReaderPrefs(
     val font: String = ReaderField.FONT.fallback,
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
+    val textColumns: Boolean = true,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
@@ -70,6 +72,7 @@ data class ReaderPrefs(
         ReaderField.FONT -> font
         ReaderField.FSIZE -> fontSize.toString()
         ReaderField.FLINE -> lineHeight.toString()
+        ReaderField.TCOLS -> textColumns.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -91,6 +94,7 @@ data class ReaderPrefs(
             ReaderField.FONT -> copy(font = raw.takeIf { it in FONTS } ?: font)
             ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull()?.coerceIn(FONT_SIZE_RANGE) ?: fontSize)
             ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull()?.coerceIn(LINE_HEIGHT_RANGE) ?: lineHeight)
+            ReaderField.TCOLS -> copy(textColumns = raw.toBoolean())
         }
     }
 
@@ -214,3 +218,4 @@ object ReadingMode {
 
     fun isVertical(mode: String) = mode != PAGED
 }
+

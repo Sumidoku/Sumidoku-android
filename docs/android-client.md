@@ -440,12 +440,27 @@ lineage from existing work:
   placeholders use the width/height from `GET /chapter/{id}/pages`
   (the same intrinsic-aspect reservation the web UI uses) so layout is
   stable before decode.
-- Implementation status: text chapters are detected from the loaded
-  page array (every page carries `page.content.text`) and always read
-  in the continuous column — no page rail, percent progress instead of
-  page numbers. Typeface, text size and line spacing are global
-  preferences (`ReaderField.FONT` / `FSIZE` / `FLINE`) shared between
-  the in-reader sheet and the reader defaults screen.
+- Implementation status: text chapters are detected through one shared
+  rule, `Page.pageText()` (`feature/reader/.../PageText.kt`), which
+  mirrors the web UI's `reader/pageText.ts`: a page whose source supplied
+  a description renders that description (EPUB table entries, OPDS
+  synopsis pages), otherwise the `content.Text` payload. Prose chapters
+  leave the image pager behind — no page rail, percent progress instead
+  of page numbers — and read as one continuous column, except on wide
+  windows (600 dp and up, or landscape) where the text is split into
+  viewport-wide columns and paged like a book
+  (`PagedTextBody`/`paginateText`, ported from `TextColumns.tsx`: two
+  columns, three from 840 dp; the switch lives in the reader settings).
+  Because a prose chapter is one server page, "page 1 of 1" is not the
+  end of the chapter: the column track's last spread, or the bottom of
+  the scrolling column, is what marks it read.
+- Typography: typeface, text size and line spacing
+  (`ReaderField.FONT` / `FSIZE` / `FLINE`) resolve through the same
+  three tiers as mode and direction — per-manga override › global
+  default — and are shared between the in-reader sheet and the reader
+  defaults screen. Editing them while reading pins them to that manga,
+  and matching the global default drops the override again (the
+  self-cleaning rule of `overrideStore.writeOverride`).
 - Images: the server sends original bytes
   (`GET /chapter/{id}/page/{index}`,
   `Cache-Control: private, max-age=3600`); scaling is a client duty by

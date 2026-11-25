@@ -69,10 +69,18 @@ data class ReaderUiState(
     /** Double-tap zoom multiplier (1–8x), global-only like the filters. */
     val doubleTapZoom: Float = 3f,
     /** Text page typeface, size and line-height multiplier (webui
-     *  typography.ts parity), global-only like the visual filters. */
+     *  typography.ts parity). Editable per manga through the same override
+     *  chain as the viewer fields. */
     val font: String = ReaderField.FONT.fallback,
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
+    /** Prose chapters: paged multi-column layout on wide screens (the
+     *  webui TextColumns presentation) instead of one scrolling column. */
+    val textColumns: Boolean = true,
+    /** Column pager position for a prose chapter, as a spread index plus
+     *  the spread count measured on the current viewport. */
+    val textSpread: Int = 0,
+    val textSpreads: Int = 0,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
     /** manga.viewer metadata driving dir/mode until the manga is overridden. */
@@ -116,11 +124,20 @@ data class ReaderUiState(
      *  text, so the reader leaves the image pager behind and reads the
      *  chapter as continuous prose. */
     val textChapter: Boolean
-        get() = pages.isNotEmpty() && pages.all { it.content.text != null }
+        get() = pages.isNotEmpty() && pages.all { it.pageText() != null }
+    /** Prose chapter that arrives as a single server page — the shape the
+     *  web client paginates by column rather than by page. */
+    val pagedText: Boolean get() = textChapter && pages.size == 1
     /** Reading progress in percent; text chapters have no meaningful page
-     *  count, so the chrome reports percent instead of "3 / 40". */
+     *  count, so the chrome reports percent instead of "3 / 40". When the
+     *  column pager owns the screen its measured track wins, because one
+     *  server page says nothing about how much of the book is left. */
     val textProgress: Int
-        get() = if (pages.isEmpty()) 0 else (((index + 1) * 100) / pages.size).coerceIn(1, 100)
+        get() = when {
+            textSpreads > 0 -> (((textSpread + 1) * 100) / textSpreads).coerceIn(1, 100)
+            pages.isEmpty() -> 0
+            else -> (((index + 1) * 100) / pages.size).coerceIn(1, 100)
+        }
     /** Spread of two pages is displayed for this layout/orientation. */
     fun doubleSpread(landscape: Boolean): Boolean =
         !vertical && !splitWide && when (layout) {
@@ -250,6 +267,7 @@ class ReaderViewModel @Inject constructor(
             font = merged.font,
             fontSize = merged.fontSize,
             lineHeight = merged.lineHeight,
+            textColumns = merged.textColumns,
             grayscale = (overrideRaw[ReaderField.GRAY] ?: global.raw(ReaderField.GRAY)).toBoolean(),
             sepia = (overrideRaw[ReaderField.SEPIA] ?: global.raw(ReaderField.SEPIA)).toBoolean(),
             viewer = viewer,
@@ -334,6 +352,8 @@ class ReaderViewModel @Inject constructor(
                     loading = false,
                     pages = pages,
                     index = resumeIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
+                    textSpread = 0,
+                    textSpreads = 0,
                 )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -361,7 +381,7 @@ class ReaderViewModel @Inject constructor(
 
     /** Debounced progress PATCH; in incognito mode nothing is written at
      *  all — not even the offline queue (no local trace of the reading). */
-    private fun writeProgress(index: Int) {
+    private fun writeProgress(index: Int, finishedOverride: Boolean? = null) {
         if (_state.value.incognito) return
         progressJob?.cancel()
         progressJob = viewModelScope.launchGuarded {
@@ -369,7 +389,14 @@ class ReaderViewModel @Inject constructor(
             val cur = _state.value
             if (cur.incognito) return@launchGuarded
             val profile = cur.profile ?: return@launchGuarded
-            val finished = index >= cur.pages.size - 1
+            // A prose chapter is a single server page, so "page 1 of 1" is
+            // not the end of the book: only the reader's own end-of-text
+            // signal may finish it, or opening an EPUB would mark it read.
+            val finished = finishedOverride ?: if (cur.textChapter) {
+                cur.textSpreads > 0 && cur.textSpread >= cur.textSpreads - 1
+            } else {
+                index >= cur.pages.size - 1
+            }
             try {
                 clientFactory.create<MangaApi>(profile).updateChapterProgress(
                     cur.chapterId,
@@ -471,13 +498,15 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    /** Text typography is global-only: the webui stores it under a single
-     *  `sumidoku.reader.typography` key rather than per manga. Typeface
-     *  chips write immediately; the two sliders debounce like brightness. */
+    /** Typography rides the same per-manga override chain as the viewer
+     *  fields: a change made while reading pins the value to this manga, and
+     *  an exact match with the global default drops the override again.
+     *  Typeface chips write immediately; the two sliders debounce like
+     *  brightness so a drag does not emit hundreds of writes. */
     fun setFont(value: String) {
         val font = value.takeIf { it in ReaderPrefs.FONTS } ?: return
         _state.value = _state.value.copy(font = font)
-        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.FONT, font) }
+        setMangaField(ReaderField.FONT, font, globalPrefs.font)
     }
 
     fun setFontSize(value: Float) {
@@ -486,7 +515,12 @@ class ReaderViewModel @Inject constructor(
         typographyJob?.cancel()
         typographyJob = viewModelScope.launchGuarded {
             delay(250)
-            settingsStore.setGlobal(ReaderField.FSIZE, snapped.toString())
+            settingsStore.setOverride(
+                mangaId,
+                ReaderField.FSIZE,
+                snapped.toString(),
+                keep = snapped != globalPrefs.fontSize,
+            )
         }
     }
 
@@ -496,8 +530,38 @@ class ReaderViewModel @Inject constructor(
         typographyJob?.cancel()
         typographyJob = viewModelScope.launchGuarded {
             delay(250)
-            settingsStore.setGlobal(ReaderField.FLINE, snapped.toString())
+            settingsStore.setOverride(
+                mangaId,
+                ReaderField.FLINE,
+                snapped.toString(),
+                keep = snapped != globalPrefs.lineHeight,
+            )
         }
+    }
+
+    /** Text page column switch, per-manga like the typography it refines. */
+    fun setTextColumns(enabled: Boolean) =
+        setMangaField(ReaderField.TCOLS, enabled.toString(), globalPrefs.textColumns.toString())
+
+    /** Column pager position for a prose chapter. Reaching the last spread
+     *  is what marks the chapter read, since it never pages out. */
+    fun setTextSpread(position: Int, total: Int) {
+        if (total <= 0) return
+        val clamped = position.coerceIn(0, total - 1)
+        val s = _state.value
+        if (s.textSpread == clamped && s.textSpreads == total) return
+        _state.value = s.copy(textSpread = clamped, textSpreads = total)
+        if (clamped >= total - 1) {
+            writeProgress(s.pages.lastIndex.coerceAtLeast(0), finishedOverride = true)
+        }
+    }
+
+    /** The scrolling prose column reached its end: the only completion signal
+     *  a text chapter can offer when it is not paginated by column. */
+    fun markTextChapterRead() {
+        val s = _state.value
+        if (!s.textChapter) return
+        writeProgress(s.pages.lastIndex.coerceAtLeast(0), finishedOverride = true)
     }
 
     fun setGrayscale(enabled: Boolean) {
@@ -526,3 +590,4 @@ class ReaderViewModel @Inject constructor(
         return "$base/api/v1/chapter/${_state.value.chapterId}/page/${page.index}?v=${page.cacheRevision}"
     }
 }
+

@@ -242,6 +242,17 @@ fun ReaderDefaultsScreen(
                     )
                 }
                 Caption(stringResource(R.string.reader_defaults_typography_hint))
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(R.string.reader_text_columns)) },
+                    supportingContent = { Text(stringResource(R.string.reader_text_columns_hint)) },
+                    trailingContent = {
+                        Switch(
+                            checked = state.textColumns,
+                            onCheckedChange = viewModel::setTextColumns,
+                        )
+                    },
+                )
             }
 
             SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {

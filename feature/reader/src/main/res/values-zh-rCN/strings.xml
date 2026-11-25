@@ -119,6 +119,9 @@
     <string name="reader_font_size">字号</string>
     <string name="reader_line_height">行距</string>
     <string name="reader_typography_hint">仅对文本章节生效，图片章节不受影响。</string>
+<string name="reader_typography_scope">在阅读中修改会固定为当前漫画的设置；改回全局默认即取消覆盖。</string>
+<string name="reader_text_columns">多栏文本</string>
+<string name="reader_text_columns_hint">在宽屏与横屏下把正文分成多栏，逐页翻动。</string>
 
     <!-- Reader defaults screen (global defaults) -->
     <string name="reader_defaults_title">阅读器默认</string>

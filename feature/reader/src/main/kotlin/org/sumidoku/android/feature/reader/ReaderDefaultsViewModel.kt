@@ -32,6 +32,7 @@ data class ReaderDefaultsState(
     val font: String = ReaderField.FONT.fallback,
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
+    val textColumns: Boolean = true,
 )
 
 @HiltViewModel
@@ -61,6 +62,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 font = prefs.font,
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
+                textColumns = prefs.textColumns,
             )
         }
     }
@@ -98,6 +100,11 @@ class ReaderDefaultsViewModel @Inject constructor(
         write(ReaderField.FLINE, snapped.toString())
     }
 
+    fun setTextColumns(value: Boolean) {
+        _state.value = _state.value.copy(textColumns = value)
+        write(ReaderField.TCOLS, value.toString())
+    }
+
     fun setGrayscale(value: Boolean) = write(ReaderField.GRAY, value.toString())
     fun setSepia(value: Boolean) = write(ReaderField.SEPIA, value.toString())
 
@@ -130,6 +137,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 font = prefs.font,
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
+                textColumns = prefs.textColumns,
             )
         }
     }
@@ -151,4 +159,6 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.FONT -> copy(font = raw)
     ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull() ?: fontSize)
     ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull() ?: lineHeight)
+    ReaderField.TCOLS -> copy(textColumns = raw.toBooleanStrictOrNull() ?: textColumns)
 }
+

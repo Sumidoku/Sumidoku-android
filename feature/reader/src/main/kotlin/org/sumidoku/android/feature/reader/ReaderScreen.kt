@@ -114,9 +114,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -137,6 +144,7 @@ import coil3.toBitmap
 import kotlin.math.abs
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
@@ -167,6 +175,10 @@ private data class ReaderTypography(
 /** Provided once by [ReaderScreen]; every text page reads it, so the
  *  per-page call sites never have to thread the preferences through. */
 private val LocalReaderTypography = staticCompositionLocalOf { ReaderTypography() }
+
+/** Fields that pin to a single manga once edited inside the reader, and
+ *  therefore earn the same override marker as mode/layout/direction. */
+private val TYPOGRAPHY_FIELDS = setOf(ReaderField.FONT, ReaderField.FSIZE, ReaderField.FLINE)
 
 /** Reader (design previews 07 paged / 08 webtoon / 24 settings /
  *  25 chapters / 39 spread / 40 transition / 41 quick panel).
@@ -251,7 +263,11 @@ fun ReaderScreen(
             // Text chapters always read vertically: paging a book-like
             // chapter one screenful at a time is the behaviour the reader
             // is supposed to leave behind (the pager would also try to
-            // request each text page as an image).
+            // request each text page as an image). On a wide window the
+            // prose is instead split into viewport-wide columns and paged,
+            // which is how the web reader presents a book.
+            state.pagedText && state.textColumns && (landscape || configuration.screenWidthDp >= 600) ->
+                PagedTextBody(state, viewModel)
             state.vertical || state.textChapter -> VerticalReaderBody(state, viewModel)
             else -> PagedReaderBody(state, viewModel, landscape)
         }
@@ -354,7 +370,7 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
         } else {
             buildList {
                 state.pages.forEach { page ->
-                    if (state.splitWide && page.isWide() && page.content.text == null) {
+                    if (state.splitWide && page.isWide() && page.pageText() == null) {
                         add(DisplayPage(page, if (rtl) 2 else 1))
                         add(DisplayPage(page, if (rtl) 1 else 2))
                     } else {
@@ -405,7 +421,7 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
         for (i in (current - 1)..(current + 2)) {
             if (i !in displayPages.indices) continue
             for (page in displayPages[i].pages) {
-                if (page.content.text != null) continue
+                if (page.pageText() != null) continue
                 prefetchContext.imageLoader.enqueue(
                     ImageRequest.Builder(prefetchContext)
                         .data(viewModel.pageImageUrl(page))
@@ -675,6 +691,15 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.setIndex(it) }
     }
+    // Prose has no page boundary to finish on, so reaching the end of the
+    // scrolling column is the end-of-chapter signal (the paged column track
+    // reports its own last spread).
+    LaunchedEffect(listState, state.textChapter) {
+        if (!state.textChapter) return@LaunchedEffect
+        snapshotFlow { !listState.canScrollForward }
+            .distinctUntilChanged()
+            .collect { atEnd -> if (atEnd) viewModel.markTextChapterRead() }
+    }
     LaunchedEffect(state.seekRequest) {
         if (state.seekRequest > 0 && state.index in 0 until state.pages.size) {
             listState.scrollToItem(state.index)
@@ -734,7 +759,7 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                             indication = null,
                         ) { viewModel.toggleOverlay() },
                 ) {
-                    val text = page.content.text
+                    val text = page.pageText()
                     if (text != null) {
                         TextPageContent(text, fillWidth = true, scrollable = false)
                     } else {
@@ -943,6 +968,100 @@ private fun TextPageContent(text: String, fillWidth: Boolean, scrollable: Boolea
     }
 }
 
+/** Paged prose: the chapter text is cut into viewport-height columns and the
+ *  reader turns a screenful at a time, the way the web client pages a book
+ *  (`webui/src/pages/reader/TextColumns.tsx`). Two columns from 600dp, three
+ *  from 840dp — narrower windows keep the single scrolling column. */
+@Composable
+private fun PagedTextBody(state: ReaderUiState, viewModel: ReaderViewModel) {
+    val text = state.pages.firstOrNull()?.pageText().orEmpty()
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val typography = LocalReaderTypography.current
+    val base = MaterialTheme.typography.bodyLarge
+    val style = base.copy(
+        fontFamily = typography.family,
+        fontSize = (base.fontSize.value * typography.size).sp,
+        lineHeight = (base.fontSize.value * typography.size * typography.lineHeight).sp,
+        color = typography.color,
+    )
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            ) { viewModel.toggleOverlay() },
+    ) {
+        val gap = 36.dp
+        val padding = 24.dp
+        val columns = if (maxWidth >= 840.dp) 3 else 2
+        val columnWidth = ((maxWidth - padding * 2 - gap * (columns - 1)) / columns)
+            .coerceAtLeast(160.dp)
+        val columnHeight = (maxHeight - padding * 2).coerceAtLeast(120.dp)
+        val columnTexts = remember(text, style, columnWidth, columnHeight, density) {
+            paginateText(text, style, measurer, columnWidth, columnHeight, density)
+        }
+        val spreads = ((columnTexts.size + columns - 1) / columns).coerceAtLeast(1)
+        val pager = rememberPagerState { spreads }
+        LaunchedEffect(pager.settledPage, spreads) {
+            when {
+                pager.currentPage > spreads - 1 -> pager.scrollToPage(spreads - 1)
+                else -> viewModel.setTextSpread(pager.settledPage, spreads)
+            }
+        }
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { spread ->
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = padding, vertical = padding),
+                horizontalArrangement = Arrangement.spacedBy(gap),
+            ) {
+                for (slot in 0 until columns) {
+                    val columnText = columnTexts.getOrNull(spread * columns + slot)
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                        if (columnText != null) {
+                            SelectionContainer { Text(columnText, style = style) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Splits [text] into columns of roughly [columnHeight]: measure once at the
+ *  column width, then cut on line boundaries so every column wraps exactly
+ *  like the single long page it came from. */
+private fun paginateText(
+    text: String,
+    style: TextStyle,
+    measurer: TextMeasurer,
+    columnWidth: Dp,
+    columnHeight: Dp,
+    density: Density,
+): List<String> {
+    if (text.isEmpty()) return emptyList()
+    val layout = measurer.measure(
+        text = AnnotatedString(text),
+        style = style,
+        constraints = Constraints(maxWidth = with(density) { columnWidth.roundToPx() }),
+    )
+    if (layout.lineCount == 0) return listOf(text)
+    val styleLinePx = with(density) { style.lineHeight.toPx() }
+    val linePx = styleLinePx.takeIf { it > 0f }
+        ?: (layout.getLineBottom(0) - layout.getLineTop(0)).coerceAtLeast(1f)
+    val linesPerColumn = (with(density) { columnHeight.toPx() } / linePx).toInt().coerceAtLeast(1)
+    val out = ArrayList<String>()
+    var start = 0
+    while (start < layout.lineCount) {
+        val end = (start + linesPerColumn - 1).coerceAtMost(layout.lineCount - 1)
+        val from = layout.getLineStart(start)
+        val to = layout.getLineEnd(end, visibleEnd = true)
+        if (to > from) out += text.substring(from, to)
+        start = end + 1
+    }
+    return out
+}
+
 @Composable
 private fun ReaderPage(
     page: Page,
@@ -963,7 +1082,7 @@ private fun ReaderPage(
     var offset by remember(page.index) { mutableStateOf(Offset.Zero) }
 
     Box(Modifier.fillMaxSize()) {
-        val textPage = page.content.text
+        val textPage = page.pageText()
         if (pageScale != "fit" && crop == 0) {
             val scrollModifier = when (pageScale) {
                 "width" -> Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -1276,7 +1395,7 @@ private fun SpreadPage(
                 // automatically, keeping the seam in the middle).
                 val edgeAlignment = if (index == 0) Alignment.CenterEnd else Alignment.CenterStart
                 Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = edgeAlignment) {
-                    val textPage = page.content.text
+                    val textPage = page.pageText()
                     if (textPage != null) {
                         TextPageContent(textPage, fillWidth = false)
                     } else {
@@ -2173,9 +2292,27 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             )
 
             HorizontalDivider()
-            Text(stringResource(R.string.reader_typography_global), style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_typography_global),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                if (state.overridden.any { it in TYPOGRAPHY_FIELDS }) {
+                    Text(
+                        "\u2022",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             Text(
                 stringResource(R.string.reader_typography_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.reader_typography_scope),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -2221,6 +2358,24 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
                 onValueChange = { viewModel.setLineHeight(it) },
                 valueRange = ReaderPrefs.LINE_HEIGHT_RANGE,
             )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.reader_text_columns),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(R.string.reader_text_columns_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.textColumns,
+                    onCheckedChange = { viewModel.setTextColumns(it) },
+                )
+            }
 
             HorizontalDivider()
             Text(stringResource(R.string.reader_page_scale), style = MaterialTheme.typography.titleSmall)
@@ -2314,4 +2469,3 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
         }
     }
 }
-
