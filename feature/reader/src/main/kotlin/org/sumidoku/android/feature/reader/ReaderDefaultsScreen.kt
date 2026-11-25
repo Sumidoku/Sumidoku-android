@@ -141,6 +141,22 @@ fun ReaderDefaultsScreen(
                     selected = state.tapZones,
                     onSelect = viewModel::setTapZones,
                 )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(R.string.reader_volume_key_paging)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.reader_volume_key_paging_hint),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = state.volumeKeyPaging,
+                            onCheckedChange = viewModel::setVolumeKeyPaging,
+                        )
+                    },
+                )
             }
 
             SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {

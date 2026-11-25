@@ -89,6 +89,8 @@
     <string name="reader_tap_rl">Right-left</string>
     <string name="reader_tap_edge">Edge</string>
     <string name="reader_tap_off">Off</string>
+    <string name="reader_volume_key_paging">Volume-key page turning</string>
+    <string name="reader_volume_key_paging_hint">Volume up turns to the next page and volume down to the previous one. Your system volume stays unchanged while reading.</string>
     <string name="reader_page_scale">Page scale</string>
     <string name="reader_scale_fit">Fit</string>
     <string name="reader_scale_width">Width</string>
