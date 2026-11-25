@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_title">下載</string>
+    <string name="downloads_back">返回</string>
+    <string name="downloads_pause_queue">暫停佇列</string>
+    <string name="downloads_start_queue">開始佇列</string>
+    <string name="downloads_clear_finished">清除已完成</string>
+    <string name="downloads_tab_server_queue">伺服器佇列</string>
+    <string name="downloads_tab_local">本機離線</string>
+    <string name="downloads_tab_local_with_count">本機離線（%1$d）</string>
+    <string name="downloads_storage_usage">已使用 %1$s · 剩餘 %2$s</string>
+    <string name="downloads_clear_all">全部清除</string>
+    <string name="downloads_clear_all_dialog_title">清除全部本機離線內容？</string>
+    <string name="downloads_clear_all_dialog_message">將刪除裝置上所有已下載的章節檔案與解壓縮頁面。</string>
+    <string name="downloads_clear">清除</string>
+    <string name="downloads_cancel">取消</string>
+    <string name="downloads_empty_queue">下載佇列是空的</string>
+    <string name="downloads_retry">重試</string>
+    <string name="downloads_cache_title">章節頁面快取</string>
+    <string name="downloads_manage">管理</string>
+    <string name="downloads_cache_chapters">已快取 %1$d 章</string>
+    <string name="downloads_local_saved">已儲存至本機 · %1$s</string>
+    <string name="downloads_local_failed">下載失敗</string>
+    <string name="downloads_status_queued">排隊中</string>
+    <string name="downloads_status_downloading">下載中…</string>
+    <string name="downloads_delete_local_copy">刪除本機副本</string>
+    <string name="downloads_headline_with_chapter">%1$s · 第 %2$d 話</string>
+    <string name="downloads_status_downloading_pages">下載中 %1$d/%2$s 頁</string>
+    <string name="downloads_status_finished">已完成</string>
+    <string name="downloads_status_error">失敗：%1$s</string>
+    <string name="downloads_error_unknown">未知錯誤</string>
+    <string name="downloads_delete">刪除</string>
+    <string name="downloads_error_no_server">未選擇伺服器</string>
+    <string name="downloads_msg_cleared">已清除 %1$d 項</string>
+    <string name="downloads_msg_requeued">已重新加入佇列</string>
+    <string name="downloads_msg_retry_failed">重試失敗：%1$s</string>
+</resources>

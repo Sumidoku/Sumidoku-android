@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
@@ -27,6 +26,7 @@ import org.sumidoku.android.core.api.model.ReorderPinnedRequest
 import org.sumidoku.android.core.api.model.RepoSource
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourcePatch
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.data.SourceSettingsAvailabilityStore
 import org.sumidoku.android.core.model.ServerProfile
@@ -116,11 +116,11 @@ class BrowseViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.update { it.copy(loading = it.sources.isEmpty(), error = null) }
             val profile = repository.activeProfile.first() ?: run {
                 _state.update { it.copy(loading = false, error = appContext.getString(R.string.browse_error_no_server)) }
-                return@launch
+                return@launchGuarded
             }
             try {
                 val sources = clientFactory.create<SourcesApi>(profile).listSources().await()
@@ -137,8 +137,8 @@ class BrowseViewModel @Inject constructor(
      *  failures as 409 with a `no_update`/`busy`/`resync_required` code, so the
      *  reason is surfaced verbatim when the transport layer exposes it. */
     fun updateSource(source: Source) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _state.update { it.copy(updatingIds = it.updatingIds + source.id) }
             try {
                 clientFactory.create<SourcesApi>(profile).updateSource(source.id).await()
@@ -162,8 +162,8 @@ class BrowseViewModel @Inject constructor(
     }
 
     fun updateAll() {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _state.update { it.copy(updateAllRunning = true, updateAllResult = null) }
             try {
                 val result = clientFactory.create<ReposApi>(profile).updateAllSources().await()
@@ -206,8 +206,8 @@ class BrowseViewModel @Inject constructor(
     // --- pin management (Aidoku pinned section + reorder-pinned) ---
 
     fun togglePin(source: Source) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .patchSource(source.id, SourcePatch(pinned = !source.pinned))
@@ -221,8 +221,8 @@ class BrowseViewModel @Inject constructor(
     }
 
     fun toggleEnabled(source: Source) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .patchSource(source.id, SourcePatch(enabled = !source.enabled))
@@ -237,8 +237,8 @@ class BrowseViewModel @Inject constructor(
 
     /** Persist a new pinned order — full replacement, server semantics. */
     fun savePinOrder(orderedIds: List<Long>) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .reorderPinnedSources(ReorderPinnedRequest(ids = orderedIds.map { it.toString() }))
@@ -254,11 +254,11 @@ class BrowseViewModel @Inject constructor(
     // --- add source (flat aggregated list, Aidoku AddSource style) ---
 
     fun loadRepoSources() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _addState.update { it.copy(loading = true, error = null) }
             val profile = _state.value.profile ?: repository.activeProfile.first() ?: run {
                 _addState.update { it.copy(loading = false, error = appContext.getString(R.string.browse_error_no_server)) }
-                return@launch
+                return@launchGuarded
             }
             try {
                 val repoSources = clientFactory.create<ReposApi>(profile).browseRepoSources().await()
@@ -284,7 +284,7 @@ class BrowseViewModel @Inject constructor(
      *  the error with a retry) and are never cached. OPDS sources have no
      *  settings schema. */
     private fun probeSettingsAvailability(profile: ServerProfile, sources: List<Source>) {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val api = clientFactory.create<SourcesApi>(profile)
             val cache = runCatching { availabilityStore.load() }.getOrDefault(emptyMap())
             val candidates = sources.filter { it.kind != Source.Kind.OPDS }
@@ -297,7 +297,7 @@ class BrowseViewModel @Inject constructor(
             if (cached.isNotEmpty()) {
                 _state.update { it.copy(settingsAvailable = it.settingsAvailable + cached) }
             }
-            if (stale.isEmpty()) return@launch
+            if (stale.isEmpty()) return@launchGuarded
             val probed = coroutineScope {
                 stale
                     .map { source ->
@@ -328,8 +328,8 @@ class BrowseViewModel @Inject constructor(
 
     /** Uninstall a source — DELETE /sources/{id}, with a confirm dialog in the UI. */
     fun uninstall(source: Source) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile).deleteSource(source.id).await()
                 refresh()
@@ -351,8 +351,8 @@ class BrowseViewModel @Inject constructor(
     }
 
     fun install(source: RepoSource) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _addState.update { it.copy(installingKeys = it.installingKeys + source.key) }
             try {
                 clientFactory.create<ReposApi>(profile)
@@ -415,8 +415,8 @@ class BrowseViewModel @Inject constructor(
     }
 
     private fun registerInternal(body: JsonObject, onDone: () -> Unit) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile).registerInternalSource(body).await()
                 refresh()
@@ -431,8 +431,8 @@ class BrowseViewModel @Inject constructor(
     /** Upload a local .aix package — server installs it through the same
      *  scan/register path as repo installs. */
     fun importAix(fileName: String, bytes: ByteArray, onDone: () -> Unit) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _addState.update { it.copy(loading = true, error = null) }
             try {
                 val part = MultipartBody.Part.createFormData(

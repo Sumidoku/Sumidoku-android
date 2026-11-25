@@ -49,9 +49,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.TasksApi
 import org.sumidoku.android.core.api.model.Task
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.common.relativeEpochMs
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -89,13 +89,13 @@ class TasksViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = TasksUiState(
                     loading = false,
                     error = appContext.getString(R.string.misc_no_server_selected),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val tasks = clientFactory.create<TasksApi>(profile)
@@ -110,8 +110,8 @@ class TasksViewModel @Inject constructor(
     }
 
     fun cancel(id: String) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<TasksApi>(profile).cancelTask(id).await()
                 _state.value = _state.value.copy(message = appContext.getString(R.string.tasks_cancelled))

@@ -15,14 +15,6 @@ import java.util.Locale
  */
 fun normalizeEpochMs(v: Long): Long = if (v < 1_000_000_000_000L) v * 1000 else v
 
-/**
- * True when the device locale is Chinese. This module is pure Kotlin/JVM (no
- * Android resources), so user-facing labels switch on the default locale:
- * Chinese keeps the original wording, every other locale gets English.
- */
-private val isZhLocale: Boolean
-    get() = Locale.getDefault().language == Locale.CHINESE.language
-
 /** Server timestamps are epoch milliseconds. */
 fun formatEpochMs(ms: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(normalizeEpochMs(ms)))
@@ -36,9 +28,10 @@ fun relativeEpochMs(ms: Long, now: Long = System.currentTimeMillis()): String {
     val hours = delta / hour
     val days = delta / day
     return when {
-        delta < minute -> if (isZhLocale) "刚刚" else "just now"
-        delta < hour -> if (isZhLocale) "$minutes 分钟前" else "$minutes min ago"
-        delta < day -> if (isZhLocale) "$hours 小时前" else "$hours hr ago"
+        // 天前/今天/昨天 are written identically in Simplified and Traditional.
+        delta < minute -> if (isHantLocale) "剛剛" else if (isZhLocale) "刚刚" else "just now"
+        delta < hour -> if (isHantLocale) "$minutes 分鐘前" else if (isZhLocale) "$minutes 分钟前" else "$minutes min ago"
+        delta < day -> if (isHantLocale) "$hours 小時前" else if (isZhLocale) "$hours 小时前" else "$hours hr ago"
         delta < 30 * day -> if (isZhLocale) "$days 天前" else "$days d ago"
         else -> formatEpochMs(ms)
     }

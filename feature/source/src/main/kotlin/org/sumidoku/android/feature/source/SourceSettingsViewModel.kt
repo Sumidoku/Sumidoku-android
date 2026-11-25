@@ -9,7 +9,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -27,6 +26,7 @@ import org.sumidoku.android.core.api.model.SourceLogoutRequest
 import org.sumidoku.android.core.api.model.SourceSetting
 import org.sumidoku.android.core.api.model.SourceSettings
 import org.sumidoku.android.core.api.model.WebLoginRequest
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -72,14 +72,14 @@ class SourceSettingsViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = true, error = null, saved = false)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = SourceSettingsUiState(
                     loading = false,
                     error = appContext.getString(R.string.source_no_server),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
@@ -111,7 +111,7 @@ class SourceSettingsViewModel @Inject constructor(
     fun save() {
         val current = _state.value
         val profile = current.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = current.copy(saving = true)
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
@@ -139,7 +139,7 @@ class SourceSettingsViewModel @Inject constructor(
 
     fun reset() {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
                 api.resetSourceSettings(sourceId).await()
@@ -153,8 +153,8 @@ class SourceSettingsViewModel @Inject constructor(
     // --- login flows (Aidoku basic/web/oauth) ---
 
     fun basicLogin(key: String, username: String, password: String) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .sourceBasicLogin(sourceId, BasicLoginRequest(key, username, password))
@@ -167,8 +167,8 @@ class SourceSettingsViewModel @Inject constructor(
     }
 
     fun webLogin(key: String, cookies: Map<String, String>, localStorage: Map<String, String>?) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .sourceWebLogin(sourceId, WebLoginRequest(key, cookies, localStorage))
@@ -194,8 +194,8 @@ class SourceSettingsViewModel @Inject constructor(
     }
 
     fun completeOauth(key: String, callbackUrl: String) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .completeSourceOauth(sourceId, OAuthCompleteRequest(key, java.net.URI(callbackUrl)))
@@ -208,8 +208,8 @@ class SourceSettingsViewModel @Inject constructor(
     }
 
     fun logout(key: String, clearCookies: Boolean) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .sourceLogout(sourceId, SourceLogoutRequest(key, clearCookies))
@@ -224,8 +224,8 @@ class SourceSettingsViewModel @Inject constructor(
     /** Pressing a Button setting sends its notification to the source. */
     fun pressButton(setting: SourceSetting) {
         val notification = setting.notification?.takeIf { it.isNotEmpty() } ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile)
                     .notifySource(sourceId, NotifyRequest(notification))
@@ -242,8 +242,8 @@ class SourceSettingsViewModel @Inject constructor(
     /** Local sources only: kick off a filesystem scan (webui LocalSourcePanel
      *  "Scan"). The server queues a task; progress shows on the tasks page. */
     fun scanLocal() {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 clientFactory.create<TasksApi>(profile)
                     .scanLocalSources(ScanLocalSourcesRequest(sourceId))

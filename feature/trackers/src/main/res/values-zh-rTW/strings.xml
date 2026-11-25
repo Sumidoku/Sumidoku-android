@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trackers_title">追蹤器帳號</string>
+    <string name="trackers_back">返回</string>
+    <string name="trackers_action_link">綁定</string>
+    <string name="trackers_action_unlink">解除綁定</string>
+    <string name="trackers_action_cancel">取消</string>
+    <string name="trackers_status_linked">已綁定：%1$s</string>
+    <string name="trackers_status_unlinked">未綁定</string>
+    <string name="trackers_unknown_account">未知帳號</string>
+    <string name="trackers_sync_strategy_title">同步策略（伺服器端執行）</string>
+    <string name="trackers_strategy_push_title">讀完自動推送進度</string>
+    <string name="trackers_strategy_push_detail">按 decide() 純函式比較遠端進度，只前進不回退；用戶端無需保持在前景。</string>
+    <string name="trackers_strategy_pull_title">從 tracker 拉取進度鏡像</string>
+    <string name="trackers_strategy_pull_detail">對齊 Aidoku getChaptersToSyncProgressFromTracker：遠端進度較前面時以遠端為準。</string>
+    <string name="trackers_strategy_binding_title">綁定狀態與帳號解除綁定</string>
+    <string name="trackers_strategy_binding_detail">OAuth 在官方面板完成，權杖只存在伺服器；本頁的綁定／解除綁定立即生效。</string>
+    <string name="trackers_default_label">預設追蹤器</string>
+    <string name="trackers_default_detail">搜尋元資料時預設選取的提供者</string>
+    <string name="trackers_default_none">無</string>
+    <string name="tracker_oauth_sheet_title">綁定 %1$s</string>
+    <string name="trackers_error_no_server">未選擇伺服器</string>
+    <string name="trackers_message_linked">已綁定</string>
+    <string name="trackers_message_unlinked">已解除綁定</string>
+    <string name="trackers_message_saved">已儲存</string>
+</resources>

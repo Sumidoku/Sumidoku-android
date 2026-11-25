@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CollectionsBookmark
@@ -31,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -42,17 +45,24 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.lifecycle.HiltViewModel
 import android.net.Uri
-import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.sumidoku.android.core.api.model.FilterValue
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.sumidoku.android.core.api.SystemApi
 import org.sumidoku.android.core.api.model.ProgressPatch
+import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.network.ServerReachability
+import org.sumidoku.android.core.ui.OfflineIndicator
 import retrofit2.await
 import androidx.lifecycle.viewModelScope
 import org.sumidoku.android.core.data.ServerProfileRepository
@@ -87,10 +97,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AppViewModel @Inject constructor(
-    repository: ServerProfileRepository,
+    private val repository: ServerProfileRepository,
     appearanceStore: org.sumidoku.android.core.data.AppearanceStore,
     private val offlineProgressStore: org.sumidoku.android.core.data.OfflineProgressStore,
     private val clientFactory: org.sumidoku.android.core.network.SumidokuClientFactory,
+    private val reachability: ServerReachability,
 ) : ViewModel() {
     /** null while loading; false = no server configured yet. */
     val hasServer: StateFlow<Boolean?> = repository.activeProfile
@@ -101,13 +112,31 @@ class AppViewModel @Inject constructor(
     val theme: StateFlow<String> = appearanceStore.theme
         .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
 
+    /** Global connectivity flag behind the offline banner. */
+    val offline: StateFlow<Boolean> = reachability.offline
+
+    private val _probing = MutableStateFlow(false)
+    val probing: StateFlow<Boolean> = _probing.asStateFlow()
+
     init {
+        // Switching servers starts the offline streak from zero — the new server
+        // may be perfectly reachable, and the cached pages of the previous one
+        // stay untouched (the cache is namespaced by profile).
+        viewModelScope.launchGuarded {
+            repository.activeId.distinctUntilChanged().drop(1).collect {
+                reachability.reset()
+            }
+        }
         // M2 offline progress queue: replay progress writes captured
         // while the server was unreachable. Best-effort — failed
         // entries stay queued for the next start.
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.filterNotNull().first()
-            val api = clientFactory.create<org.sumidoku.android.core.api.MangaApi>(profile)
+            // `create` throws on an invalid base URL; a throw escaping this
+            // launched coroutine is uncaught and would take the process down.
+            val api = runCatching {
+                clientFactory.create<org.sumidoku.android.core.api.MangaApi>(profile)
+            }.getOrNull() ?: return@launchGuarded
             offlineProgressStore.pending.first().forEach { entry ->
                 try {
                     api.updateChapterProgress(
@@ -121,6 +150,24 @@ class AppViewModel @Inject constructor(
                 } catch (_: Exception) {
                     // stays queued
                 }
+            }
+        }
+    }
+
+    /** The banner's tap: one cheap probe through the instrumented client. Any HTTP
+     *  response clears the offline flag (the tabs re-refresh on recovery); another
+     *  connection failure keeps it. The reachability interceptor does the bookkeeping. */
+    fun retryConnection() {
+        if (_probing.value) return
+        viewModelScope.launchGuarded {
+            _probing.value = true
+            try {
+                val profile = repository.activeProfile.first()
+                if (profile != null) {
+                    runCatching { clientFactory.create<SystemApi>(profile).getVersion().await() }
+                }
+            } finally {
+                _probing.value = false
             }
         }
     }
@@ -170,11 +217,16 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
                         })
                     }
                     composable("main") {
+                        val offline by appViewModel.offline.collectAsState()
+                        val probing by appViewModel.probing.collectAsState()
                         MainTabs(
                             onOpenReader = { mangaId, chapterId ->
                                 nav.navigate("reader/$mangaId/$chapterId")
                             },
                             onManageServers = { nav.navigate("servers") },
+                            offline = offline,
+                            probing = probing,
+                            onRetryConnection = appViewModel::retryConnection,
                         )
                     }
                     composable(
@@ -198,6 +250,9 @@ fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
 private fun MainTabs(
     onOpenReader: (mangaId: Long, chapterId: Long) -> Unit,
     onManageServers: () -> Unit,
+    offline: Boolean,
+    probing: Boolean,
+    onRetryConnection: () -> Unit,
 ) {
     val innerNav = rememberNavController()
     val backStack by innerNav.currentBackStackEntryAsState()
@@ -399,7 +454,10 @@ private fun MainTabs(
                 HistoryScreen(
                     onOpenManga = { innerNav.navigate("manga/$it") },
                     onOpenChapter = { mangaId, chapterId ->
-                        innerNav.navigate("reader/$mangaId/$chapterId")
+                        // The reader lives in the OUTER graph (immersive
+                        // route) — innerNav has no such destination and
+                        // navigating to it would crash.
+                        onOpenReader(mangaId, chapterId)
                     },
                 )
             }
@@ -489,13 +547,37 @@ private fun MainTabs(
 
     if (layoutType == NavigationSuiteType.NavigationBar) {
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) { navContent() }
+            Box(Modifier.weight(1f)) {
+                navContent()
+                // Floating over every tab and pushed page of the main scaffold,
+                // so settings pages are covered without any per-screen wiring.
+                OfflineIndicator(
+                    visible = offline,
+                    probing = probing,
+                    onRetry = onRetryConnection,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 8.dp),
+                )
+            }
             navigationSuite()
         }
     } else {
         Row(Modifier.fillMaxSize()) {
             navigationSuite()
-            Box(Modifier.weight(1f)) { navContent() }
+            Box(Modifier.weight(1f)) {
+                navContent()
+                OfflineIndicator(
+                    visible = offline,
+                    probing = probing,
+                    onRetry = onRetryConnection,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 8.dp),
+                )
+            }
         }
     }
 }

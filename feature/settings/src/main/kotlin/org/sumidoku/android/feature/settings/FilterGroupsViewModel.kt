@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.CategoriesApi
 import org.sumidoku.android.core.api.FilterGroupsApi
 import org.sumidoku.android.core.api.SourcesApi
@@ -22,6 +21,7 @@ import org.sumidoku.android.core.api.model.FilterRuleType
 import org.sumidoku.android.core.api.model.ReorderRequest
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.UpdateFilterGroupRequest
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -56,8 +56,8 @@ class FilterGroupsViewModel @Inject constructor(
 
     init {
         refresh()
-        viewModelScope.launch {
-            val p = profile() ?: return@launch
+        viewModelScope.launchGuarded {
+            val p = profile() ?: return@launchGuarded
             runCatching { factory.create<SourcesApi>(p).listSources().await() }
                 .onSuccess { _state.value = _state.value.copy(sources = it) }
             runCatching { factory.create<CategoriesApi>(p).listCategories().await() }
@@ -66,8 +66,8 @@ class FilterGroupsViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            val p = profile() ?: return@launch
+        viewModelScope.launchGuarded {
+            val p = profile() ?: return@launchGuarded
             _state.value = _state.value.copy(loading = true, error = null)
             try {
                 val groups = factory.create<FilterGroupsApi>(p).listFilterGroups().await()
@@ -80,8 +80,8 @@ class FilterGroupsViewModel @Inject constructor(
     }
 
     private fun mutate(message: String, block: suspend (FilterGroupsApi) -> Unit) {
-        viewModelScope.launch {
-            val p = profile() ?: return@launch
+        viewModelScope.launchGuarded {
+            val p = profile() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true)
             try {
                 block(factory.create(p))

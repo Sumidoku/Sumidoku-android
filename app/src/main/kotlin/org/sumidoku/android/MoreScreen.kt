@@ -82,7 +82,6 @@ private fun IncognitoRow(state: IncognitoUiState, onToggle: (Boolean) -> Unit) {
         trailingContent = {
             Switch(
                 checked = state.enabled,
-                enabled = !state.busy,
                 onCheckedChange = onToggle,
             )
         },
@@ -90,7 +89,7 @@ private fun IncognitoRow(state: IncognitoUiState, onToggle: (Boolean) -> Unit) {
         modifier = Modifier
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable(enabled = !state.busy) { onToggle(!state.enabled) },
+            .clickable { onToggle(!state.enabled) },
     )
 }
 

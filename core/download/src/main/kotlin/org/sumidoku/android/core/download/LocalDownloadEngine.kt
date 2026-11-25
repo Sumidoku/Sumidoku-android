@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Request
+import org.sumidoku.android.core.common.SafeCoroutineHandler
 import org.sumidoku.android.core.model.ServerProfile
 import java.io.File
 import javax.inject.Inject
@@ -29,10 +30,13 @@ import javax.inject.Singleton
 class LocalDownloadEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: LocalDownloadDatabase,
+    private val reachability: org.sumidoku.android.core.network.ServerReachability,
 ) {
 
     private val dao get() = database.localDownloadDao()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Processing a queued chapter touches the network and the file system; a
+    // failure here must end up in the log, not take the process down with it.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + SafeCoroutineHandler)
     private val pumpMutex = Mutex()
     private var pumpJob: Job? = null
 
@@ -180,7 +184,7 @@ class LocalDownloadEngine @Inject constructor(
     }
 
     private suspend fun downloadOne(profile: ServerProfile, row: LocalDownloadEntity) {
-        val client = org.sumidoku.android.core.network.SumidokuClientFactory()
+        val client = org.sumidoku.android.core.network.SumidokuClientFactory(reachability)
         val targetDir = File(context.filesDir, "downloads/${row.mangaId}")
         targetDir.mkdirs()
         val target = File(targetDir, "${row.chapterId}.cbz")

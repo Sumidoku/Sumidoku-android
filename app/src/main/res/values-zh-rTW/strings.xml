@@ -1,0 +1,15 @@
+<resources>
+    <string name="tab_library">書庫</string>
+    <string name="tab_browse">瀏覽</string>
+    <string name="tab_updates">更新</string>
+    <string name="tab_history">歷史</string>
+    <string name="tab_downloads">下載</string>
+    <string name="tab_search">搜尋</string>
+    <string name="tab_settings">設定</string>
+    <string name="update_channel_name">章節更新</string>
+    <string name="update_notification_title">Sumidoku 更新</string>
+    <string name="update_new_chapters_one">「%1$s」有新章節</string>
+    <string name="update_new_chapters_many">%1$d 部漫畫有新章節</string>
+    <string name="tab_more">更多</string>
+    <string name="more_incognito">無痕閱讀</string>
+</resources>

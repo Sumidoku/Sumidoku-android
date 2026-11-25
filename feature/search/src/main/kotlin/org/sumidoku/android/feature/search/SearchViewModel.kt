@@ -9,7 +9,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.MangaApi
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.model.GlobalSearchRequest
@@ -18,6 +17,7 @@ import org.sumidoku.android.core.api.model.MangaInput
 import org.sumidoku.android.core.api.model.RegisterMangaRequest
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.Source
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.GlobalSearchFilterStore
 import org.sumidoku.android.core.data.GlobalSearchFilters
 import org.sumidoku.android.core.data.ServerProfileRepository
@@ -29,7 +29,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import retrofit2.await
@@ -159,9 +159,9 @@ class SearchViewModel @Inject constructor(
     private var searchJob: Job? = null
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             restoreFilters()
-            val profile = repository.activeProfile.first() ?: return@launch
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(profile = profile)
             runCatching {
                 clientFactory.create<SourcesApi>(profile).listSources().await()
@@ -242,7 +242,7 @@ class SearchViewModel @Inject constructor(
                 .mapValues { (_, value) -> value.wire() },
             sources = current.sourceFilter.wireForm(),
         )
-        viewModelScope.launch { runCatching { filterStore.save(snapshot) } }
+        viewModelScope.launchGuarded { runCatching { filterStore.save(snapshot) } }
     }
 
     private fun Map<Long, TriFilter>.wireForm(): Map<String, Int> =
@@ -272,7 +272,7 @@ class SearchViewModel @Inject constructor(
         val ids = _state.value.participatingSourceIds
         if (query.isEmpty() || ids.isEmpty()) return
         searchJob?.cancel()
-        searchJob = viewModelScope.launch {
+        searchJob = viewModelScope.launchGuarded {
             _state.value = _state.value.copy(searching = true, searched = true, sections = emptyList(), error = null)
             val names = _state.value.sources.associate { it.id to (it.name ?: appContext.getString(R.string.search_source_fallback, it.id)) }
             try {
@@ -292,7 +292,10 @@ class SearchViewModel @Inject constructor(
                     if (type == "source" || type == "sourceError") received = true
                     when (type) {
                         "source" -> {
-                            val sourceId = event["sourceId"]!!.jsonPrimitive.long
+                            // `!!` here was a process crash (NPE inside a
+                            // launched coroutine) whenever the server streamed
+                            // a source chunk without a sourceId.
+                            val sourceId = event["sourceId"]?.jsonPrimitive?.longOrNull ?: return@collect
                             val entriesEl = event["entries"] ?: event["results"]
                             val entries = entriesEl?.let {
                                 runCatching { streamJson.decodeFromJsonElement<List<SearchManga>>(it) }.getOrNull()
@@ -309,7 +312,7 @@ class SearchViewModel @Inject constructor(
                             )
                         }
                         "sourceError" -> {
-                            val sourceId = event["sourceId"]!!.jsonPrimitive.long
+                            val sourceId = event["sourceId"]?.jsonPrimitive?.longOrNull ?: return@collect
                             val message = (event["error"] as? kotlinx.serialization.json.JsonObject)
                                 ?.get("message")?.jsonPrimitive?.contentOrNull
                                 ?: event["message"]?.jsonPrimitive?.contentOrNull
@@ -354,7 +357,7 @@ class SearchViewModel @Inject constructor(
                             searching = false,
                                 sections = response.sources.map { it.toSection(names[it.sourceId] ?: appContext.getString(R.string.search_source_fallback, it.sourceId)) },
                         )
-                        return@launch
+                        return@launchGuarded
                     } catch (e2: Exception) {
                         if (e2 is kotlinx.coroutines.CancellationException) throw e2
                     }
@@ -368,7 +371,7 @@ class SearchViewModel @Inject constructor(
         val profile = _state.value.profile ?: return
         val section = _state.value.sections.firstOrNull { it.sourceId == sourceId } ?: return
         if (section.loading || !section.hasNextPage) return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             updateSection(sourceId) { it.copy(loading = true, error = null) }
             try {
                 val response = clientFactory.create<SourcesApi>(profile)
@@ -413,7 +416,7 @@ class SearchViewModel @Inject constructor(
             return
         }
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(registeringKey = manga.key)
             try {
                 val input = MangaInput(

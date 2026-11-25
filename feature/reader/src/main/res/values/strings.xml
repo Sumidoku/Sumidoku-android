@@ -22,6 +22,9 @@
     <string name="reader_continue_reading">Continue reading</string>
     <string name="reader_back_to_previous">Back to previous chapter</string>
     <string name="reader_stay_here">Stay on this chapter</string>
+    <string name="reader_transition_finished">Chapter finished</string>
+    <string name="reader_transition_current">Current chapter</string>
+    <string name="reader_transition_turn_to_continue">Turn again or tap the page-turn zone to continue</string>
     <string name="reader_next_chapter_label">Next chapter · %1$s</string>
     <string name="reader_release_next_chapter">Release to open the next chapter</string>
     <string name="reader_keep_pulling_next">Keep dragging to open the next chapter</string>

@@ -20,9 +20,15 @@ import org.junit.Test
 import org.sumidoku.android.core.api.model.FilterValue
 import org.sumidoku.android.core.api.model.FilterValueOneOf2Check
 import org.sumidoku.android.core.data.ActiveProfileStore
+import org.sumidoku.android.core.data.CatalogCache
+import org.sumidoku.android.core.data.LibraryDisplayStore
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.data.SourceSettingsAvailabilityStore
+import org.sumidoku.android.core.data.db.CatalogCacheDao
+import org.sumidoku.android.core.data.db.CatalogCacheEntity
 import org.sumidoku.android.core.data.db.ServerProfileDao
 import org.sumidoku.android.core.data.db.ServerProfileEntity
+import org.sumidoku.android.core.network.ServerReachability
 import org.sumidoku.android.core.network.SumidokuClientFactory
 
 /**
@@ -53,6 +59,14 @@ class SourceHomeViewModelDeepLinkTest {
         override suspend fun byId(id: Long): ServerProfileEntity? = null
     }
 
+    /** No rows, no writes: the cache is never consulted by these tests. */
+    private class FakeCatalogCacheDao : CatalogCacheDao {
+        override suspend fun seedRows(profileId: Long, listKey: String): List<String> = emptyList()
+        override suspend fun insertAll(rows: List<CatalogCacheEntity>) = Unit
+        override suspend fun deleteList(profileId: Long, listKey: String) = Unit
+        override suspend fun deleteProfile(profileId: Long) = Unit
+    }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
@@ -67,13 +81,19 @@ class SourceHomeViewModelDeepLinkTest {
         val dataStore = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
             produceFile = { java.io.File.createTempFile("deeplink-test", ".preferences_pb") },
         )
-        val repository = ServerProfileRepository(FakeDao(), ActiveProfileStore(dataStore))
+        val repository = ServerProfileRepository(
+            FakeDao(),
+            ActiveProfileStore(dataStore),
+            CatalogCache(FakeCatalogCacheDao()),
+        )
         return SourceHomeViewModel(
             appContext = appContext,
             savedStateHandle = handle,
             repository = repository,
-            clientFactory = SumidokuClientFactory(),
+            clientFactory = SumidokuClientFactory(ServerReachability()),
             filterPrefs = SourceFilterPrefs(dataStore),
+            availabilityStore = SourceSettingsAvailabilityStore(dataStore),
+            displayStore = LibraryDisplayStore(dataStore),
         )
     }
 

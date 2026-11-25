@@ -1,0 +1,3 @@
+<resources>
+    <string name="download_insufficient_storage">儲存空間不足（需要約 %1$d MB）</string>
+</resources>

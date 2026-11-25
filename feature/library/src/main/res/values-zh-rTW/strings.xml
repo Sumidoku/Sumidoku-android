@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 頂端應用程式列 -->
+    <string name="library_title">書庫</string>
+    <string name="library_choose_category">選擇分類</string>
+    <string name="library_display">顯示</string>
+    <string name="library_sort">排序</string>
+    <string name="library_filter">篩選</string>
+    <string name="library_refresh">重新整理</string>
+    <string name="library_search">搜尋</string>
+    <string name="library_search_placeholder">搜尋書庫…</string>
+    <string name="library_search_clear">清除搜尋</string>
+    <string name="library_search_close">關閉搜尋</string>
+    <string name="library_retry">重試</string>
+
+    <!-- 排序選單 -->
+    <string name="library_sort_added">最近入庫</string>
+    <string name="library_sort_title">標題</string>
+    <string name="library_sort_last_read">最近閱讀</string>
+    <string name="library_sort_latest_chapter">最新章節</string>
+    <string name="library_sort_unread">未讀最多</string>
+
+    <!-- 批次模式 -->
+    <string name="library_exit_batch_mode">離開批次模式</string>
+    <string name="library_selected_count">已選 %1$d 項</string>
+    <string name="library_select_all">全選</string>
+    <string name="library_deselect_all">取消全選</string>
+    <string name="library_set_categories">設定分類</string>
+    <string name="library_mark_read">標為已讀</string>
+    <string name="library_remove_from_library">移出書庫</string>
+    <string name="library_remove_confirm_message">將 %1$d 部漫畫移出書庫，漫畫本身的章節與下載不受影響。</string>
+    <string name="library_remove">移出</string>
+    <string name="library_cancel">取消</string>
+    <string name="library_batch_categories_hint">會取代所選漫畫的分類，而非附加。</string>
+    <string name="library_clear_categories">清除分類</string>
+    <string name="library_apply_categories">套用 · %1$d 個分類</string>
+
+    <!-- 篩選摘要 Chip -->
+    <string name="library_remove_chip">移除 %1$s</string>
+    <string name="library_chip_rating">分級：%1$s</string>
+    <string name="library_chip_source">圖源：%1$s</string>
+    <string name="library_chip_author">作者：%1$s</string>
+    <string name="library_chip_tag">標籤：%1$s</string>
+    <string name="library_chip_group">篩選群組：%1$s</string>
+
+    <!-- 空狀態 -->
+    <string name="library_empty_filtered_title">沒有符合篩選條件的漫畫</string>
+    <string name="library_empty_title">書庫還是空的</string>
+    <string name="library_empty_filtered_hint">試著放寬篩選條件</string>
+    <string name="library_empty_active_filters">目前篩選：%1$s</string>
+    <string name="library_empty_hint">去瀏覽頁逛逛，把喜歡的漫畫加入書庫，\n新章節更新會出現在「更新」裡</string>
+    <string name="library_clear_filters">清除篩選</string>
+    <string name="library_browse_sources">去瀏覽圖源</string>
+
+    <!-- 底部彈層標題列 -->
+    <string name="library_back">返回</string>
+    <string name="library_reset">重設</string>
+    <string name="library_done">完成</string>
+
+    <!-- 篩選面板 -->
+    <string name="library_section_status">狀態</string>
+    <string name="library_more_filters">更多篩選</string>
+    <string name="library_none_selected">未選擇</string>
+    <string name="library_no_options">暫無可選項目</string>
+    <string name="library_manga_count">%1$d 部</string>
+
+    <!-- 分類彈層 -->
+    <string name="library_categories">分類</string>
+    <string name="library_uncategorized">未分類</string>
+    <string name="library_filter_groups">篩選群組</string>
+    <string name="library_selected">已選擇</string>
+
+    <!-- 三態列 -->
+    <string name="library_tri_include">包含</string>
+    <string name="library_tri_exclude">排除</string>
+    <string name="library_tri_none">未篩選</string>
+
+    <!-- 狀態篩選 -->
+    <string name="library_status_unread">未讀</string>
+    <string name="library_status_completed">已完結</string>
+    <string name="library_status_tracked">已追蹤</string>
+    <string name="library_status_bookmarked">書籤</string>
+    <string name="library_status_downloaded">已下載</string>
+
+    <!-- 內容分級 -->
+    <string name="library_rating_safe">安全</string>
+    <string name="library_rating_suggestive">暗示性</string>
+    <string name="library_rating_nsfw">NSFW</string>
+
+    <!-- 篩選維度 -->
+    <string name="library_dimension_ratings">分級</string>
+    <string name="library_dimension_sources">圖源</string>
+    <string name="library_dimension_authors">作者</string>
+    <string name="library_dimension_tags">標籤</string>
+
+    <!-- 顯示彈層 -->
+    <string name="library_form_compact">精簡</string>
+    <string name="library_form_comfortable">舒適</string>
+    <string name="library_form_list">列表</string>
+    <string name="library_columns">欄數</string>
+    <string name="library_column_count">%1$d 欄</string>
+    <string name="library_columns_auto">自動</string>
+    <string name="library_columns_hint">直向與橫向的欄數會分開記憶，同樣套用至圖源內的網格。</string>
+    <string name="library_cover_badges">封面徽章</string>
+    <string name="library_badge_unread">未讀數量角標</string>
+    <string name="library_badge_download">已下載標記</string>
+    <string name="library_badge_source">來源標記</string>
+
+    <!-- 項目列 -->
+    <string name="library_downloaded">已下載</string>
+    <string name="library_chapter_number">第 %1$s 話</string>
+    <string name="library_chapter_count">%1$d 話</string>
+    <string name="library_unread_count">%1$d 則未讀</string>
+    <string name="library_all_read">已讀完</string>
+
+    <!-- ViewModel 提示 -->
+    <string name="library_batch_marked_read">已標為已讀 · %1$d 部</string>
+    <string name="library_batch_categories_set">已設定分類 · %1$d 部</string>
+    <string name="library_batch_removed">已移出書庫 · %1$d 部</string>
+    <string name="library_no_server">未選擇伺服器</string>
+    <string name="library_batch_failed">批次操作失敗：%1$s</string>
+</resources>

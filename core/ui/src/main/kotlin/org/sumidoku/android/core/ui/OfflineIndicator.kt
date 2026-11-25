@@ -1,0 +1,84 @@
+package org.sumidoku.android.core.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+
+/**
+ * Global "server unreachable" banner, driven by ServerReachability. Rendered as a
+ * floating pill at the top centre, above every tab and pushed page of the main
+ * scaffold, so it appears for failures at startup and for connections that die while
+ * the app is running. Tapping it fires one lightweight probe request through the
+ * instrumented client; a response of any status clears the flag, another failure
+ * keeps it (the interceptor does the bookkeeping).
+ */
+@Composable
+fun OfflineIndicator(
+    visible: Boolean,
+    probing: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(R.string.offline_indicator)
+    val hint = stringResource(R.string.offline_indicator_hint)
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn() + slideInVertically { -it },
+        exit = fadeOut() + slideOutVertically { -it },
+    ) {
+        Surface(
+            onClick = onRetry,
+            enabled = !probing,
+            color = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+            shape = CircleShape,
+            shadowElevation = 8.dp,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .semantics { contentDescription = hint }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                if (probing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onError,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                Text(text = label, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}

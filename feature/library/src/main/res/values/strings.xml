@@ -7,6 +7,10 @@
     <string name="library_sort">Sort</string>
     <string name="library_filter">Filter</string>
     <string name="library_refresh">Refresh</string>
+    <string name="library_search">Search</string>
+    <string name="library_search_placeholder">Search library…</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_search_close">Close search</string>
     <string name="library_retry">Retry</string>
 
     <!-- Sort menu -->
@@ -95,7 +99,8 @@
     <string name="library_form_list">List</string>
     <string name="library_columns">Columns</string>
     <string name="library_column_count">%1$d columns</string>
-    <string name="library_columns_hint">Auto adapts to a minimum cover width of 100 dp; portrait and landscape column counts are remembered separately.</string>
+    <string name="library_columns_auto">Auto</string>
+    <string name="library_columns_hint">Portrait and landscape column counts are remembered separately and also apply to a source’s grid.</string>
     <string name="library_cover_badges">Cover badges</string>
     <string name="library_badge_unread">Unread count badge</string>
     <string name="library_badge_download">Downloaded mark</string>

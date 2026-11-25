@@ -19,8 +19,9 @@ const val FORM_LIST = "list"
 
 val LIBRARY_FORMS = listOf(FORM_COMPACT, FORM_COMFORTABLE, FORM_LIST)
 
-/** Density choices offered by the display sheet: null = auto (adaptive). */
-val LIBRARY_COLUMN_CHOICES: List<Int?> = listOf(null, 2, 3, 4)
+/** Density slider range (Komikku `LibrarySettingsDialog` parity): the slider
+ *  runs 0..10 where 0 means auto (adaptive) and 1..10 fix the column count. */
+const val LIBRARY_COLUMNS_MAX = 10
 
 /** Everything the display sheet owns. Columns are remembered per
  *  orientation (Komikku `LibraryColumns`), so rotating does not overwrite
@@ -46,7 +47,7 @@ data class LibraryDisplay(
     fun columns(landscape: Boolean): Int? =
         if (landscape) landscapeColumns else portraitColumns
 
-    private fun Int?.sanitizedColumns(): Int? = this?.takeIf { it in 2..4 }
+    private fun Int?.sanitizedColumns(): Int? = this?.takeIf { it in 1..LIBRARY_COLUMNS_MAX }
 }
 
 @Singleton
@@ -58,10 +59,11 @@ class LibraryDisplayStore @Inject constructor(
 
     /** Broken JSON counts as "nothing saved" and never blocks the screen. */
     suspend fun load(): LibraryDisplay {
-        val raw = dataStore.data.first()[key] ?: return LibraryDisplay()
+        val fallback = LibraryDisplay()
+        val raw = dataStore.data.first()[key] ?: return fallback
         return runCatching {
             json.decodeFromString(LibraryDisplay.serializer(), raw)
-        }.getOrDefault(LibraryDisplay()).sanitized()
+        }.getOrDefault(fallback).sanitized()
     }
 
     suspend fun save(display: LibraryDisplay) {

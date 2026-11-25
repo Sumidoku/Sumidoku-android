@@ -8,7 +8,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.sumidoku.android.core.api.BackupsApi
 import org.sumidoku.android.core.api.model.AidokuImportResponse
@@ -17,6 +16,7 @@ import org.sumidoku.android.core.api.model.BackupFile
 import org.sumidoku.android.core.api.model.BackupRestoreResponse
 import org.sumidoku.android.core.api.model.RestoreBackupRequest
 import org.sumidoku.android.core.api.model.SuwayomiImportResponse
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -63,11 +63,11 @@ class BackupsViewModel @Inject constructor(
         _state.value.profile?.let { clientFactory.create<BackupsApi>(it) }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = _state.value.files.isEmpty(), error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = BackupsUiState(loading = false, error = appContext.getString(R.string.backups_error_no_server))
-                return@launch
+                return@launchGuarded
             }
             try {
                 val files = clientFactory.create<BackupsApi>(profile).listBackups().await()
@@ -88,7 +88,7 @@ class BackupsViewModel @Inject constructor(
      *  hands to the Storage Access Framework (createDocument). */
     fun export() {
         val api = api() ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true)
             try {
                 val doc = api.exportBackup().await()
@@ -105,7 +105,7 @@ class BackupsViewModel @Inject constructor(
 
     fun restoreFile(name: String) {
         val api = api() ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true)
             try {
                 val result = api.restoreBackup(RestoreBackupRequest(name = name)).await()
@@ -120,7 +120,7 @@ class BackupsViewModel @Inject constructor(
     /** Restore a Sumidoku backup document picked from device storage. */
     fun restoreDocument(bytes: ByteArray) {
         val api = api() ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true)
             try {
                 val doc = json.decodeFromString(BackupDoc.serializer(), bytes.decodeToString())
@@ -141,7 +141,7 @@ class BackupsViewModel @Inject constructor(
     fun importAidoku(bytes: ByteArray, fileName: String, dryRun: Boolean = true) {
         val api = api() ?: return
         if (!dryRun && bytes.isNotEmpty()) aidokuBytes = bytes
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true)
             try {
                 val payload = if (dryRun) bytes else aidokuBytes ?: bytes
@@ -190,7 +190,7 @@ class BackupsViewModel @Inject constructor(
         val api = api() ?: return
         tachibkBytes = bytes
         tachibkName = fileName
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true, suwayomiDryRun = null, suwayomiMapping = emptyMap())
             try {
                 val tmp = File.createTempFile("suwayomi-import", ".tachibk").apply {
@@ -218,7 +218,7 @@ class BackupsViewModel @Inject constructor(
     fun runTachibk() {
         val api = api() ?: return
         val bytes = tachibkBytes ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busy = true)
             try {
                 val tmp = File.createTempFile("suwayomi-import", ".tachibk").apply {

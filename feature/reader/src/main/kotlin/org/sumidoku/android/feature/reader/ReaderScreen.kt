@@ -9,13 +9,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +48,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.NavigateBefore
 import androidx.compose.material.icons.automirrored.outlined.NavigateNext
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FilterAlt
@@ -58,13 +62,14 @@ import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewCarousel
 import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -84,6 +89,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -118,18 +124,22 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.SubcomposeAsyncImage
 import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
+import kotlin.math.abs
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.chapterNumberLabel
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.ui.CoverSeedTheme
 import org.sumidoku.android.core.ui.computeCoverTint
@@ -383,12 +393,58 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
             pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
         }
     }
+    // Second-turn confirm (webui pendingTurn / Komikku parity): while the
+    // pager rests on a transition slot, a further drag past the edge arms a
+    // pull; crossing the threshold opens the neighbouring chapter. The pull
+    // is consumed in pre-scroll so the pager itself never moves past the
+    // slot, and it decays quickly when abandoned.
+    var edgePull by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val edgePullThreshold = with(density) { 120.dp.toPx() }
+    val latestState by rememberUpdatedState(state)
+    val latestPrevSlot by rememberUpdatedState(prevSlot)
+    val latestDisplayCount by rememberUpdatedState(displayPages.size)
+    LaunchedEffect(pagerState.settledPage) { edgePull = 0f }
+    LaunchedEffect(edgePull) {
+        if (edgePull != 0f) {
+            delay(600)
+            edgePull = 0f
+        }
+    }
+    val transitionPull = remember(edgePullThreshold) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Gate on the *settled* slot, not currentPage: during one
+                // continuous drag currentPage already flips to the transition
+                // slot the moment the pager reaches it, and the remaining
+                // deltas would arm the pull and skip the transition page
+                // entirely. A new gesture starting on the settled transition
+                // slot is what confirms the chapter turn.
+                val slot = pagerState.settledPage
+                val atEnd = slot - latestPrevSlot >= latestDisplayCount
+                val atStart = slot < latestPrevSlot
+                if (!atEnd && !atStart) return Offset.Zero
+                // Direction the pager cannot move in from this edge slot
+                // (reading-forward at the end, backward at the start).
+                val furtherSign = if (atEnd) (if (rtl) 1f else -1f) else (if (rtl) -1f else 1f)
+                if (available.x * furtherSign <= 0f) return Offset.Zero
+                edgePull += available.x
+                if (abs(edgePull) >= edgePullThreshold) {
+                    edgePull = 0f
+                    val target = if (atEnd) latestState.nextChapter else latestState.prevChapter
+                    target?.let { viewModel.openChapter(it.id) }
+                    return Offset.Zero
+                }
+                return available
+            }
+        }
+    }
     CompositionLocalProvider(
         LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(transitionPull),
             userScrollEnabled = !zoomed,
             beyondViewportPageCount = 1,
         ) { slot ->
@@ -397,16 +453,31 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
                 val isNext = contentIndex >= displayPages.size
                 val chapter = if (isNext) state.nextChapter else state.prevChapter
                 if (chapter != null) {
-                    TransitionPage(
-                        chapter = chapter,
-                        isNext = isNext,
-                        currentChapter = state.currentChapter,
-                        onConfirm = { viewModel.openChapter(chapter.id) },
-                        onBack = {
-                            val back = if (isNext) slot - 1 else slot + 1
-                            pagerScope.launch { pagerState.animateScrollToPage(back) }
-                        },
-                    )
+                    Box(Modifier.fillMaxSize()) {
+                        // The tap zones own the whole page (webui parity):
+                        // zones sit under the content; a turn in the same
+                        // direction confirms, a turn back cancels.
+                        TapZoneOverlay(
+                            layout = state.tapZones,
+                            rtl = rtl,
+                            onPrev = if (isNext) {
+                                { pagerScope.launch { pagerState.animateScrollToPage(slot - 1) } }
+                            } else {
+                                { viewModel.openChapter(chapter.id) }
+                            },
+                            onMenu = { viewModel.toggleOverlay() },
+                            onNext = if (isNext) {
+                                { viewModel.openChapter(chapter.id) }
+                            } else {
+                                { pagerScope.launch { pagerState.animateScrollToPage(slot + 1) } }
+                            },
+                        )
+                        TransitionPage(
+                            chapter = chapter,
+                            isNext = isNext,
+                            currentChapter = state.currentChapter,
+                        )
+                    }
                 }
                 return@HorizontalPager
             }
@@ -444,61 +515,93 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
     }
 }
 
-/** Chapter transition slot (preview 40, webui TransitionPage / Aidoku
- *  ReaderInfoPageView parity): shows the neighbouring chapter, a gap
- *  warning when chapter numbers skip, and an explicit continue action —
- *  landing on the slot never advances on its own. */
+/** Chapter transition slot (webui TransitionPage / Komikku ChapterTransition
+ *  parity): "finished / next chapter" (or "previous / current") sections
+ *  with a gap warning between them. There are no buttons — the tap zones
+ *  own the page, so the confirm is another turn in the same direction and
+ *  the cancel is a turn back. */
 @Composable
 private fun TransitionPage(
     chapter: ChapterWithDownload,
     isNext: Boolean,
     currentChapter: ChapterWithDownload?,
-    onConfirm: () -> Unit,
-    onBack: () -> Unit,
 ) {
-    val skipped = missingBetween(currentChapter, chapter)
+    val skipped = missingBetween(
+        if (isNext) currentChapter else chapter,
+        if (isNext) chapter else currentChapter,
+    )
+    // The reader draws straight onto a black canvas: there is no Surface to
+    // seed LocalContentColor, whose default is black (invisible text).
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 40.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (isNext) {
+            TransitionSection(
+                label = stringResource(R.string.reader_transition_finished),
+                chapter = currentChapter,
+            )
+            TransitionGapWarning(skipped)
+            TransitionSection(
+                label = stringResource(R.string.reader_next_chapter),
+                chapter = chapter,
+            )
+        } else {
+            TransitionSection(
+                label = stringResource(R.string.reader_prev_chapter),
+                chapter = chapter,
+            )
+            TransitionGapWarning(skipped)
+            TransitionSection(
+                label = stringResource(R.string.reader_transition_current),
+                chapter = currentChapter,
+            )
+        }
+        Spacer(Modifier.height(24.dp))
         Text(
-            stringResource(if (isNext) R.string.reader_next_chapter else R.string.reader_prev_chapter),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.size(8.dp))
-        Text(
-            chapterCardLabel(chapter),
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-        )
-        val meta = buildList {
-            add(stringResource(R.string.reader_page_count, chapter.pageCount))
-            if (chapter.isRead) add(stringResource(R.string.reader_read_badge))
-            if (chapter.isDownloaded || chapter.hasFinishedDownload) add(stringResource(R.string.reader_downloaded_badge))
-        }.joinToString(" · ")
-        Spacer(Modifier.size(6.dp))
-        Text(
-            meta,
+            stringResource(R.string.reader_transition_turn_to_continue),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (skipped > 0) {
-            Spacer(Modifier.size(14.dp))
-            Text(
-                stringResource(R.string.reader_chapters_missing, skipped),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary,
-            )
-        }
-        Spacer(Modifier.size(24.dp))
-        Button(onClick = onConfirm) {
-            Text(stringResource(if (isNext) R.string.reader_continue_reading else R.string.reader_back_to_previous))
-        }
-        Spacer(Modifier.size(4.dp))
-        TextButton(onClick = onBack) { Text(stringResource(R.string.reader_stay_here)) }
     }
+    }
+}
+
+/** Label + chapter title (+ first scanlator), Komikku ChapterText parity. */
+@Composable
+private fun TransitionSection(label: String, chapter: ChapterWithDownload?) {
+    Text(label, style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(4.dp))
+    Text(
+        chapter?.let { chapterCardLabel(it) } ?: stringResource(R.string.reader_chapter),
+        style = MaterialTheme.typography.titleLarge,
+        maxLines = 5,
+        overflow = TextOverflow.Ellipsis,
+    )
+    chapter?.scanlators?.firstOrNull()?.takeIf { it.isNotBlank() }?.let {
+        Text(
+            it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun TransitionGapWarning(skipped: Int) {
+    if (skipped <= 0) return
+    Spacer(Modifier.height(16.dp))
+    Text(
+        stringResource(R.string.reader_chapters_missing, skipped),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.error,
+    )
+    Spacer(Modifier.height(16.dp))
 }
 
 private fun chapterCardLabel(chapter: ChapterWithDownload): String =
@@ -579,7 +682,15 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
         ) {
             items(state.pages.size, key = { state.pages[it].index }) { position ->
                 val page = state.pages[position]
-                Box(Modifier.fillMaxWidth().clickable { viewModel.toggleOverlay() }) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        // No ripple: flashing the whole page on every tap is noise.
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { viewModel.toggleOverlay() },
+                ) {
                     val text = page.content.text
                     if (text != null) {
                         TextPageContent(text, fillWidth = true)
@@ -808,6 +919,16 @@ private fun ReaderPage(
                 "height" -> ContentScale.FillHeight
                 else -> ContentScale.None
             }
+            // Zones sit UNDER the content: plain pages don't consume taps so
+            // they fall through, but a failed page's retry button stays
+            // clickable instead of being covered by the zones.
+            TapZoneOverlay(
+                layout = tapZones,
+                rtl = rtl,
+                onPrev = onTapLeft,
+                onMenu = onTapCenter,
+                onNext = onTapRight,
+            )
             Box(Modifier.fillMaxSize()) {
                 if (textPage != null) {
                     TextPageContent(textPage, fillWidth = false)
@@ -821,13 +942,6 @@ private fun ReaderPage(
                     )
                 }
             }
-            TapZoneOverlay(
-                layout = tapZones,
-                rtl = rtl,
-                onPrev = onTapLeft,
-                onMenu = onTapCenter,
-                onNext = onTapRight,
-            )
             return@Box
         }
         // KMReader parity: one modifier hosts both detectors — taps resolve
@@ -868,11 +982,32 @@ private fun ReaderPage(
                             )
                         }
                         launch {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                val newScale = (scale * zoom).coerceIn(1f, 4f)
-                                scale = newScale
-                                offset = if (scale > 1f) offset + pan else Offset.Zero
-                                onZoomChange(scale > 1.01f)
+                            // detectTransformGestures would consume every
+                            // one-finger pan, so a horizontal swipe started on
+                            // the page never reached the pager and only drags
+                            // on the black margins turned pages. Handle pinch
+                            // and zoomed-page panning here and leave plain
+                            // 1x drags unconsumed for the pager.
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val pressed = event.changes.count { it.pressed }
+                                    if (pressed >= 2) {
+                                        // Pinch always belongs to the page.
+                                        scale = (scale * event.calculateZoom()).coerceIn(1f, 4f)
+                                        val pan = event.calculatePan()
+                                        offset = if (scale > 1f) offset + pan else Offset.Zero
+                                        onZoomChange(scale > 1.01f)
+                                        event.changes.forEach { it.consume() }
+                                    } else if (scale > 1.01f) {
+                                        // Zoomed page: one-finger drag pans it
+                                        // instead of turning the page.
+                                        offset += event.calculatePan()
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                    if (event.changes.none { it.pressed }) break
+                                }
                             }
                         }
                     }
@@ -961,32 +1096,46 @@ private fun TapZoneOverlay(
     if (layout == "off") return
     when (layout) {
         "kindle" -> Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(0.25f).fillMaxWidth().clickable(onClick = onMenu))
+            ZoneBox(Modifier.weight(0.25f).fillMaxWidth(), onMenu)
             Row(Modifier.weight(0.75f).fillMaxSize()) {
                 val leftWeight = if (rtl) 0.25f else 0.75f
                 val rightWeight = if (rtl) 0.75f else 0.25f
-                Box(Modifier.weight(leftWeight).fillMaxSize().clickable(onClick = if (rtl) onNext else onPrev))
-                Box(Modifier.weight(rightWeight).fillMaxSize().clickable(onClick = if (rtl) onPrev else onNext))
+                ZoneBox(Modifier.weight(leftWeight).fillMaxSize(), if (rtl) onNext else onPrev)
+                ZoneBox(Modifier.weight(rightWeight).fillMaxSize(), if (rtl) onPrev else onNext)
             }
         }
         "edge" -> {
             val leftIsPrev = !rtl
             Row(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(0.15f).fillMaxSize().clickable(onClick = if (leftIsPrev) onPrev else onNext))
-                Box(Modifier.weight(0.7f).fillMaxSize().clickable(onClick = onMenu))
-                Box(Modifier.weight(0.15f).fillMaxSize().clickable(onClick = if (leftIsPrev) onNext else onPrev))
+                ZoneBox(Modifier.weight(0.15f).fillMaxSize(), if (leftIsPrev) onPrev else onNext)
+                ZoneBox(Modifier.weight(0.7f).fillMaxSize(), onMenu)
+                ZoneBox(Modifier.weight(0.15f).fillMaxSize(), if (leftIsPrev) onNext else onPrev)
             }
         }
         else -> {
             val baseLeftIsPrev = layout != "rl"
             val leftIsPrev = if (rtl) !baseLeftIsPrev else baseLeftIsPrev
             Row(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = if (leftIsPrev) onPrev else onNext))
-                Box(Modifier.weight(0.4f).fillMaxSize().clickable(onClick = onMenu))
-                Box(Modifier.weight(0.3f).fillMaxSize().clickable(onClick = if (leftIsPrev) onNext else onPrev))
+                ZoneBox(Modifier.weight(0.3f).fillMaxSize(), if (leftIsPrev) onPrev else onNext)
+                ZoneBox(Modifier.weight(0.4f).fillMaxSize(), onMenu)
+                ZoneBox(Modifier.weight(0.3f).fillMaxSize(), if (leftIsPrev) onNext else onPrev)
             }
         }
     }
+}
+
+/** Tap-zone hit box without the default ripple: the bounded highlight
+ *  flashed a translucent bar across the zone (most visible on the tall
+ *  centre menu zone), so paging stays visually silent (KMReader parity). */
+@Composable
+private fun ZoneBox(modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onClick,
+        ),
+    )
 }
 
 @Composable
@@ -1054,6 +1203,15 @@ private fun SpreadPage(
     onTapRight: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
+        // Under the pages, for the same reason as the single-page path: a
+        // failed page's retry button must win over the zone hit boxes.
+        TapZoneOverlay(
+            layout = tapZones,
+            rtl = rtl,
+            onPrev = onTapLeft,
+            onMenu = onTapCenter,
+            onNext = onTapRight,
+        )
         Row(Modifier.fillMaxSize()) {
             pages.forEachIndexed { index, page ->
                 // Push each page image towards the centre gutter of its
@@ -1078,13 +1236,6 @@ private fun SpreadPage(
                 }
             }
         }
-        TapZoneOverlay(
-            layout = tapZones,
-            rtl = rtl,
-            onPrev = onTapLeft,
-            onMenu = onTapCenter,
-            onNext = onTapRight,
-        )
     }
 }
 
@@ -1098,30 +1249,67 @@ private fun ReaderImage(
     colorFilter: ColorFilter? = null,
 ) {
     val context = LocalContext.current
-    var failed by remember(url) { mutableStateOf(false) }
     var retryKey by remember(url) { mutableIntStateOf(0) }
-    if (failed) {
-        // Failed pages keep the slot's aspect box so the pager does not
-        // jump; the retry button sits above the tap zones (preview 07).
-        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(R.string.reader_page_load_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { failed = false; retryKey++ }) { Text(stringResource(R.string.reader_retry)) }
-            }
-        }
-        return
+    // Rebuilding the request on retryKey gives Coil a fresh request object,
+    // so retry actually re-runs the fetch (error results are never cached).
+    val model = remember(url, retryKey) {
+        ImageRequest.Builder(context).data(url).apply {
+            apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
+        }.build()
     }
-    val model = ImageRequest.Builder(context).data(url).apply {
-        apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
-    }.build()
-    AsyncImage(
+    SubcomposeAsyncImage(
         model = model,
         contentDescription = null,
         modifier = modifier,
         contentScale = contentScale,
         alignment = alignment,
         colorFilter = colorFilter,
-        onError = { failed = true },
+        loading = {
+            // Komikku-style: centered, always-rotating progress indicator.
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        },
+        error = {
+            // Komikku-style error page: icon + message + retry, centered.
+            // Failed pages keep the slot's aspect box so the pager does not
+            // jump; the retry button sits above the tap zones (preview 07).
+            val errorDetail = (painter.state as? AsyncImagePainter.State.Error)
+                ?.result?.throwable?.message
+                ?.takeIf { it.isNotBlank() }
+            Box(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        Icons.Outlined.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.reader_page_load_failed),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (errorDetail != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            errorDetail,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(onClick = { retryKey++ }) { Text(stringResource(R.string.reader_retry)) }
+                }
+            }
+        },
     )
 }
 
@@ -1356,9 +1544,9 @@ private fun nextMode(mode: String): String = when (mode) {
     else -> ReadingMode.WEBTOON
 }
 
-/** Chapter navigator pill (previews 07/39, webui ReaderPager /
- *  Aidoku bottom slider parity): previous chapter, current page over
- *  total, reversed slider and swapped arrows under RTL. */
+/** Chapter navigator (Komikku reader style): three capsules — previous
+ *  chapter, a ticked progress slider, next chapter. The slider is reversed
+ *  and the arrows swap under RTL. */
 @Composable
 private fun ChapterNavigator(
     state: ReaderUiState,
@@ -1370,56 +1558,74 @@ private fun ChapterNavigator(
     val rtl = state.dir == "rtl"
     val range = 0f..(state.pages.size - 1).coerceAtLeast(0).toFloat()
     val sliderValue = if (rtl) (range.endInclusive - state.index) else state.index.toFloat()
-    Surface(
-        color = containerColor,
-        shape = RoundedCornerShape(24.dp),
-        border = border,
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Surface(color = containerColor, shape = CircleShape, border = border) {
             IconButton(
                 onClick = { state.prevChapter?.let { viewModel.openChapter(it.id) } },
                 enabled = state.prevChapter != null,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     if (rtl) Icons.AutoMirrored.Outlined.NavigateNext else Icons.AutoMirrored.Outlined.NavigateBefore,
                     contentDescription = stringResource(R.string.reader_previous_chapter_desc),
-                    tint = contentColor,
+                    tint = if (state.prevChapter != null) contentColor else contentColor.copy(alpha = 0.38f),
                     modifier = Modifier.size(20.dp),
                 )
             }
-            Text(
-                if (state.doubleSpread(false) && !state.vertical) "${state.index + 1}–${(state.index + 2).coerceAtMost(state.pages.size)}"
-                else "${state.index + 1}",
-                color = contentColor,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Slider(
-                value = sliderValue,
-                onValueChange = { raw ->
-                    val target = if (rtl) range.endInclusive - raw else raw
-                    viewModel.seekTo(target.toInt())
-                },
-                valueRange = range,
-                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-            )
-            Text(
-                "/ ${state.pages.size}",
-                color = contentColor.copy(alpha = 0.65f),
-                style = MaterialTheme.typography.labelMedium,
-            )
+        }
+        Surface(
+            color = containerColor,
+            shape = RoundedCornerShape(24.dp),
+            border = border,
+            modifier = Modifier.weight(1f),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (state.doubleSpread(false) && !state.vertical) "${state.index + 1}–${(state.index + 2).coerceAtMost(state.pages.size)}"
+                    else "${state.index + 1}",
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                if (state.pages.size > 1) {
+                    // Komikku parity: M3 Slider with one step (tick dot) per
+                    // page; dragging snaps to whole pages.
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { raw ->
+                            val target = if (rtl) range.endInclusive - raw else raw
+                            viewModel.seekTo(target.toInt())
+                        },
+                        valueRange = range,
+                        steps = (state.pages.size - 2).coerceAtLeast(0),
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                Text(
+                    "/ ${state.pages.size}",
+                    color = contentColor.copy(alpha = 0.65f),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+        Surface(color = containerColor, shape = CircleShape, border = border) {
             IconButton(
                 onClick = { state.nextChapter?.let { viewModel.openChapter(it.id) } },
                 enabled = state.nextChapter != null,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     if (rtl) Icons.AutoMirrored.Outlined.NavigateBefore else Icons.AutoMirrored.Outlined.NavigateNext,
                     contentDescription = stringResource(R.string.reader_next_chapter_desc),
-                    tint = contentColor,
+                    tint = if (state.nextChapter != null) contentColor else contentColor.copy(alpha = 0.38f),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -1434,7 +1640,9 @@ private fun ChapterNavigator(
 @Composable
 private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
     var filter by remember { mutableStateOf("all") }
-    var descending by remember { mutableStateOf(false) }
+    // Shared per-manga chapter prefs (webui chapterPrefs parity): the
+    // toggle persists back to the same entry the detail page reads.
+    val descending = state.chapterPrefs.asc
 
     val unread = state.chapters.count { !it.isRead }
     val downloaded = state.chapters.count { it.isDownloaded || it.hasFinishedDownload }
@@ -1469,7 +1677,7 @@ private fun ChapterSheet(state: ReaderUiState, viewModel: ReaderViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { descending = !descending }) {
+                IconButton(onClick = { viewModel.toggleChapterAsc() }) {
                     Icon(
                         Icons.Outlined.Sort,
                         contentDescription = stringResource(
@@ -1574,7 +1782,10 @@ private fun ChapterGapRow(missing: Int) {
 
 @Composable
 private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: () -> Unit) {
-    val number = chapterLabel(chapter.volumeNumber, chapter.chapterNumber, null)
+    // No number → no number column at all (detail-page/webui parity), the
+    // title takes the full row width instead of squeezing beside an
+    // "未命名章节" placeholder.
+    val number = chapterNumberLabel(chapter.volumeNumber, chapter.chapterNumber)
     Surface(
         color = if (current) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
         else Color.Transparent,
@@ -1582,15 +1793,19 @@ private fun ChapterRow(chapter: ChapterWithDownload, current: Boolean, onClick: 
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).clickable(onClick = onClick),
     ) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                number,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(52.dp),
-            )
+            if (number.isNotEmpty()) {
+                Text(
+                    number,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(52.dp),
+                )
+            }
             Column(Modifier.weight(1f)) {
                 Text(
-                    chapter.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.reader_chapter_fallback, number),
+                    chapter.title?.takeIf { it.isNotBlank() }
+                        ?: if (number.isNotEmpty()) stringResource(R.string.reader_chapter_fallback, number)
+                        else chapterLabel(chapter.volumeNumber, chapter.chapterNumber, null),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

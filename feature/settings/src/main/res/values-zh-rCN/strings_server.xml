@@ -42,7 +42,7 @@
     <string name="settings_theme_amoled">AMOLED 纯黑</string>
     <string name="settings_theme_amoled_subtitle">背景 #000 纯黑，卡片与弹层保留近黑分层</string>
     <string name="settings_incognito">无痕阅读</string>
-    <string name="settings_incognito_subtitle">全局暂停记录阅读历史；漫画详情页可按单部覆盖</string>
+    <string name="settings_incognito_subtitle">在本机暂停记录阅读历史；漫画详情页可按单部覆盖</string>
 
     <!-- ServerSettingsScreen -->
     <string name="server_settings_saved">设置已保存</string>

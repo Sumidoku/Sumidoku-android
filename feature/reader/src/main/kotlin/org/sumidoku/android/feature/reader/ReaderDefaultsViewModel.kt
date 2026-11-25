@@ -6,9 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.roundToInt
+import org.sumidoku.android.core.common.launchGuarded
 
 /**
  * Global reader defaults (preview 24-reader-settings.html): the same fields the
@@ -40,7 +40,7 @@ class ReaderDefaultsViewModel @Inject constructor(
     val state: StateFlow<ReaderDefaultsState> = _state
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val prefs = ReaderPrefs.from(store.global.first())
             _state.value = ReaderDefaultsState(
                 loading = false,
@@ -79,16 +79,16 @@ class ReaderDefaultsViewModel @Inject constructor(
 
     fun setCoverFirst(value: Boolean) {
         _state.value = _state.value.copy(coverFirst = value)
-        viewModelScope.launch { store.setGlobal(ReaderField.COVER, value.toString()) }
+        viewModelScope.launchGuarded { store.setGlobal(ReaderField.COVER, value.toString()) }
     }
 
     private fun write(field: ReaderField, raw: String) {
         _state.value = _state.value.applied(field, raw)
-        viewModelScope.launch { store.setGlobal(field, raw) }
+        viewModelScope.launchGuarded { store.setGlobal(field, raw) }
     }
 
     fun reset() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             ReaderField.entries.forEach { store.setGlobal(it, null) }
             val prefs = ReaderPrefs.from(emptyMap())
             _state.value = ReaderDefaultsState(

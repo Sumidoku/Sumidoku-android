@@ -30,7 +30,9 @@ import javax.inject.Singleton
  * host, because the server answered.
  */
 @Singleton
-class SumidokuClientFactory @Inject constructor() {
+class SumidokuClientFactory @Inject constructor(
+    private val reachability: ServerReachability,
+) {
 
     // Shared with the decode tests via core:api — includes the contextual
     // java.net.URI serializer the generated models require.
@@ -41,6 +43,7 @@ class SumidokuClientFactory @Inject constructor() {
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .addInterceptor(AuthInterceptor(profile.apiKey))
+            .addInterceptor(ReachabilityInterceptor(reachability))
             .addInterceptor(FailoverInterceptor(profile))
             .addInterceptor(
                 HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC },
@@ -165,11 +168,26 @@ class SumidokuClientFactory @Inject constructor() {
     private fun isZhLocale(): Boolean =
         java.util.Locale.getDefault().language == java.util.Locale.CHINESE.language
 
-    private fun probeErrorNotSumidoku(): String =
-        if (isZhLocale()) "响应不是 Sumidoku 服务器" else "Not a Sumidoku server"
+    /** Traditional-Chinese locales: explicit `Hant` script, or TW/HK/MO region. */
+    private fun isHantLocale(): Boolean {
+        val locale = java.util.Locale.getDefault()
+        if (!isZhLocale()) return false
+        val script = locale.script
+        return script.equals("Hant", ignoreCase = true) ||
+            (script.isEmpty() && locale.country in setOf("TW", "HK", "MO"))
+    }
 
-    private fun probeErrorNoAddress(): String =
-        if (isZhLocale()) "无可用地址" else "No reachable address"
+    private fun probeErrorNotSumidoku(): String = when {
+        isHantLocale() -> "回應不是 Sumidoku 伺服器"
+        isZhLocale() -> "响应不是 Sumidoku 服务器"
+        else -> "Not a Sumidoku server"
+    }
+
+    private fun probeErrorNoAddress(): String = when {
+        isHantLocale() -> "無可用位址"
+        isZhLocale() -> "无可用地址"
+        else -> "No reachable address"
+    }
 
     private fun String.ensureTrailingSlash(): String = if (endsWith("/")) this else "$this/"
 
@@ -187,6 +205,24 @@ class SumidokuClientFactory @Inject constructor() {
             }
             return chain.proceed(request)
         }
+    }
+
+    /**
+     * Offline bookkeeping for a whole request. Placed before [FailoverInterceptor] so
+     * the mirror loop counts as a single attempt: one failure is recorded only when
+     * every candidate is unreachable, and any HTTP response — even an error status —
+     * marks the server reachable again.
+     */
+    private class ReachabilityInterceptor(
+        private val reachability: ServerReachability,
+    ) : okhttp3.Interceptor {
+        override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response =
+            try {
+                chain.proceed(chain.request()).also { reachability.recordSuccess() }
+            } catch (e: IOException) {
+                reachability.recordFailure()
+                throw e
+            }
     }
 
     private class FailoverInterceptor(private val profile: ServerProfile) : okhttp3.Interceptor {

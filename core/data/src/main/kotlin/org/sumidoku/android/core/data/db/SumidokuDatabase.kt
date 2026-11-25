@@ -4,10 +4,11 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ServerProfileEntity::class],
-    version = 1,
+    entities = [ServerProfileEntity::class, CatalogCacheEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class SumidokuDatabase : RoomDatabase() {
     abstract fun serverProfileDao(): ServerProfileDao
+    abstract fun catalogCacheDao(): CatalogCacheDao
 }

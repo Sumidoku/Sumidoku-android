@@ -47,9 +47,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.SourcesApi
 import org.sumidoku.android.core.api.model.LocalTrashEntry
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.common.relativeEpochMs
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -91,10 +91,10 @@ class TrashViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = TrashUiState(loading = false, error = appContext.getString(R.string.misc_no_server_selected))
-                return@launch
+                return@launchGuarded
             }
             try {
                 val propertyEntries = clientFactory.create<SourcesApi>(profile).listLocalTrash().await()
@@ -107,8 +107,8 @@ class TrashViewModel @Inject constructor(
     }
 
     fun restore(id: Long) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile).restoreLocalTrash(id.toLong()).await()
                 _state.value = _state.value.copy(message = appContext.getString(R.string.trash_restored))
@@ -121,8 +121,8 @@ class TrashViewModel @Inject constructor(
     }
 
     fun delete(id: Long) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<SourcesApi>(profile).purgeLocalTrash(id.toLong()).await()
                 _state.value = _state.value.copy(message = appContext.getString(R.string.trash_deleted_permanently))
@@ -137,8 +137,8 @@ class TrashViewModel @Inject constructor(
     /** Queue the server's empty-trash task (DELETE /local/trash — not
      *  in the generated client, so a tiny hand-written interface). */
     fun emptyTrash() {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<TrashOpsApi>(profile).emptyTrash().await()
                 _state.value = _state.value.copy(message = appContext.getString(R.string.trash_empty_queued))

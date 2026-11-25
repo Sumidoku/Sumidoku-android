@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="offline_indicator">服务器连接中断</string>
+    <string name="offline_indicator_hint">正在显示缓存内容——点按重试</string>
+</resources>

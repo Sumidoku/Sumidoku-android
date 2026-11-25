@@ -7,6 +7,10 @@
     <string name="library_sort">排序</string>
     <string name="library_filter">筛选</string>
     <string name="library_refresh">刷新</string>
+    <string name="library_search">搜索</string>
+    <string name="library_search_placeholder">搜索书库…</string>
+    <string name="library_search_clear">清除搜索</string>
+    <string name="library_search_close">关闭搜索</string>
     <string name="library_retry">重试</string>
 
     <!-- 排序菜单 -->
@@ -95,7 +99,8 @@
     <string name="library_form_list">列表</string>
     <string name="library_columns">列数</string>
     <string name="library_column_count">%1$d 列</string>
-    <string name="library_columns_hint">Auto 按最小封面宽 100dp 自适应；竖屏与横屏的列数分别记忆。</string>
+    <string name="library_columns_auto">自动</string>
+    <string name="library_columns_hint">竖屏与横屏的列数分别记忆，并同样应用于图源内的网格。</string>
     <string name="library_cover_badges">封面徽标</string>
     <string name="library_badge_unread">未读数角标</string>
     <string name="library_badge_download">已下载标记</string>

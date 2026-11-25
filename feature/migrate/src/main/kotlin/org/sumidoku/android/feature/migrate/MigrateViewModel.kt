@@ -12,7 +12,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.LibraryApi
 import org.sumidoku.android.core.api.MigrationApi
 import org.sumidoku.android.core.api.model.LibraryEntry
@@ -22,6 +21,7 @@ import org.sumidoku.android.core.api.model.MigrateRequest
 import org.sumidoku.android.core.api.model.MigrateResult
 import org.sumidoku.android.core.api.model.MigrationSource
 import org.sumidoku.android.core.api.model.SearchManga
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -90,11 +90,11 @@ class MigrateViewModel @Inject constructor(
 
     /** Re-run the source list load (the SOURCE step's retry button). */
     fun loadSources() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = true, error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = MigrateUiState(loading = false, error = appContext.getString(R.string.migrate_error_no_server))
-                return@launch
+                return@launchGuarded
             }
             try {
                 val sources = clientFactory.create<MigrationApi>(profile)
@@ -141,7 +141,7 @@ class MigrateViewModel @Inject constructor(
         // Cancel the in-flight page load: picking another source (or backing
         // out) must not let the stale response overwrite the new listing.
         entriesJob?.cancel()
-        entriesJob = viewModelScope.launch {
+        entriesJob = viewModelScope.launchGuarded {
             _state.value = _state.value.copy(entriesLoading = true)
             try {
                 val page = clientFactory.create<LibraryApi>(profile)
@@ -210,7 +210,7 @@ class MigrateViewModel @Inject constructor(
         }
         _state.value = s.copy(step = MigrateStep.MATCHING, matchRows = rows)
         matchingJob?.cancel()
-        matchingJob = viewModelScope.launch {
+        matchingJob = viewModelScope.launchGuarded {
             val resolved = coroutineScope {
                 rows.map { row ->
                     async {
@@ -256,7 +256,7 @@ class MigrateViewModel @Inject constructor(
         if (rows.isEmpty()) return
         _state.value = s.copy(step = MigrateStep.RUNNING)
         runJob?.cancel()
-        runJob = viewModelScope.launch {
+        runJob = viewModelScope.launchGuarded {
             try {
                 val entries = rows.map { row ->
                     MigrateEntry(

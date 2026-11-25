@@ -56,12 +56,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.AuthApi
 import org.sumidoku.android.core.api.model.ApiKeyCreateRequest
 import org.sumidoku.android.core.api.model.ApiKeyEntry
 import org.sumidoku.android.core.api.model.PasswordChangeRequest
 import org.sumidoku.android.core.common.formatEpochMs
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import org.sumidoku.android.core.ui.SettingsGroupCard
@@ -95,10 +95,10 @@ class ApiKeysViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = ApiKeysUiState(loading = false, error = appContext.getString(R.string.misc_no_server_selected))
-                return@launch
+                return@launchGuarded
             }
             try {
                 val keys = clientFactory.create<AuthApi>(profile).listApiKeys().await()
@@ -112,8 +112,8 @@ class ApiKeysViewModel @Inject constructor(
 
     fun create(name: String) {
         if (name.isBlank()) return
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true)
             try {
                 val created = clientFactory.create<AuthApi>(profile)
@@ -129,8 +129,8 @@ class ApiKeysViewModel @Inject constructor(
     }
 
     fun revoke(id: String) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 clientFactory.create<AuthApi>(profile).revokeApiKey(id).await()
                 _state.value = _state.value.copy(message = appContext.getString(R.string.api_keys_revoked))
@@ -143,8 +143,8 @@ class ApiKeysViewModel @Inject constructor(
     }
 
     fun changePassword(current: String, next: String) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true)
             try {
                 clientFactory.create<AuthApi>(profile)

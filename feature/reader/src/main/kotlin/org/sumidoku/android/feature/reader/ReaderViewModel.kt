@@ -12,10 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import org.sumidoku.android.core.api.MangaApi
-import org.sumidoku.android.core.api.SettingsApi
 import org.sumidoku.android.core.api.model.ChapterSort
 import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
@@ -23,7 +21,12 @@ import org.sumidoku.android.core.api.model.ProgressPatch
 import org.sumidoku.android.core.api.model.SortOrder
 import org.sumidoku.android.core.api.model.Viewer
 import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.chapterNumberLabel
 import org.sumidoku.android.core.common.coverUrl
+import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.data.ChapterPrefs
+import org.sumidoku.android.core.data.ChapterPrefsStore
+import org.sumidoku.android.core.data.IncognitoStore
 import org.sumidoku.android.core.data.OfflineProgressStore
 import org.sumidoku.android.core.data.PendingProgress
 import org.sumidoku.android.core.data.ServerProfileRepository
@@ -38,9 +41,14 @@ data class ReaderUiState(
     /** Cover URL used to seed the reader's dynamic colour scheme. */
     val coverUrl: String? = null,
     val pages: List<Page> = emptyList(),
-    /** Chapters in source order (ascending) — drives prev/next transitions
-     *  and the chapter drawer. */
+    /** Chapters newest-first in the current sort key (webui navChapters
+     *  parity) — drives prev/next transitions and the chapter drawer.
+     *  Derived from the shared per-manga chapter prefs (sort + filters);
+     *  trashed entries are dropped: the API refuses them (webui behaviour). */
     val chapters: List<ChapterWithDownload> = emptyList(),
+    /** Shared per-manga chapter list prefs (sort/filters/asc), same entry
+     *  the detail page edits (webui chapterPrefs parity). */
+    val chapterPrefs: ChapterPrefs = ChapterPrefs(),
     val chapterId: Long = 0,
     val index: Int = 0,
     /** Resolved reading mode: paged | continuous | webtoon. */
@@ -66,7 +74,7 @@ data class ReaderUiState(
     val viewer: Viewer? = null,
     /** Fields carrying a per-manga override (the chain block on screens 24/41). */
     val overridden: Set<ReaderField> = emptySet(),
-    /** Server incognito: progress writes are skipped entirely. */
+    /** App-local incognito: progress writes are skipped entirely. */
     val incognito: Boolean = false,
     val overlay: Boolean = false,
     val chapterSheet: Boolean = false,
@@ -83,14 +91,20 @@ data class ReaderUiState(
         get() = currentChapter?.let { ch ->
             chapterLabel(ch.volumeNumber, ch.chapterNumber, ch.title)
         }.orEmpty()
+    /** Number-only label (`第 X 话` / `Ch. X`) for the reader chrome subtitle.
+     *  Empty when the chapter has no numbers — the UI hides it instead of
+     *  showing an "untitled chapter" placeholder (detail-page parity). */
     val chapterNumberLabel: String
-        get() = currentChapter?.let { chapterLabel(it.volumeNumber, it.chapterNumber, null) } ?: ""
+        get() = currentChapter?.let { chapterNumberLabel(it.volumeNumber, it.chapterNumber) } ?: ""
+    /** Next in reading order = the newer chapter. The list is newest-first
+     *  (webui `nextCh = navChapters[pos - 1]` parity), so that is index - 1. */
     val nextChapter: ChapterWithDownload?
-        get() = chapters.indexOfFirst { it.id == chapterId }.takeIf { it >= 0 }
-            ?.let { chapters.getOrNull(it + 1) }
-    val prevChapter: ChapterWithDownload?
         get() = chapters.indexOfFirst { it.id == chapterId }.takeIf { it > 0 }
             ?.let { chapters.getOrNull(it - 1) }
+    /** Previous in reading order = the older chapter (index + 1). */
+    val prevChapter: ChapterWithDownload?
+        get() = chapters.indexOfFirst { it.id == chapterId }.takeIf { it >= 0 }
+            ?.let { chapters.getOrNull(it + 1) }
     /** Vertical continuous rendering (webtoon / continuous). */
     val vertical: Boolean get() = ReadingMode.isVertical(mode)
     /** Spread of two pages is displayed for this layout/orientation. */
@@ -110,7 +124,9 @@ class ReaderViewModel @Inject constructor(
     private val clientFactory: SumidokuClientFactory,
     private val localDownloads: org.sumidoku.android.core.download.LocalDownloadEngine,
     private val offlineProgressStore: OfflineProgressStore,
+    private val incognitoStore: IncognitoStore,
     private val settingsStore: ReaderSettingsStore,
+    private val chapterPrefsStore: ChapterPrefsStore,
 ) : ViewModel() {
 
     val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
@@ -135,29 +151,53 @@ class ReaderViewModel @Inject constructor(
 
     private val globalPrefs: ReaderPrefs get() = ReaderPrefs.from(globalRaw)
 
+    /** Shared per-manga chapter list prefs (sort/filters/asc). */
+    private var chapterPrefs = ChapterPrefs()
+    /** Raw API chapter list (source_order ASC = newest-first); navChapters()
+     *  derives the navigation/drawer list from it. */
+    private var rawChapters: List<ChapterWithDownload> = emptyList()
+
+    /** Navigation list (webui navChapters parity): the shared prefs' sort
+     *  key + filters applied, always descending in that key (asc only
+     *  affects the detail page's display order). Trashed chapters are
+     *  unreadable (the API refuses them), so they are dropped. */
+    private fun navChapters(): List<ChapterWithDownload> =
+        chapterPrefs.copy(asc = false).applyTo(rawChapters).filter { !it.trashed }
+
     init {
         // Preference layers stream straight from DataStore so an edit in
         // the quick panel (or another surface) re-resolves immediately.
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             settingsStore.global.collect { raw ->
                 globalRaw = raw
                 refreshPreferences()
             }
         }
-        viewModelScope.launch {
+        // App-local incognito streams straight from DataStore, so toggling
+        // the switch mid-reading takes effect immediately (and there is no
+        // server round-trip at chapter open).
+        viewModelScope.launchGuarded {
+            incognitoStore.enabled.collect { enabled ->
+                _state.value = _state.value.copy(incognito = enabled)
+            }
+        }
+        viewModelScope.launchGuarded {
             settingsStore.overrides(mangaId).collect { raw ->
                 overrideRaw = raw
                 refreshPreferences()
             }
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first()
             if (profile == null) {
                 _state.value = ReaderUiState(loading = false, error = appContext.getString(R.string.reader_no_server))
-                return@launch
+                return@launchGuarded
             }
             _state.value = _state.value.copy(profile = profile)
-            loadIncognito(profile)
+            // Shared per-manga chapter prefs (webui chapterPrefs parity):
+            // the drawer/navigation honour the detail page's sort + filters.
+            chapterPrefs = chapterPrefsStore.load(mangaId) ?: ChapterPrefs()
+            _state.value = _state.value.copy(chapterPrefs = chapterPrefs)
             loadMangaViewer(profile)
             loadChapters(profile)
             openChapter(initialChapterId)
@@ -211,14 +251,6 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadIncognito(profile: ServerProfile) {
-        try {
-            val settings = clientFactory.create<SettingsApi>(profile).getSettings().await()
-            _state.value = _state.value.copy(incognito = settings.incognito.enabled)
-        } catch (_: Exception) {
-        }
-    }
-
     private suspend fun loadChapters(profile: ServerProfile) {
         try {
             val api = clientFactory.create<MangaApi>(profile)
@@ -227,7 +259,8 @@ class ReaderViewModel @Inject constructor(
                 sort = ChapterSort.SOURCE,
                 order = SortOrder.ASC,
             ).await()
-            _state.value = _state.value.copy(chapters = chapters, chaptersError = null)
+            rawChapters = chapters
+            _state.value = _state.value.copy(chapters = navChapters(), chaptersError = null)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             // The drawer must explain the empty list instead of silently
@@ -243,7 +276,18 @@ class ReaderViewModel @Inject constructor(
 
     fun retryChapters() {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch { loadChapters(profile) }
+        viewModelScope.launchGuarded { loadChapters(profile) }
+    }
+
+    /** Flip the shared chapter-list direction and persist it (webui
+     *  toggleAsc parity): the navigation list is always descending in the
+     *  sort key, so only the persisted preference (and the detail page's
+     *  display order) changes. */
+    fun toggleChapterAsc() {
+        val next = chapterPrefs.copy(asc = !chapterPrefs.asc)
+        chapterPrefs = next
+        _state.value = _state.value.copy(chapterPrefs = next)
+        viewModelScope.launchGuarded { chapterPrefsStore.save(mangaId, next) }
     }
 
     private var chapterJob: Job? = null
@@ -252,8 +296,8 @@ class ReaderViewModel @Inject constructor(
         // Cancel the in-flight chapter load: jumping chapters quickly must
         // not let the stale response overwrite the newer chapter's pages.
         chapterJob?.cancel()
-        chapterJob = viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        chapterJob = viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             _state.value = _state.value.copy(loading = true, error = null, chapterId = chapterId, index = 0)
             localPages = try {
                 localDownloads.localPages(chapterId)
@@ -301,11 +345,11 @@ class ReaderViewModel @Inject constructor(
     private fun writeProgress(index: Int) {
         if (_state.value.incognito) return
         progressJob?.cancel()
-        progressJob = viewModelScope.launch {
+        progressJob = viewModelScope.launchGuarded {
             delay(700)
             val cur = _state.value
-            if (cur.incognito) return@launch
-            val profile = cur.profile ?: return@launch
+            if (cur.incognito) return@launchGuarded
+            val profile = cur.profile ?: return@launchGuarded
             val finished = index >= cur.pages.size - 1
             try {
                 clientFactory.create<MangaApi>(profile).updateChapterProgress(
@@ -336,7 +380,7 @@ class ReaderViewModel @Inject constructor(
      *  value this manga would resolve to without it (webui self-cleaning). */
     private fun setMangaField(field: ReaderField, value: String, withoutOverride: String) {
         val keep = value != withoutOverride
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             settingsStore.setOverride(mangaId, field, value, keep)
         }
     }
@@ -350,7 +394,7 @@ class ReaderViewModel @Inject constructor(
         // "default" always clears the override: the manga then follows
         // its own viewer metadata, then the global default.
         if (dirPreference == "default") {
-            viewModelScope.launch { settingsStore.setOverride(mangaId, ReaderField.DIR, null, keep = false) }
+            viewModelScope.launchGuarded { settingsStore.setOverride(mangaId, ReaderField.DIR, null, keep = false) }
             return
         }
         val base = ViewerReading.dirOf(viewer) ?: globalPrefs.dir.takeIf { it != "default" } ?: "ltr"
@@ -371,17 +415,17 @@ class ReaderViewModel @Inject constructor(
 
     /** Reset to defaults: clears every override for this manga. */
     fun resetMangaOverrides() {
-        viewModelScope.launch { settingsStore.clearOverrides(mangaId) }
+        viewModelScope.launchGuarded { settingsStore.clearOverrides(mangaId) }
     }
 
     // Global-only fields (webui GLOBALIZED_KEYS: background, tap zones,
     // plus the visual comfort filters).
     fun setTapZones(value: String) {
-        viewModelScope.launch { settingsStore.setGlobal(ReaderField.TAP, value) }
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.TAP, value) }
     }
 
     fun setBackground(value: String) {
-        viewModelScope.launch { settingsStore.setGlobal(ReaderField.BG, value) }
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.BG, value) }
     }
 
     /** Slider feedback must be immediate; the DataStore write is debounced
@@ -390,7 +434,7 @@ class ReaderViewModel @Inject constructor(
         val clamped = value.coerceIn(0.5f, 1.5f)
         _state.value = _state.value.copy(brightness = clamped)
         brightnessJob?.cancel()
-        brightnessJob = viewModelScope.launch {
+        brightnessJob = viewModelScope.launchGuarded {
             delay(250)
             settingsStore.setGlobal(ReaderField.BRIGHT, clamped.toString())
         }
@@ -402,18 +446,18 @@ class ReaderViewModel @Inject constructor(
         val snapped = ((value * 2f).roundToInt() / 2f).coerceIn(1f, 8f)
         _state.value = _state.value.copy(doubleTapZoom = snapped)
         doubleTapZoomJob?.cancel()
-        doubleTapZoomJob = viewModelScope.launch {
+        doubleTapZoomJob = viewModelScope.launchGuarded {
             delay(250)
             settingsStore.setGlobal(ReaderField.DTZOOM, snapped.toString())
         }
     }
 
     fun setGrayscale(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setGlobal(ReaderField.GRAY, enabled.toString()) }
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.GRAY, enabled.toString()) }
     }
 
     fun setSepia(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setGlobal(ReaderField.SEPIA, enabled.toString()) }
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.SEPIA, enabled.toString()) }
     }
 
     fun toggleOverlay() {

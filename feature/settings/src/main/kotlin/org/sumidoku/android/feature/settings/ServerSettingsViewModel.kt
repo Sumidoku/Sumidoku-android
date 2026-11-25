@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.CategoriesApi
 import org.sumidoku.android.core.api.SettingsApi
 import org.sumidoku.android.core.api.model.BackupSettings
@@ -18,6 +17,7 @@ import org.sumidoku.android.core.api.model.DownloadSettings
 import org.sumidoku.android.core.api.model.LibrarySettings
 import org.sumidoku.android.core.api.model.PutSettingsRequest
 import org.sumidoku.android.core.api.model.ServerSettings
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
@@ -47,8 +47,8 @@ class ServerSettingsViewModel @Inject constructor(
     init { refresh() }
 
     fun refresh() {
-        viewModelScope.launch {
-            val p = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val p = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(loading = true, error = null)
             try {
                 val settings = factory.create<SettingsApi>(p).getSettings().await()
@@ -75,8 +75,8 @@ class ServerSettingsViewModel @Inject constructor(
 
     fun save() {
         val s = _state.value.settings ?: return
-        viewModelScope.launch {
-            val p = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val p = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true, error = null, saved = false)
             try {
                 val effective = factory.create<SettingsApi>(p).putSettings(

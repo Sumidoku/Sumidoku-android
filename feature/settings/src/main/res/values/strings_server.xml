@@ -42,7 +42,7 @@
     <string name="settings_theme_amoled">AMOLED true black</string>
     <string name="settings_theme_amoled_subtitle">Pure #000 black background; cards and surfaces keep near-black layering</string>
     <string name="settings_incognito">Incognito reading</string>
-    <string name="settings_incognito_subtitle">Globally pause recording reading history; manga detail pages can override per manga</string>
+    <string name="settings_incognito_subtitle">Pause recording reading history on this device; manga detail pages can override per manga</string>
 
     <!-- ServerSettingsScreen -->
     <string name="server_settings_saved">Settings saved</string>

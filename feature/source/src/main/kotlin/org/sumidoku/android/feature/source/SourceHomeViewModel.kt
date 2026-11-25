@@ -14,7 +14,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -43,6 +42,9 @@ import org.sumidoku.android.core.api.model.MangaPage
 import org.sumidoku.android.core.api.model.SearchManga
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourceFilter
+import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.data.LibraryDisplay
+import org.sumidoku.android.core.data.LibraryDisplayStore
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.data.SourceSettingsAvailabilityStore
 import org.sumidoku.android.core.model.ServerProfile
@@ -105,6 +107,10 @@ data class SourceHomeUiState(
      *  schema — the top-bar gear and the overflow settings/login entry hide
      *  then. Defaults true so a failed probe never locks the entry away. */
     val hasSettings: Boolean = true,
+    /** Library display density (Komikku parity: the same per-orientation
+     *  columns preference drives this screen's grids). Only the columns are
+     *  used here — the source grid has one form. */
+    val display: LibraryDisplay = LibraryDisplay(),
     val error: String? = null,
 )
 
@@ -158,6 +164,7 @@ class SourceHomeViewModel @Inject constructor(
     private val clientFactory: SumidokuClientFactory,
     private val filterPrefs: SourceFilterPrefs,
     private val availabilityStore: SourceSettingsAvailabilityStore,
+    private val displayStore: LibraryDisplayStore,
 ) : ViewModel() {
 
     val sourceId: Long = checkNotNull(savedStateHandle["sourceId"])
@@ -195,10 +202,15 @@ class SourceHomeViewModel @Inject constructor(
     val state: StateFlow<SourceHomeUiState> = _state
 
     init {
+        // The browse/listing/search grids share the library display density,
+        // so the columns choice loads alongside the first refresh.
+        viewModelScope.launchGuarded {
+            _state.value = _state.value.copy(display = displayStore.load())
+        }
         refresh()
         if (hasDeepLink) {
             // The grid fetch needs the profile that refresh() is loading.
-            viewModelScope.launch {
+            viewModelScope.launchGuarded {
                 _state.first { it.profile != null }
                 loadMore()
             }
@@ -206,14 +218,14 @@ class SourceHomeViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = true, error = null, homeError = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = SourceHomeUiState(
                     loading = false,
                     error = appContext.getString(R.string.source_no_server),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
@@ -457,8 +469,8 @@ class SourceHomeViewModel @Inject constructor(
         // Deep-linked landings never fetched home — load it the first time
         // the user actually opens the home tab (Aidoku lazy parity).
         if (s.home == null && !s.home501 && s.homeError == null) {
-            viewModelScope.launch {
-                val profile = s.profile ?: repository.activeProfile.first() ?: return@launch
+            viewModelScope.launchGuarded {
+                val profile = s.profile ?: repository.activeProfile.first() ?: return@launchGuarded
                 val outcome = streamHome(profile)
                 _state.value = _state.value.copy(
                     home = outcome.home,
@@ -528,7 +540,7 @@ class SourceHomeViewModel @Inject constructor(
             openFilteredSearch(values)
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val value = genreFilterValue(ensureFiltersLoaded(), item.title)
             if (value != null) openFilteredSearch(listOf(value)) else search(item.title)
         }
@@ -545,14 +557,14 @@ class SourceHomeViewModel @Inject constructor(
         val query = (_state.value.mode as? SourceMode.SearchMode)?.query?.trim() ?: ""
         val next = groups + SavedFilterGroup(trimmed, query, currentFilterValues())
         _state.value = _state.value.copy(savedGroups = next)
-        viewModelScope.launch { runCatching { filterPrefs.saveSavedGroups(sourceId, next) } }
+        viewModelScope.launchGuarded { runCatching { filterPrefs.saveSavedGroups(sourceId, next) } }
         return true
     }
 
     fun deleteFilterGroup(name: String) {
         val next = _state.value.savedGroups.filterNot { it.name == name }
         _state.value = _state.value.copy(savedGroups = next)
-        viewModelScope.launch { runCatching { filterPrefs.saveSavedGroups(sourceId, next) } }
+        viewModelScope.launchGuarded { runCatching { filterPrefs.saveSavedGroups(sourceId, next) } }
     }
 
     /** Applying a saved group refills the draft and submits at once. The
@@ -658,7 +670,7 @@ class SourceHomeViewModel @Inject constructor(
             is SourceMode.ListingMode -> if (mode.entries != null && !mode.entries.hasNextPage) return else mode.page + (if (mode.entries == null) 0 else 1)
             is SourceMode.SearchMode -> if (mode.entries != null && !mode.entries.hasNextPage) return else mode.page + (if (mode.entries == null) 0 else 1)
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loadingMore = true, modeError = null)
             try {
                 val api = clientFactory.create<SourcesApi>(profile)
@@ -731,7 +743,7 @@ class SourceHomeViewModel @Inject constructor(
                             appContext.getString(R.string.source_search_empty_response),
                         )
                     }
-                    SourceMode.Home -> return@launch
+                    SourceMode.Home -> return@launchGuarded
                 }
                 val merged = when (mode) {
                     is SourceMode.ListingMode -> mode.copy(
@@ -771,7 +783,7 @@ class SourceHomeViewModel @Inject constructor(
     }
 
     private fun persistFilterValues(values: List<FilterValue>) {
-        viewModelScope.launch { runCatching { filterPrefs.saveValues(sourceId, values) } }
+        viewModelScope.launchGuarded { runCatching { filterPrefs.saveValues(sourceId, values) } }
     }
 
     private fun friendlyError(e: Throwable): String =

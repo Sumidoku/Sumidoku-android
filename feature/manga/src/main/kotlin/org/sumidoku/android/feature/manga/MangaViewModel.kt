@@ -1,6 +1,9 @@
 package org.sumidoku.android.feature.manga
 
 import org.sumidoku.android.core.common.chapterLabel
+import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.data.ChapterPrefs
+import org.sumidoku.android.core.data.ChapterPrefsStore
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -12,10 +15,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -159,9 +162,21 @@ data class MangaUiState(
      *  parity) and the chapter section shows an inline loading row. */
     val resolving: Boolean = false,
 ) {
-    /** First unread chapter, else the latest one — the "resume reading" target. */
+    /** "Continue reading" target (webui MangaDetailPage continueCh parity):
+     *  the most recently opened unfinished chapter, else the first unread
+     *  chapter in reading order (ascending in the active sort key), else
+     *  the first chapter in reading order. Trashed chapters and locked
+     *  chapters without a download are not readable and are skipped. */
     val resumeChapter: ChapterWithDownload?
-        get() = chapters.firstOrNull { !it.isRead } ?: chapters.lastOrNull()
+        get() {
+            fun readable(c: ChapterWithDownload) = !c.trashed && (!c.locked || c.isDownloaded)
+            val resume = visibleChapters
+                .filter { readable(it) && !it.isRead && (it.lastReadAt ?: 0L) > 0L }
+                .maxByOrNull { it.lastReadAt ?: 0L }
+            if (resume != null) return resume
+            val order = if (chapterPrefs.asc) visibleChapters else visibleChapters.asReversed()
+            return order.firstOrNull { readable(it) && !it.isRead } ?: order.firstOrNull()
+        }
 }
 
 @HiltViewModel(assistedFactory = MangaViewModel.Factory::class)
@@ -220,7 +235,7 @@ class MangaViewModel @AssistedInject constructor(
     }
 
     private fun observeLocalDownloads() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             localDownloads.init()
             localDownloads.observeForManga(mangaId).collect { rows ->
                 _state.value = _state.value.copy(
@@ -245,10 +260,10 @@ class MangaViewModel @AssistedInject constructor(
             _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_invalid_entry))
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_no_server))
-                return@launch
+                return@launchGuarded
             }
             val seed = MangaSeedStore.take(requestedSourceId, key)
             _state.value = _state.value.copy(
@@ -333,7 +348,7 @@ class MangaViewModel @AssistedInject constructor(
         val manga = _state.value.manga ?: return
         val chapter = _state.value.chapters.firstOrNull { it.id == chapterId } ?: return
         val label = chapterLabel(chapter.volumeNumber, chapter.chapterNumber, chapter.title)
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             localDownloads.enqueue(profile, chapterId, mangaId, manga.title, label)
         }
     }
@@ -408,7 +423,7 @@ class MangaViewModel @AssistedInject constructor(
             chapterPrefs = prefs,
             visibleChapters = prefs.applyTo(_state.value.chapters),
         )
-        viewModelScope.launch { chapterPrefsStore.save(mangaId, prefs) }
+        viewModelScope.launchGuarded { chapterPrefsStore.save(mangaId, prefs) }
     }
 
     fun refresh() {
@@ -418,11 +433,11 @@ class MangaViewModel @AssistedInject constructor(
             resolveUnregistered()
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = true, error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = MangaUiState(loading = false, error = appContext.getString(R.string.error_no_server))
-                return@launch
+                return@launchGuarded
             }
             try {
                 val api = clientFactory.create<MangaApi>(profile)
@@ -430,24 +445,36 @@ class MangaViewModel @AssistedInject constructor(
                 // against separate source calls server-side, and sequential
                 // awaits doubled the detail-screen latency (webui fires both
                 // queries independently as well).
-                val mangaDeferred = async { api.getManga(mangaId).await() }
-                val chaptersDeferred = async { api.getMangaChapters(mangaId).await() }
-                val manga = mangaDeferred.await()
-                _state.value = _state.value.copy(
-                    loading = false,
-                    profile = profile,
-                    manga = manga,
-                )
-                loadSearchMeta(profile, manga.sourceId)
-                loadLinks()
-                val chapters = chaptersDeferred.await()
-                val prefs = chapterPrefsStore.load(mangaId) ?: _state.value.chapterPrefs
-                _state.value = _state.value.copy(
-                    chapterPrefs = prefs,
-                    chapters = chapters,
-                    visibleChapters = prefs.applyTo(chapters),
-                )
+                //
+                // `coroutineScope` is load-bearing, not decoration: an `async`
+                // child started directly in the view-model coroutine that throws
+                // reports to the scope's exception handler (there is none)
+                // instead of surfacing at `.await()`, which killed the process
+                // when the server was unreachable. Inside coroutineScope the
+                // failure is contained, cancels the sibling request and is
+                // rethrown here.
+                coroutineScope {
+                    val mangaDeferred = async { api.getManga(mangaId).await() }
+                    val chaptersDeferred = async { api.getMangaChapters(mangaId).await() }
+                    val manga = mangaDeferred.await()
+                    _state.value = _state.value.copy(
+                        loading = false,
+                        profile = profile,
+                        manga = manga,
+                    )
+                    loadSearchMeta(profile, manga.sourceId)
+                    loadLinks()
+                    val chapters = chaptersDeferred.await()
+                    val prefs = chapterPrefsStore.load(mangaId) ?: _state.value.chapterPrefs
+                    _state.value = _state.value.copy(
+                        chapterPrefs = prefs,
+                        chapters = chapters,
+                        visibleChapters = prefs.applyTo(chapters),
+                    )
+                    chaptersLoadedOnce = true
+                }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, profile = profile, error = e.message ?: e.toString())
             }
         }
@@ -463,8 +490,8 @@ class MangaViewModel @AssistedInject constructor(
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
         if (_state.value.refreshingDetails) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(refreshingDetails = true, refreshNote = null)
             try {
                 var result: Manga? = null
@@ -503,8 +530,8 @@ class MangaViewModel @AssistedInject constructor(
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
         if (_state.value.refreshingChapters) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(refreshingChapters = true, refreshNote = appContext.getString(R.string.msg_refreshing_chapters))
             try {
                 var result: List<ChapterWithDownload>? = null
@@ -554,8 +581,15 @@ class MangaViewModel @AssistedInject constructor(
     private fun loadSearchMeta(profile: ServerProfile, sourceId: Long) {
         if (searchMetaLoaded) return
         searchMetaLoaded = true
-        viewModelScope.launch {
-            val api = clientFactory.create<SourcesApi>(profile)
+        viewModelScope.launchGuarded {
+            // `create` already sits inside runCatching: it throws on an invalid
+            // base URL, and an exception escaping a launched coroutine is
+            // uncaught (no scope handler) — i.e. a process crash, not a no-op.
+            val api = runCatching { clientFactory.create<SourcesApi>(profile) }.getOrNull()
+            if (api == null) {
+                searchMetaLoaded = false
+                return@launchGuarded
+            }
             val config = runCatching {
                 api.listSources().await().firstOrNull { it.id == sourceId }?.config
             }.getOrNull()
@@ -568,8 +602,8 @@ class MangaViewModel @AssistedInject constructor(
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
         val manga = _state.value.manga ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val api = clientFactory.create<LibraryApi>(profile)
                 if (manga.inLibrary) {
@@ -589,8 +623,8 @@ class MangaViewModel @AssistedInject constructor(
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
         val manga = _state.value.manga ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val api = clientFactory.create<MangaApi>(profile)
                 val updated = api.updateManga(mangaId, UpdateMangaRequest(incognito = !manga.incognito)).await()
@@ -604,8 +638,8 @@ class MangaViewModel @AssistedInject constructor(
     fun markAllChapters(read: Boolean) {
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val api = clientFactory.create<MangaApi>(profile)
                 api.batchUpdateChapters(
@@ -617,6 +651,22 @@ class MangaViewModel @AssistedInject constructor(
                 refresh()
             } catch (_: Exception) {
             }
+        }
+    }
+
+    /** True after the first successful chapter fetch: the resume-refresh
+     *  below must not double the initial load (ON_RESUME fires on first
+     *  display too). */
+    private var chaptersLoadedOnce = false
+
+    /** Returning from the reader (or any pushed page) silently re-syncs the
+     *  chapter rows: progress written elsewhere does not propagate by
+     *  itself, so without this the list stayed stale until re-entering the
+     *  page (webui's chapters-query invalidation equivalent). */
+    fun onResume() {
+        if (mangaId <= 0 || !chaptersLoadedOnce || _state.value.loading) return
+        viewModelScope.launchGuarded {
+            runCatching { reloadChapters() }
         }
     }
 
@@ -634,8 +684,8 @@ class MangaViewModel @AssistedInject constructor(
     fun batchMarkRead(chapterIds: List<Long>, read: Boolean) {
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             val targets = if (read) {
                 chapterIds.filter { id ->
                     _state.value.chapters.firstOrNull { it.id == id }
@@ -652,7 +702,7 @@ class MangaViewModel @AssistedInject constructor(
                         appContext.getString(R.string.error_no_actionable_chapters)
                     },
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val res = clientFactory.create<MangaApi>(profile).batchUpdateChapters(
@@ -691,8 +741,8 @@ class MangaViewModel @AssistedInject constructor(
     fun batchBookmark(chapterIds: List<Long>, bookmarked: Boolean) {
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val res = clientFactory.create<MangaApi>(profile).batchUpdateChapters(
                     org.sumidoku.android.core.api.model.BatchProgressRequest(
@@ -718,8 +768,8 @@ class MangaViewModel @AssistedInject constructor(
     fun downloadChapters(chapterIds: List<Long>) {
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val res = clientFactory.create<DownloadsApi>(profile)
                     .enqueueDownloads(EnqueueDownloadsRequest(chapterIds = chapterIds)).await()
@@ -739,8 +789,8 @@ class MangaViewModel @AssistedInject constructor(
             _state.value.chapters.firstOrNull { it.id == id }?.hasFinishedDownload == true
         }
         if (finished.isEmpty()) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val res = clientFactory.create<DownloadsApi>(profile).deleteDownloads(
                     DeleteDownloadsRequest(chapterIds = finished, finishedOnly = true),
@@ -755,8 +805,8 @@ class MangaViewModel @AssistedInject constructor(
 
     /** M2/M7: categories editor data and save. */
     fun loadCategories() {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val categories = clientFactory.create<org.sumidoku.android.core.api.CategoriesApi>(profile)
                     .listCategories()
@@ -768,8 +818,8 @@ class MangaViewModel @AssistedInject constructor(
     }
 
     fun saveCategories(ids: Set<Long>) {
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val updated = clientFactory.create<org.sumidoku.android.core.api.CategoriesApi>(profile)
                     .setMangaCategories(
@@ -788,8 +838,8 @@ class MangaViewModel @AssistedInject constructor(
     fun enqueueChapter(chapterId: Long) {
         // Unregistered placeholder page: no server ids yet, so no-op.
         if (mangaId <= 0) return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             try {
                 val api = clientFactory.create<DownloadsApi>(profile)
                 api.enqueueDownloads(EnqueueDownloadsRequest(chapterIds = listOf(chapterId))).await()
@@ -825,7 +875,7 @@ class MangaViewModel @AssistedInject constructor(
         unlock: List<MetadataField>,
     ) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(editBusy = true)
             try {
                 val api = clientFactory.create<MangaApi>(profile)
@@ -847,7 +897,7 @@ class MangaViewModel @AssistedInject constructor(
     /** Restore source metadata and drop locks (webui "restore source metadata"). */
     fun restoreMetadata() {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(editBusy = true)
             try {
                 val result = clientFactory.create<MetadataApi>(profile)
@@ -864,7 +914,7 @@ class MangaViewModel @AssistedInject constructor(
 
     fun loadAlternates() {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(coverBusy = true)
             try {
                 val urls = clientFactory.create<MangaApi>(profile)
@@ -877,7 +927,7 @@ class MangaViewModel @AssistedInject constructor(
 
     fun selectCover(url: String) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(coverBusy = true)
             try {
                 val updated = clientFactory.create<MangaApi>(profile)
@@ -905,7 +955,7 @@ class MangaViewModel @AssistedInject constructor(
         val profile = _state.value.profile ?: return
         val meta = _meta.value
         val query = meta.matchQuery.ifBlank { _state.value.manga?.title ?: return }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(matchLoading = true, preview = null)
             try {
                 val results = clientFactory.create<TrackersApi>(profile)
@@ -918,7 +968,7 @@ class MangaViewModel @AssistedInject constructor(
 
     fun loadPreview(item: TrackSearchItem) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(matchLoading = true)
             try {
                 val preview = clientFactory.create<MetadataApi>(profile)
@@ -952,7 +1002,7 @@ class MangaViewModel @AssistedInject constructor(
         val profile = _state.value.profile ?: return
         val meta = _meta.value
         val preview = meta.preview ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(applyBusy = true)
             try {
                 val result = clientFactory.create<MetadataApi>(profile)
@@ -981,7 +1031,7 @@ class MangaViewModel @AssistedInject constructor(
 
     fun loadLinks() {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true)
             try {
                 val links = clientFactory.create<TrackersApi>(profile)
@@ -998,15 +1048,23 @@ class MangaViewModel @AssistedInject constructor(
      *  state cannot be read is flagged instead of failing the whole list. */
     private fun loadRemoteStates(links: List<TrackerLink>) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             if (links.isEmpty()) {
                 _meta.value = _meta.value.copy(remoteStates = emptyMap())
-                return@launch
+                return@launchGuarded
             }
             _meta.value = _meta.value.copy(
                 remoteStates = links.associate { it.provider to TrackerRemote(loading = true) },
             )
-            val api = clientFactory.create<TrackersApi>(profile)
+            // Same hazard as loadSearchMeta: `create` throws on an invalid base
+            // URL, and an exception escaping viewModelScope.launchGuarded is uncaught.
+            val api = runCatching { clientFactory.create<TrackersApi>(profile) }.getOrNull()
+            if (api == null) {
+                _meta.value = _meta.value.copy(
+                    remoteStates = links.associate { it.provider to TrackerRemote(failed = true) },
+                )
+                return@launchGuarded
+            }
             val loaded = LinkedHashMap<TrackerProvider, TrackerRemote>()
             links.forEach { link ->
                 val remote = try {
@@ -1096,7 +1154,7 @@ class MangaViewModel @AssistedInject constructor(
         val offset = meta.editChapterOffset.trim().toIntOrNull() ?: link.chapterOffset
         val linkChanged = meta.editTrackMode != link.trackMode || offset != link.chapterOffset
         val initial = meta.remoteStates[link.provider]?.state
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true)
             try {
                 val api = clientFactory.create<TrackersApi>(profile)
@@ -1178,7 +1236,7 @@ class MangaViewModel @AssistedInject constructor(
         val profile = _state.value.profile ?: return
         val meta = _meta.value
         val query = meta.linkAddQuery.ifBlank { _state.value.manga?.title ?: return }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkAddLoading = true)
             try {
                 val results = clientFactory.create<TrackersApi>(profile)
@@ -1197,7 +1255,7 @@ class MangaViewModel @AssistedInject constructor(
     /** Bind the manga to a tracker entry (PUT upsert semantics). */
     fun addLink(provider: TrackerProvider, item: TrackSearchItem) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true)
             try {
                 clientFactory.create<TrackersApi>(profile)
@@ -1214,7 +1272,7 @@ class MangaViewModel @AssistedInject constructor(
 
     fun removeLink(provider: TrackerProvider) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true)
             try {
                 clientFactory.create<TrackersApi>(profile)
@@ -1232,7 +1290,7 @@ class MangaViewModel @AssistedInject constructor(
      *  sheet asks for confirmation, then applySync applies for real. */
     fun syncLink(provider: TrackerProvider) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true, syncPreview = null)
             try {
                 val result = clientFactory.create<TrackersApi>(profile)
@@ -1246,7 +1304,7 @@ class MangaViewModel @AssistedInject constructor(
     /** Apply the previewed sync-pull for real. */
     fun applySync(provider: TrackerProvider) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _meta.value = _meta.value.copy(linkBusy = true, syncPreview = null)
             try {
                 val result = clientFactory.create<TrackersApi>(profile)
@@ -1269,8 +1327,8 @@ class MangaViewModel @AssistedInject constructor(
      *  host the migrated entry. */
     fun startMigration() {
         val manga = _state.value.manga ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             _meta.value = _meta.value.copy(
                 migrationSources = null,
                 migrationTargetId = null,
@@ -1290,8 +1348,8 @@ class MangaViewModel @AssistedInject constructor(
     /** Look up matches for this manga in the chosen target source. */
     fun selectMigrationTarget(targetSourceId: Long) {
         val manga = _state.value.manga ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             _meta.value = _meta.value.copy(
                 migrationTargetId = targetSourceId,
                 migrationCandidates = null,
@@ -1324,8 +1382,8 @@ class MangaViewModel @AssistedInject constructor(
         val manga = _state.value.manga ?: return
         val targetId = _meta.value.migrationTargetId ?: return
         val candidate = _meta.value.migrationSelected ?: return
-        viewModelScope.launch {
-            val profile = _state.value.profile ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = _state.value.profile ?: return@launchGuarded
             _meta.value = _meta.value.copy(migrationBusy = true)
             try {
                 val response = clientFactory.create<MigrationApi>(profile)

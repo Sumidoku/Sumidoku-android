@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="servers_title">伺服器</string>
+    <string name="servers_add">新增伺服器</string>
+    <string name="servers_add_confirm">新增</string>
+    <string name="servers_cancel">取消</string>
+    <string name="servers_verifying">驗證中…</string>
+    <string name="servers_empty_title">尚無伺服器</string>
+    <string name="servers_empty_desc">新增你的 Sumidoku 執行個體以開始</string>
+    <string name="servers_current">目前伺服器</string>
+    <string name="servers_delete">刪除</string>
+    <string name="servers_mirrors">+%1$d 鏡像</string>
+    <string name="servers_name_optional">名稱（選填）</string>
+    <string name="servers_url_label">位址 *</string>
+    <string name="servers_url_placeholder">http://192.168.1.10:4567</string>
+    <string name="servers_credential_key">API Key</string>
+    <string name="servers_credential_password">使用者名稱密碼</string>
+    <string name="servers_api_key_optional">API Key（選填）</string>
+    <string name="servers_api_key_hint">於伺服器設定 → 系統 → API keys 建立</string>
+    <string name="servers_username">使用者名稱</string>
+    <string name="servers_password">密碼</string>
+    <string name="servers_password_hint">登入以換取 30 天滾動工作階段權杖，與 webui 相同機制</string>
+    <string name="servers_mirrors_label">鏡像位址（選填，每行一個）</string>
+    <string name="servers_error_probe_failed">無法連線或非 Sumidoku 伺服器（/api/v1/version：%1$s）</string>
+    <string name="servers_error_bad_credentials">使用者名稱或密碼錯誤</string>
+    <string name="servers_error_login_http">登入失敗（HTTP %1$d）</string>
+    <string name="servers_error_login">登入失敗：%1$s</string>
+</resources>

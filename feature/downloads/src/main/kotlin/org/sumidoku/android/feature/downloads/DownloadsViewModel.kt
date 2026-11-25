@@ -16,6 +16,7 @@ import org.sumidoku.android.core.api.model.DeleteDownloadsRequest
 import org.sumidoku.android.core.api.model.EnqueueDownloadsRequest
 import org.sumidoku.android.core.api.model.Download
 import org.sumidoku.android.core.api.model.DownloadStatus
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.download.LocalDownloadEngine
 import org.sumidoku.android.core.download.LocalDownloadEntity
@@ -69,7 +70,7 @@ class DownloadsViewModel @Inject constructor(
     init {
         refresh()
         loadCacheStats()
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             localDownloads.init()
             localDownloads.observeAll().collect { rows ->
                 _state.value = _state.value.copy(local = rows)
@@ -88,7 +89,7 @@ class DownloadsViewModel @Inject constructor(
 
     /** Storage management: wipe every local offline copy. */
     fun clearAllLocal() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             localDownloads.clearAll()
             refreshStorage()
         }
@@ -96,29 +97,38 @@ class DownloadsViewModel @Inject constructor(
 
     /** Remove a Tier B local copy (archive + extracted pages). */
     fun removeLocal(chapterId: Long) {
-        viewModelScope.launch { localDownloads.remove(chapterId) }
+        viewModelScope.launchGuarded { localDownloads.remove(chapterId) }
     }
 
     fun retryLocal(chapterId: Long) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch { localDownloads.retry(profile, chapterId) }
+        viewModelScope.launchGuarded { localDownloads.retry(profile, chapterId) }
     }
 
     fun refresh() {
         streamJob?.cancel()
-        streamJob = viewModelScope.launch {
+        streamJob = viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first()
             if (profile == null) {
                 _state.value = DownloadsUiState(
                     loading = false,
                     error = appContext.getString(R.string.downloads_error_no_server),
                 )
-                return@launch
+                return@launchGuarded
             }
             _state.value = _state.value.copy(profile = profile)
             restFallbackLoaded = false
             launch { restFallback(profile) }
-            eventsStream.events(profile).collect { event -> apply(event) }
+            // Guarded: `events()` builds an OkHttp client up front and throws on a
+            // malformed stored base URL; an exception escaping this coroutine is
+            // uncaught and would take the process down. Transport failures are not
+            // thrown — the stream reconnects with backoff.
+            try {
+                eventsStream.events(profile).collect { event -> apply(event) }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+            }
         }
     }
 
@@ -206,17 +216,17 @@ class DownloadsViewModel @Inject constructor(
         }
     }
 
-    fun start() = viewModelScope.launch {
+    fun start() = viewModelScope.launchGuarded {
         runCatching { api()?.startDownloads()?.await() }
         refresh()
     }
 
-    fun stop() = viewModelScope.launch {
+    fun stop() = viewModelScope.launchGuarded {
         runCatching { api()?.stopDownloads()?.await() }
         refresh()
     }
 
-    fun clearFinished() = viewModelScope.launch {
+    fun clearFinished() = viewModelScope.launchGuarded {
         try {
             val result = api()?.deleteDownloads(DeleteDownloadsRequest(finishedOnly = true))?.await()
             _state.value = _state.value.copy(
@@ -227,12 +237,12 @@ class DownloadsViewModel @Inject constructor(
         }
     }
 
-    fun delete(id: Long) = viewModelScope.launch {
+    fun delete(id: Long) = viewModelScope.launchGuarded {
         runCatching { api()?.deleteDownloads(DeleteDownloadsRequest(chapterIds = listOf(id)))?.await() }
     }
 
     /** Design 09: a failed row offers "tap to retry" — re-enqueue just that chapter. */
-    fun retry(chapterId: Long) = viewModelScope.launch {
+    fun retry(chapterId: Long) = viewModelScope.launchGuarded {
         try {
             api()?.enqueueDownloads(EnqueueDownloadsRequest(chapterIds = listOf(chapterId)))?.await()
             _state.value = _state.value.copy(message = appContext.getString(R.string.downloads_msg_requeued))
@@ -248,11 +258,11 @@ class DownloadsViewModel @Inject constructor(
     }
 
     /** Design 09 bottom card: chapter page cache accounting (server side). */
-    fun loadCacheStats() = viewModelScope.launch {
+    fun loadCacheStats() = viewModelScope.launchGuarded {
         val stats = runCatching {
             val profile = _state.value.profile ?: repository.activeProfile.first() ?: return@runCatching null
             clientFactory.create<CacheApi>(profile).chapterCacheStats().await()
-        }.getOrNull() ?: return@launch
+        }.getOrNull() ?: return@launchGuarded
         _state.value = _state.value.copy(
             cacheChapters = stats.chapterCount,
             cacheUsedBytes = stats.usedBytes,

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 搜尋頁 -->
+    <string name="search_title">搜尋</string>
+    <string name="search_back">返回</string>
+    <string name="search_placeholder">在所有圖源中搜尋…</string>
+    <string name="search_action">搜尋</string>
+    <string name="search_no_sources">目前的篩選條件下沒有可用的圖源</string>
+    <string name="search_prompt_source_count">輸入關鍵字，一次搜尋 %1$d 個圖源</string>
+    <string name="search_empty">找不到結果</string>
+    <string name="search_entry_count">%1$d 筆</string>
+    <string name="search_view_all">檢視全部</string>
+    <string name="search_loading">載入中…</string>
+    <string name="search_load_more">載入更多</string>
+    <string name="search_filter_ratings">分級</string>
+    <string name="search_filter_languages">語言</string>
+    <string name="search_filter_sources">圖源</string>
+    <string name="search_source_progress">%1$d/%2$d 個圖源</string>
+    <string name="search_reset">重設</string>
+    <string name="search_done">完成</string>
+    <string name="search_include">包含</string>
+    <string name="search_exclude">排除</string>
+
+    <!-- 內容分級 -->
+    <string name="search_rating_safe">安全</string>
+    <string name="search_rating_contains_nsfw">含 NSFW</string>
+    <string name="search_rating_nsfw">NSFW</string>
+
+    <!-- 語言標籤 -->
+    <string name="search_lang_multi">多語言</string>
+    <string name="search_lang_en">英語</string>
+    <string name="search_lang_ja">日語</string>
+    <string name="search_lang_zh">中文</string>
+    <string name="search_lang_ko">韓語</string>
+    <string name="search_lang_fr">法語</string>
+    <string name="search_lang_de">德語</string>
+    <string name="search_lang_es">西班牙語</string>
+    <string name="search_lang_pt">葡萄牙語</string>
+    <string name="search_lang_it">義大利語</string>
+    <string name="search_lang_ru">俄語</string>
+    <string name="search_lang_ar">阿拉伯語</string>
+    <string name="search_lang_hi">印地語</string>
+    <string name="search_lang_th">泰語</string>
+    <string name="search_lang_vi">越南語</string>
+    <string name="search_lang_id">印尼語</string>
+    <string name="search_lang_tr">土耳其語</string>
+    <string name="search_lang_pl">波蘭語</string>
+    <string name="search_lang_nl">荷蘭語</string>
+    <string name="search_lang_sv">瑞典語</string>
+    <string name="search_lang_uk">烏克蘭語</string>
+    <string name="search_lang_ro">羅馬尼亞語</string>
+    <string name="search_lang_cs">捷克語</string>
+    <string name="search_lang_el">希臘語</string>
+    <string name="search_lang_hu">匈牙利語</string>
+    <string name="search_lang_fi">芬蘭語</string>
+    <string name="search_lang_da">丹麥語</string>
+    <string name="search_lang_no">挪威語</string>
+    <string name="search_lang_he">希伯來語</string>
+    <string name="search_lang_fa">波斯語</string>
+    <string name="search_lang_ms">馬來語</string>
+    <string name="search_lang_tl">他加祿語</string>
+    <string name="search_lang_ca">加泰隆尼亞語</string>
+
+    <!-- ViewModel 結果與錯誤 -->
+    <string name="search_failed">搜尋失敗</string>
+    <string name="search_source_fallback">圖源 %1$d</string>
+</resources>

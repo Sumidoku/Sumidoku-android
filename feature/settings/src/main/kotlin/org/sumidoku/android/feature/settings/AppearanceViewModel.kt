@@ -6,7 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.AppearanceStore
 import javax.inject.Inject
 
@@ -20,6 +20,6 @@ class AppearanceViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
 
     fun setTheme(theme: String) {
-        viewModelScope.launch { appearanceStore.setTheme(theme) }
+        viewModelScope.launchGuarded { appearanceStore.setTheme(theme) }
     }
 }

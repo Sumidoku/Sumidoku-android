@@ -1,6 +1,7 @@
 package org.sumidoku.android.feature.source
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -127,6 +128,7 @@ import org.sumidoku.android.core.common.chapterLabel
 import org.sumidoku.android.core.common.entryCoverUrl
 import org.sumidoku.android.core.common.normalizeEpochMs
 import org.sumidoku.android.core.common.relativeEpochMs
+import org.sumidoku.android.core.data.LibraryDisplay
 
 /** Source home/listing/search screen — Aidoku SourceHomeContentView +
  *  webui SourceBrowsePage (filter header chips + panel). */
@@ -403,6 +405,7 @@ fun SourceHomeScreen(
                         baseUrl = state.profile?.baseUrl.orEmpty(),
                         sourceId = viewModel.sourceId,
                         isLocal = isLocal,
+                        display = state.display,
                         onOpen = {
                             // Aidoku instant render: hand the tapped entry to
                             // the detail page so the header shows before the
@@ -422,6 +425,7 @@ fun SourceHomeScreen(
                         baseUrl = state.profile?.baseUrl.orEmpty(),
                         sourceId = viewModel.sourceId,
                         isLocal = isLocal,
+                        display = state.display,
                         onOpen = {
                             // Aidoku instant render: hand the tapped entry to
                             // the detail page so the header shows before the
@@ -1812,6 +1816,7 @@ private fun MangaGrid(
     baseUrl: String,
     sourceId: Long,
     isLocal: Boolean,
+    display: LibraryDisplay,
     onOpen: (SearchManga) -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
@@ -1844,11 +1849,15 @@ private fun MangaGrid(
                 if (total > 0 && last != null && last >= total - 6) onLoadMore()
             }
     }
-    // Same rule as the library grid: tablets (smallest width ≥ 600dp) grow
-    // the minimum cell to KMReader's large grid size (152dp).
-    val minCell = if (LocalConfiguration.current.smallestScreenWidthDp >= 600) 152.dp else 110.dp
+    // Density follows the library display sheet (Komikku parity: the same
+    // per-orientation columns preference drives the browse grid). A fixed
+    // choice wins; Auto is adaptive at Komikku's default grid size (128dp),
+    // growing to the tablet large-grid size (152dp) at smallest width ≥ 600dp.
+    val configuration = LocalConfiguration.current
+    val fixedColumns = display.columns(configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+    val minCell = if (configuration.smallestScreenWidthDp >= 600) 152.dp else 128.dp
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = minCell),
+        columns = fixedColumns?.let { GridCells.Fixed(it) } ?: GridCells.Adaptive(minSize = minCell),
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(12.dp),

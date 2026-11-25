@@ -22,6 +22,9 @@
     <string name="reader_continue_reading">继续阅读</string>
     <string name="reader_back_to_previous">回到上一话</string>
     <string name="reader_stay_here">留在本话</string>
+    <string name="reader_transition_finished">本章已读完</string>
+    <string name="reader_transition_current">当前章节</string>
+    <string name="reader_transition_turn_to_continue">继续翻页或点击翻页区域进入</string>
     <string name="reader_next_chapter_label">下一话 · %1$s</string>
     <string name="reader_release_next_chapter">松手进入下一话</string>
     <string name="reader_keep_pulling_next">继续拖动进入下一话</string>

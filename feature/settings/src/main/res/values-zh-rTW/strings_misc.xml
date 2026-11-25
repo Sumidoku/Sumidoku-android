@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 本檔案涵蓋的各設定頁共用。 -->
+    <string name="misc_back">返回</string>
+    <string name="misc_cancel">取消</string>
+    <string name="misc_no_server_selected">未選擇伺服器</string>
+    <string name="misc_move_up">上移</string>
+    <string name="misc_move_down">下移</string>
+    <string name="misc_rename">重新命名</string>
+    <string name="misc_delete">刪除</string>
+    <string name="misc_save">儲存</string>
+    <string name="misc_name">名稱</string>
+    <string name="misc_create">建立</string>
+
+    <!-- 篩選群組頁面 + 檢視模型 -->
+    <string name="filter_groups_title">篩選群組</string>
+    <string name="filter_groups_new">新增篩選群組</string>
+    <string name="filter_groups_empty">還沒有篩選群組。\n篩選群組會把儲存的篩選規則套用到書庫。</string>
+    <string name="filter_groups_rule_count">%1$d 條規則</string>
+    <string name="filter_groups_edit_rules">編輯規則</string>
+    <string name="filter_groups_rename_title">重新命名「%1$s」</string>
+    <string name="filter_groups_delete_title">刪除篩選群組</string>
+    <string name="filter_groups_delete_text">確定刪除「%1$s」？書庫項目不會受影響。</string>
+    <string name="filter_groups_rules_title">規則 · %1$s</string>
+    <string name="filter_groups_exclude">排除</string>
+    <string name="filter_groups_remove_rule">移除規則</string>
+    <string name="filter_groups_add_rule">＋ 新增規則</string>
+    <string name="filter_groups_select_value">選擇…</string>
+    <string name="filter_groups_rating_safe">安全</string>
+    <string name="filter_rule_type_downloaded">已下載</string>
+    <string name="filter_rule_type_has_unread">有未讀</string>
+    <string name="filter_rule_type_started">已開始閱讀</string>
+    <string name="filter_rule_type_completed">已完結</string>
+    <string name="filter_rule_type_source">圖源</string>
+    <string name="filter_rule_type_content_rating">分級</string>
+    <string name="filter_rule_type_category">分類</string>
+    <string name="filter_rule_type_author">作者</string>
+    <string name="filter_rule_type_tag">標籤</string>
+    <string name="filter_rule_value_source">圖源 = %1$s</string>
+    <string name="filter_rule_value_content_rating">分級 = %1$s</string>
+    <string name="filter_rule_value_category">分類 = %1$s</string>
+    <string name="filter_rule_value_author">作者 = %1$s</string>
+    <string name="filter_rule_value_tag">標籤 = %1$s</string>
+    <string name="filter_rule_exclude_prefix">排除：%1$s</string>
+    <string name="filter_groups_created">已建立篩選群組</string>
+    <string name="filter_groups_renamed">已重新命名</string>
+    <string name="filter_groups_deleted">已刪除篩選群組</string>
+    <string name="filter_groups_rules_saved">已儲存規則</string>
+    <string name="filter_groups_order_saved">順序已儲存</string>
+
+    <!-- 資源回收筒頁面 + 檢視模型 -->
+    <string name="trash_title">本機資源回收筒</string>
+    <string name="trash_empty">資源回收筒是空的</string>
+    <string name="trash_empty_action">清空</string>
+    <string name="trash_restored">已還原</string>
+    <string name="trash_deleted_permanently">已永久刪除</string>
+    <string name="trash_empty_queued">清空資源回收筒的工作已排入佇列（見工作佇列）</string>
+    <string name="trash_entry_summary">已回收 %1$d 個章節 · 刪除於 %2$s</string>
+    <string name="trash_restore">還原</string>
+    <string name="trash_delete_forever">永久刪除</string>
+    <string name="trash_empty_dialog_title">清空資源回收筒</string>
+    <string name="trash_empty_dialog_text">將排入伺服器工作以永久刪除全部 %1$d 個項目，且無法復原。確定要繼續嗎？</string>
+    <string name="trash_delete_dialog_text">檔案將立即刪除，且無法復原。確定要繼續嗎？</string>
+
+    <!-- API 金鑰頁面 + 檢視模型 -->
+    <string name="api_keys_title">API 金鑰</string>
+    <string name="api_keys_change_password">修改密碼</string>
+    <string name="api_keys_new_key">新增金鑰</string>
+    <string name="api_keys_empty">還沒有 API 金鑰，點右下角新增</string>
+    <string name="api_keys_dates">建立於 %1$s</string>
+    <string name="api_keys_dates_with_last_used">建立於 %1$s · 最近使用 %2$s</string>
+    <string name="api_keys_revoke">撤銷</string>
+    <string name="api_keys_create_title">新增 API 金鑰</string>
+    <string name="api_keys_name_label">名稱（如：手機、平板）</string>
+    <string name="api_keys_save_key_title">妥善留存這組金鑰</string>
+    <string name="api_keys_save_key_text">金鑰只會顯示這一次，伺服器只儲存指紋。請立即複製留存：</string>
+    <string name="api_keys_saved_confirm">我已儲存</string>
+    <string name="api_keys_current_password">目前密碼</string>
+    <string name="api_keys_new_password">新密碼</string>
+    <string name="api_keys_change_confirm">修改</string>
+    <string name="api_keys_revoked">已撤銷</string>
+    <string name="api_keys_password_updated">密碼已更新</string>
+
+    <!-- 分類頁面 + 檢視模型 -->
+    <string name="categories_title">分類管理</string>
+    <string name="categories_new">新增分類</string>
+    <string name="categories_empty">還沒有分類</string>
+    <string name="categories_manga_count">%1$d 部漫畫</string>
+    <string name="categories_manga_count_default">%1$d 部漫畫 · 預設</string>
+    <string name="categories_rename_title">重新命名分類</string>
+    <string name="categories_created">已建立</string>
+    <string name="categories_renamed">已重新命名</string>
+    <string name="categories_deleted">已刪除</string>
+    <string name="categories_order_saved">已儲存順序</string>
+
+    <!-- 快取頁面 + 檢視模型 -->
+    <string name="cache_title">快取管理</string>
+    <string name="cache_chapter_title">章節頁快取</string>
+    <string name="cache_chapter_usage">%1$s / %2$s · %3$d 個章節</string>
+    <string name="cache_last_error">最近的錯誤：%1$s</string>
+    <string name="cache_clear_chapters">清空章節快取</string>
+    <string name="cache_cover_title">封面快取</string>
+    <string name="cache_cover_usage">%1$d 個項目 · %2$s</string>
+    <string name="cache_clear_covers">清空封面快取</string>
+    <string name="cache_cleared_bytes">已釋放 %1$s</string>
+    <string name="cache_cleared_covers">已清空 %1$d 個封面快取</string>
+
+    <!-- 工作佇列頁面 + 檢視模型 -->
+    <string name="tasks_title">工作佇列</string>
+    <string name="tasks_filter_all">全部</string>
+    <string name="tasks_filter_pending">佇列中</string>
+    <string name="tasks_filter_running">執行中</string>
+    <string name="tasks_filter_done">完成</string>
+    <string name="tasks_filter_failed">失敗</string>
+    <string name="tasks_empty">沒有工作</string>
+    <string name="tasks_source_number">來源 #%1$s</string>
+    <string name="tasks_cancel_task">取消工作</string>
+    <string name="tasks_cancelled">已取消</string>
+</resources>

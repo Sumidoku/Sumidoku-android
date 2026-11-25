@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="updates_title">更新</string>
+    <string name="updates_downloads">下載佇列</string>
+    <string name="updates_refresh">重新整理</string>
+    <string name="updates_retry">重試</string>
+    <string name="updates_empty">沒有新章節</string>
+    <string name="updates_section_hint">%1$d 部有新章</string>
+    <string name="updates_chapter_count">%1$d 話</string>
+    <string name="updates_running_title">正在更新書庫…</string>
+    <string name="updates_running_progress">%1$d/%2$d 完成 · 失敗 %3$d · 跳過 %4$d</string>
+    <string name="updates_summary_title">更新摘要</string>
+    <string name="updates_summary_never_run">還沒有執行過書庫更新。</string>
+    <string name="updates_summary_body">上次檢查 %1$s · 共檢查 %2$d 部 · 完成 %3$d · 失敗 %4$d · 跳過 %5$d。\n跳過規則（已讀完、連載已完結）與每個來源排程間隔皆在伺服器端。</string>
+    <string name="updates_error_no_server">未選擇伺服器</string>
+</resources>

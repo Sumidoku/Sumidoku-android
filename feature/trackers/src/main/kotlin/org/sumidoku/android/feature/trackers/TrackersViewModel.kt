@@ -8,11 +8,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.TrackersApi
 import org.sumidoku.android.core.api.model.TrackerOAuthStatus
 import org.sumidoku.android.core.api.model.TrackerPreferences
 import org.sumidoku.android.core.api.model.TrackerProvider
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -44,14 +44,14 @@ class TrackersViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = _state.value.statuses.isEmpty(), error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = TrackersUiState(
                     loading = false,
                     error = appContext.getString(R.string.trackers_error_no_server),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val api = clientFactory.create<TrackersApi>(profile)
@@ -77,7 +77,7 @@ class TrackersViewModel @Inject constructor(
      *  the WebView callback navigation (API-key bearer — no cookie flow). */
     fun completeOauth(provider: TrackerProvider, code: String, state: String) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busyProvider = provider)
             try {
                 clientFactory.create<TrackersApi>(profile)
@@ -94,7 +94,7 @@ class TrackersViewModel @Inject constructor(
 
     fun logout(provider: TrackerProvider) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(busyProvider = provider)
             try {
                 clientFactory.create<TrackersApi>(profile).trackerOauthLogout(provider).await()
@@ -109,7 +109,7 @@ class TrackersViewModel @Inject constructor(
 
     fun setDefault(provider: TrackerProvider?) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             try {
                 clientFactory.create<TrackersApi>(profile)
                     .putTrackerPreferences(TrackerPreferences(defaultTracker = provider))

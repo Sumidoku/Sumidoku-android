@@ -1,4 +1,4 @@
-package org.sumidoku.android.feature.manga
+package org.sumidoku.android.core.data
 
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey

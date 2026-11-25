@@ -42,10 +42,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.CacheApi
 import org.sumidoku.android.core.api.model.ChapterCacheStats
 import org.sumidoku.android.core.api.model.CoverCacheStats
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
@@ -78,13 +78,13 @@ class CacheViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = CacheUiState(
                     loading = false,
                     error = appContext.getString(R.string.misc_no_server_selected),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val api = clientFactory.create<CacheApi>(profile)
@@ -99,8 +99,8 @@ class CacheViewModel @Inject constructor(
     }
 
     fun clearChapterCache() {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true)
             try {
                 val result = clientFactory.create<CacheApi>(profile).clearChapterCache().await()
@@ -117,8 +117,8 @@ class CacheViewModel @Inject constructor(
     }
 
     fun clearCoverCache() {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             _state.value = _state.value.copy(busy = true)
             try {
                 val result = clientFactory.create<CacheApi>(profile).clearCoverCache().await()

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 歷史頁 -->
+    <string name="history_title">歷史</string>
+    <string name="history_refresh">重新整理</string>
+    <string name="history_retry">重試</string>
+    <string name="history_empty">還沒有閱讀紀錄</string>
+
+    <!-- 項目副標題：閱讀題：閱讀狀態、頁數進度、時間 -->
+    <string name="history_progress_finished">已讀完 · %1$s</string>
+    <string name="history_progress_reading">讀到 %1$d / %2$d 頁 · %3$s</string>
+    <string name="history_progress_reading_unknown">讀到 %1$d 頁 · %2$s</string>
+    <string name="history_more_entries">還有 %1$d 筆</string>
+
+    <!-- 項目尾端標籤 -->
+    <string name="history_tag_finished">讀完</string>
+    <string name="history_tag_continue">繼續</string>
+
+    <!-- ViewModel 結果與錯誤 -->
+    <string name="history_no_server">未選擇伺服器</string>
+</resources>

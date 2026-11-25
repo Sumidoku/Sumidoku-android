@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="repos_title">圖源倉庫</string>
+    <string name="repos_back">返回</string>
+    <string name="repos_add_repo">新增倉庫</string>
+    <string name="repos_retry">重試</string>
+    <string name="repos_empty_title">尚無圖源倉庫</string>
+    <string name="repos_empty_desc">新增倉庫後即可瀏覽並安裝第三方圖源</string>
+    <string name="repos_added_header">已新增</string>
+    <string name="repos_index_cache_hint">索引快取在伺服器端，重新整理才會回源</string>
+    <string name="repos_index_url_label">倉庫索引 URL</string>
+    <string name="repos_fetching_index">正在擷取索引…</string>
+    <string name="repos_add">新增</string>
+    <string name="repos_cancel">取消</string>
+    <string name="repos_delete_dialog_title">刪除倉庫？</string>
+    <string name="repos_delete_dialog_message">已安裝的圖源不受影響，但將無法再接收此倉庫的更新。</string>
+    <string name="repos_delete">刪除</string>
+    <string name="repos_not_refreshed">未重新整理</string>
+    <string name="repos_stale_warning">上次重新整理失敗（沿用舊快取）· %1$s</string>
+    <string name="repos_source_count_refreshed">%1$d 個圖源 · %2$s 重新整理</string>
+    <string name="repos_refresh">重新整理</string>
+    <string name="repos_error_no_server">未選擇伺服器</string>
+    <string name="repos_error_unknown">未知錯誤</string>
+    <string name="repos_msg_index_refreshed">索引已重新整理</string>
+    <string name="repos_msg_refresh_failed">重新整理失敗：%1$s</string>
+    <string name="repos_msg_deleted">已刪除倉庫</string>
+    <string name="repos_msg_delete_failed">刪除失敗：%1$s</string>
+    <string name="repos_validation_url_empty">請輸入索引 URL</string>
+    <string name="repos_validation_url_invalid">URL 格式不正確</string>
+    <string name="repos_validation_url_scheme">僅支援 http/https</string>
+    <string name="repos_validation_url_no_host">URL 缺少主機名稱</string>
+    <string name="repos_validation_url_not_json">請貼上 index.json 的網址</string>
+</resources>

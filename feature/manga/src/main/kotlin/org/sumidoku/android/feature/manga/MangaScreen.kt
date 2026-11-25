@@ -34,6 +34,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.SaveAlt
@@ -68,6 +71,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
@@ -79,6 +85,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -339,6 +346,11 @@ fun MangaScreen(
             )
         },
     ) { padding ->
+        // Held as a nullable local so the body below can branch on it: a state
+        // that is not loading, carries no error and still has no detail (e.g. a
+        // cleared placeholder or a racing state write) used to be dereferenced
+        // with `!!` and took the whole process down.
+        val manga = state.manga
         when {
             state.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -350,8 +362,17 @@ fun MangaScreen(
                     TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.manga_retry)) }
                 }
             }
+            manga == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        stringResource(R.string.error_refresh_details_failed),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(R.string.manga_retry)) }
+                }
+            }
             else -> {
-                val manga = state.manga!!
                 // The header backdrop reaches behind the transparent app
                 // bar, so the list skips the scaffold's top padding and the
                 // header item pads its content down instead.
@@ -942,16 +963,30 @@ private fun MangaHeader(
     onFilterSearch: (List<FilterValue>) -> Unit,
     onCoverBitmap: (Bitmap) -> Unit = {},
 ) {
-    val manga = state.manga!!
+    // Defensive: the caller already branches on a null detail, but a header
+    // composable is also reachable from previews/other call sites.
+    val manga = state.manga ?: return
     val profile = state.profile
     // Expanded state shared by the description and the tag list (komikku:
     // tags wrap to a FlowRow once the description expands).
     var infoExpanded by remember { mutableStateOf(false) }
     Column(Modifier.padding(horizontal = 16.dp)) {
-        Row {
-            CoverImage(manga.id, manga.cover, profile, Modifier.size(108.dp, 144.dp), manga.sourceId, onCoverBitmap)
-            Spacer(Modifier.width(16.dp))
-            Column {
+        // Komikku parity: the cover is not a fixed phone thumbnail — it grows
+        // with the pane (tablets / two-panel layout get a real poster) and
+        // keeps the 3:4 book ratio so it is never squashed.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val coverWidth = (maxWidth * 0.38f).coerceIn(112.dp, 208.dp)
+            Row {
+                CoverImage(
+                    manga.id,
+                    manga.cover,
+                    profile,
+                    Modifier.size(coverWidth, coverWidth * 4f / 3f),
+                    manga.sourceId,
+                    onCoverBitmap,
+                )
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
                 Text(manga.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val creators = searchMeta.creators(manga.authors, manga.artists)
                 if (creators.isNotEmpty()) {
@@ -1001,6 +1036,7 @@ private fun MangaHeader(
                     }
                 }
             }
+        }
         }
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1106,9 +1142,45 @@ private fun ChapterRow(
     // (Locale.getDefault() is not observable).
     val locale = LocalConfiguration.current.locales[0]
     var showActions by remember { mutableStateOf(false) }
+    // Komikku chapter-swipe parity: swiping a row toggles read / bookmark.
+    // The state always springs back (confirmValueChange returns false), so a
+    // stray swipe can never leave a row half-open or remove anything.
+    //
+    // SwipeToDismissBoxState keeps the FIRST confirmValueChange lambda it was
+    // built with, so reading `chapter`/callbacks directly would freeze the row
+    // in whatever state it had when it first composed (a chapter marked read
+    // would keep toggling "mark read"). Route everything through
+    // rememberUpdatedState so the action matches the state on screen.
+    val isReadNow by rememberUpdatedState(chapter.isRead)
+    val markReadNow by rememberUpdatedState(onMarkRead)
+    val markUnreadNow by rememberUpdatedState(onMarkUnread)
+    val toggleBookmarkNow by rememberUpdatedState(onToggleBookmark)
+    val swipeState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd ->
+                    if (isReadNow) markUnreadNow() else markReadNow()
+                SwipeToDismissBoxValue.EndToStart -> toggleBookmarkNow()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = swipeState,
+        // Selection drags belong to the list, not to a row action.
+        enableDismissFromStartToEnd = !selecting,
+        enableDismissFromEndToStart = !selecting,
+        backgroundContent = {
+            ChapterSwipeBackdrop(swipeState.dismissDirection, chapter.isRead, chapter.isBookmarked)
+        },
+    ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // Opaque under the content so the revealed backdrop only shows in
+            // the strip the row has actually been dragged away from.
+            .background(MaterialTheme.colorScheme.background)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .alpha(if (dimmed) 0.55f else 1f),
@@ -1269,6 +1341,56 @@ private fun ChapterRow(
                 }
             }
         }
+    }
+    }
+}
+
+/** Backdrop revealed while a chapter row is dragged: read toggle on the
+ *  leading edge, bookmark toggle on the trailing edge (komikku parity). */
+@Composable
+private fun ChapterSwipeBackdrop(
+    direction: SwipeToDismissBoxValue,
+    isRead: Boolean,
+    isBookmarked: Boolean,
+) {
+    if (direction == SwipeToDismissBoxValue.Settled) return
+    val toStart = direction == SwipeToDismissBoxValue.StartToEnd
+    val container = if (toStart) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.tertiaryContainer
+    }
+    val onContainer = if (toStart) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(container)
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = if (toStart) Arrangement.Start else Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Icon only: a label would collide with the row's own text while the
+        // row is still sliding over the backdrop.
+        Icon(
+            when {
+                toStart && isRead -> Icons.Outlined.Refresh
+                toStart -> Icons.Outlined.DoneAll
+                isBookmarked -> Icons.Outlined.Bookmark
+                else -> Icons.Outlined.BookmarkAdd
+            },
+            contentDescription = when {
+                toStart && isRead -> stringResource(R.string.manga_mark_unread)
+                toStart -> stringResource(R.string.manga_mark_read)
+                isBookmarked -> stringResource(R.string.manga_remove_bookmark)
+                else -> stringResource(R.string.manga_bookmark_chapter)
+            },
+            tint = onContainer,
+            modifier = Modifier.size(24.dp),
+        )
     }
 }
 

@@ -8,8 +8,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.awaitAll
@@ -30,6 +33,8 @@ import org.sumidoku.android.core.api.model.NameCount
 import org.sumidoku.android.core.api.model.SetCategoriesRequest
 import org.sumidoku.android.core.api.model.Source
 import org.sumidoku.android.core.api.model.SourceCount
+import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.data.CatalogCache
 import org.sumidoku.android.core.data.LibraryDisplay
 import org.sumidoku.android.core.data.LibraryDisplayStore
 import org.sumidoku.android.core.data.LibraryFilterStore
@@ -37,6 +42,7 @@ import org.sumidoku.android.core.data.LibraryFilters
 import org.sumidoku.android.core.data.LIBRARY_FORMS
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
+import org.sumidoku.android.core.network.ServerReachability
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
 import javax.inject.Inject
@@ -67,6 +73,10 @@ private fun Int.toTri(): LibraryTri? = when (this) {
 
 /** Unfiled manga: the API spells "no category" as category id 0. */
 const val UNCATEGORIZED_CATEGORY = "0"
+
+/** Pause between the last keystroke and the server round-trip (Komikku
+ *  LibraryScreenModel SEARCH_DEBOUNCE_MILLIS). */
+private const val SEARCH_DEBOUNCE_MILLIS = 250L
 
 /** The four rows of the panel's "more filters" section, each opening its own
  *  tri-state sheet (webui TriStateDropdown set). */
@@ -107,6 +117,9 @@ data class LibraryUiState(
     /** Tag name → verdict. */
     val tags: Map<String, LibraryTri> = emptyMap(),
     val groupId: Long? = null,
+    /** Top-bar search (Komikku SearchToolbar): null = closed, "" = open and
+     *  empty; a non-blank value is sent as the server's `search` parameter. */
+    val query: String? = null,
     /** Display shape from the display sheet (design 34): form, per-orientation
      *  column count and which cover badges to draw. */
     val display: LibraryDisplay = LibraryDisplay(),
@@ -127,7 +140,7 @@ data class LibraryUiState(
 
     /** Drives the empty state: "no manga match" vs a genuinely empty library. */
     val hasAnyFilter: Boolean
-        get() = categories.isNotEmpty() || activeFilterCount > 0
+        get() = categories.isNotEmpty() || activeFilterCount > 0 || !query.isNullOrBlank()
 }
 
 @HiltViewModel
@@ -137,6 +150,8 @@ class LibraryViewModel @Inject constructor(
     private val clientFactory: SumidokuClientFactory,
     private val filterStore: LibraryFilterStore,
     private val displayStore: LibraryDisplayStore,
+    private val catalogCache: CatalogCache,
+    reachability: ServerReachability,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryUiState())
@@ -144,15 +159,35 @@ class LibraryViewModel @Inject constructor(
 
     private var page = 1
     private var loadJob: Job? = null
+    private var searchJob: Job? = null
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             // Restore before the first page so the restored controls are honoured, then the
             // option lists (which also prune stale restored ids), then the listing itself.
-            restoreFilters()
-            _state.update { it.copy(display = displayStore.load()) }
-            loadFilters()
-            refresh()
+            //
+            // Wrapped: an exception escaping this coroutine is uncaught (no
+            // scope handler) and would kill the process. Offline the cached page
+            // is already seeded below; a failed option fetch must not escalate.
+            try {
+                restoreFilters()
+                _state.update { it.copy(display = displayStore.load()) }
+                // Paint the cached page before ANY network work — the filter-option
+                // fetches below included: on a slow or dead server those round-trips
+                // must not delay the first pixels. refresh() replaces it once the
+                // (pruned) filter state and the response are in.
+                repository.activeProfile.first()?.let { seedFromCache(it) }
+                loadFilters()
+                refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(loading = false) }
+            }
+        }
+        // Back online → silently re-fetch; the banner already hid itself. A failed
+        // refresh keeps the cached content on screen, so this is safe to fire-and-forget.
+        viewModelScope.launchGuarded {
+            reachability.offline.drop(1).filter { offline -> !offline }.collect { refresh() }
         }
     }
 
@@ -161,7 +196,7 @@ class LibraryViewModel @Inject constructor(
         updateDisplay { it.copy(form = form) }
     }
 
-    /** Density chip: stores the column count for the current orientation only,
+    /** Density slider: stores the column count for the current orientation only,
      *  so the portrait and landscape choices do not overwrite each other. */
     fun setColumns(landscape: Boolean, columns: Int?) {
         val display = _state.value.display
@@ -184,7 +219,7 @@ class LibraryViewModel @Inject constructor(
     private fun updateDisplay(transform: (LibraryDisplay) -> LibraryDisplay) {
         val next = transform(_state.value.display).sanitized()
         _state.update { it.copy(display = next) }
-        viewModelScope.launch { displayStore.save(next) }
+        viewModelScope.launchGuarded { displayStore.save(next) }
     }
 
     // ── Batch mode (design 23) ────────────────────────────────────────────────
@@ -248,7 +283,7 @@ class LibraryViewModel @Inject constructor(
     private fun runBatch(action: suspend (ServerProfile, List<Long>) -> String) {
         val ids = _state.value.selected.toList()
         if (ids.isEmpty() || _state.value.batchBusy) return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.update { it.copy(batchBusy = true) }
             val profile = _state.value.profile ?: repository.activeProfile.first()
             val message = if (profile == null) {
@@ -267,6 +302,22 @@ class LibraryViewModel @Inject constructor(
 
     fun clearNotice() {
         _state.update { it.copy(notice = null) }
+    }
+
+    /** Top-bar search (Komikku SearchToolbar parity): null closes the bar,
+     *  "" opens it. Typing re-queries after a short debounce; opening or
+     *  closing an empty bar changes no results and costs no request. */
+    fun setQuery(query: String?) {
+        val previous = _state.value.query
+        if (previous == query) return
+        _state.update { it.copy(query = query) }
+        val term = query?.takeIf { it.isNotBlank() }
+        if (previous?.takeIf { it.isNotBlank() } == term) return
+        searchJob?.cancel()
+        searchJob = viewModelScope.launchGuarded {
+            delay(SEARCH_DEBOUNCE_MILLIS)
+            refresh()
+        }
     }
 
     fun refresh() {
@@ -374,6 +425,7 @@ class LibraryViewModel @Inject constructor(
 
     /** The empty state's "clear filters" resets everything, categories included. */
     fun clearAllFilters() {
+        searchJob?.cancel()
         _state.update {
             it.copy(
                 filters = emptyMap(),
@@ -383,6 +435,7 @@ class LibraryViewModel @Inject constructor(
                 authors = emptyMap(),
                 tags = emptyMap(),
                 groupId = null,
+                query = null,
             )
         }
         applyFilterChange()
@@ -400,7 +453,7 @@ class LibraryViewModel @Inject constructor(
 
     private fun loadPage(replace: Boolean, refreshing: Boolean) {
         loadJob?.cancel()
-        loadJob = viewModelScope.launch {
+        loadJob = viewModelScope.launchGuarded {
             _state.update {
                 it.copy(
                     loading = replace && it.entries.isEmpty(),
@@ -418,13 +471,21 @@ class LibraryViewModel @Inject constructor(
                         error = appContext.getString(R.string.library_no_server),
                     )
                 }
-                return@launch
+                return@launchGuarded
+            }
+            val cacheKey = listKey(_state.value)
+            if (replace && _state.value.entries.isEmpty()) {
+                // Cold start (or a fresh filter combination): paint the cached page
+                // first so an offline launch is never a spinner; the response below
+                // replaces it as soon as it arrives.
+                seedFromCache(profile)
             }
             try {
                 val api = clientFactory.create<LibraryApi>(profile)
                 val s = _state.value
                 val result = api.listLibrary(
                     page = page,
+                    search = s.query?.takeIf { it.isNotBlank() },
                     sort = s.sort,
                     filter = s.filters.csvFor(LibraryTri.INCLUDE)?.let { CSVParams(it) },
                     filterExclude = s.filters.csvFor(LibraryTri.EXCLUDE)?.let { CSVParams(it) },
@@ -451,6 +512,18 @@ class LibraryViewModel @Inject constructor(
                     )
                 }
                 page += 1
+                if (replace) {
+                    // Only a successful response is written; an empty page is the
+                    // truth and clears the slot, so stale rows can never be seeded.
+                    runCatching {
+                        catalogCache.save(
+                            profile.id,
+                            cacheKey,
+                            result.propertyEntries,
+                            LibraryEntry.serializer(),
+                        )
+                    }
+                }
                 loadDownloaded(profile, replace)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -459,11 +532,43 @@ class LibraryViewModel @Inject constructor(
                         loading = false,
                         refreshing = false,
                         loadingMore = false,
-                        error = e.message ?: e.toString(),
+                        // A failed refresh must not blank cached content; the global
+                        // offline banner carries the connectivity signal. Only an
+                        // empty screen shows the error (with its retry button).
+                        error = if (it.entries.isEmpty()) e.message ?: e.toString() else null,
                     )
                 }
             }
         }
+    }
+
+    /** Paint the cached first page of the current filter state, if one exists.
+     *  The profile goes into the state along with the rows: covers are resolved
+     *  through it, so seeded content without it would render coverless. */
+    private suspend fun seedFromCache(profile: ServerProfile) {
+        val cached = runCatching {
+            catalogCache.seed(profile.id, listKey(_state.value), LibraryEntry.serializer())
+        }.getOrDefault(emptyList())
+        if (cached.isNotEmpty()) {
+            _state.update { it.copy(profile = profile, loading = false, entries = cached) }
+        }
+    }
+
+    /** Cache slot of the first page: the sort plus every tri-state filter
+     *  dimension, so a changed toolbar never resurrects another view's rows.
+     *  Keys and verdicts are sorted to keep the string stable. */
+    private fun listKey(s: LibraryUiState): String = buildString {
+        fun Map<String, LibraryTri>.enc(): String =
+            entries.sortedBy { it.key }.joinToString(",") { (key, tri) -> "$key:${tri.ordinal}" }
+        append("library|sort=").append(s.sort.value)
+        append("|f=").append(s.filters.enc())
+        append("|r=").append(s.ratings.enc())
+        append("|s=").append(s.sources.enc())
+        append("|c=").append(s.categories.enc())
+        append("|a=").append(s.authors.enc())
+        append("|t=").append(s.tags.enc())
+        append("|g=").append(s.groupId ?: "-")
+        append("|q=").append(s.query?.takeIf { it.isNotBlank() } ?: "-")
     }
 
     /** Manga ids that have at least one download, so the cover can show the
@@ -521,7 +626,7 @@ class LibraryViewModel @Inject constructor(
             tags = s.tags.wireMap(),
             group = s.groupId,
         )
-        viewModelScope.launch { runCatching { filterStore.save(snapshot) } }
+        viewModelScope.launchGuarded { runCatching { filterStore.save(snapshot) } }
     }
 
     private fun Map<String, LibraryTri>.wireMap(): Map<String, Int> =
@@ -541,10 +646,10 @@ class LibraryViewModel @Inject constructor(
             val sourcesApi = async {
                 runCatching { clientFactory.create<SourcesApi>(profile).listSources().await() }.getOrNull()
             }
-            val libraryApi = async { clientFactory.create<LibraryApi>(profile) }
-            val counts = async { runCatching { libraryApi.await().getLibrarySourceCounts().await() }.getOrNull() }
-            val authors = async { runCatching { libraryApi.await().getLibraryAuthors().await() }.getOrNull() }
-            val tags = async { runCatching { libraryApi.await().getLibraryTags().await() }.getOrNull() }
+            val libraryApi = async { runCatching { clientFactory.create<LibraryApi>(profile) }.getOrNull() }
+            val counts = async { runCatching { libraryApi.await()?.getLibrarySourceCounts()?.await() }.getOrNull() }
+            val authors = async { runCatching { libraryApi.await()?.getLibraryAuthors()?.await() }.getOrNull() }
+            val tags = async { runCatching { libraryApi.await()?.getLibraryTags()?.await() }.getOrNull() }
 
             val loadedCategories = categoriesApi.await()
             val loadedGroups = groupsApi.await()

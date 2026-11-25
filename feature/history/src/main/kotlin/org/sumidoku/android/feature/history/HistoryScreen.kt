@@ -228,7 +228,10 @@ private fun HistoryRow(
             AsyncImage(
                 model = coverModel,
                 contentDescription = null,
-                modifier = Modifier.size(44.dp, 60.dp).clip(RoundedCornerShape(6.dp)),
+                modifier = Modifier
+                    .size(48.dp, 72.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop,
             )
         },

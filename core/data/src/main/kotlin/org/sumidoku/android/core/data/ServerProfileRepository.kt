@@ -13,6 +13,7 @@ import javax.inject.Singleton
 class ServerProfileRepository @Inject constructor(
     private val dao: ServerProfileDao,
     private val activeStore: ActiveProfileStore,
+    private val catalogCache: CatalogCache,
 ) {
     val profiles: Flow<List<ServerProfile>> =
         dao.observeAll().combine(activeStore.activeId) { entities, _ ->
@@ -37,7 +38,12 @@ class ServerProfileRepository @Inject constructor(
 
     suspend fun update(profile: ServerProfile) = dao.update(profile.toEntity())
 
-    suspend fun delete(profile: ServerProfile) = dao.delete(profile.toEntity())
+    /** Deleting a profile also drops its cached pages: they are never queried again
+     *  and keeping them would only leak disk. */
+    suspend fun delete(profile: ServerProfile) {
+        dao.delete(profile.toEntity())
+        runCatching { catalogCache.clearProfile(profile.id) }
+    }
 
     suspend fun setActive(id: Long) = activeStore.setActive(id)
 

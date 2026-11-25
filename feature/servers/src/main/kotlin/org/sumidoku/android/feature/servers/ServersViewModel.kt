@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.model.LoginRequest
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -55,7 +56,7 @@ class ServersViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ServersUiState())
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             repository.profiles.collect { list ->
                 for (profile in list) {
                     if (versions.value.containsKey(profile.id)) continue
@@ -85,7 +86,7 @@ class ServersViewModel @Inject constructor(
         mirrorsText: String,
     ) {
         if (addInFlight.value) return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             addInFlight.value = true
             addError.value = null
             val candidate = ServerProfile(
@@ -103,7 +104,7 @@ class ServersViewModel @Inject constructor(
                     probe.error,
                 )
                 addInFlight.value = false
-                return@launch
+                return@launchGuarded
             }
             val storedCredential = if (credentialMode == "password") {
                 val token = try {
@@ -120,14 +121,14 @@ class ServersViewModel @Inject constructor(
                         )
                     }
                     addInFlight.value = false
-                    return@launch
+                    return@launchGuarded
                 } catch (e: Exception) {
                     addError.value = appContext.getString(
                         R.string.servers_error_login,
                         e.message ?: e.javaClass.simpleName,
                     )
                     addInFlight.value = false
-                    return@launch
+                    return@launchGuarded
                 }
                 token
             } else {
@@ -140,11 +141,11 @@ class ServersViewModel @Inject constructor(
     }
 
     fun setActive(id: Long) {
-        viewModelScope.launch { repository.setActive(id) }
+        viewModelScope.launchGuarded { repository.setActive(id) }
     }
 
     fun delete(profile: ServerProfile) {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             repository.delete(profile)
             versions.value = versions.value - profile.id
         }

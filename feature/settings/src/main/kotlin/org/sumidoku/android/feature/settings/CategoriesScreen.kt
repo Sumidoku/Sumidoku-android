@@ -53,12 +53,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.CategoriesApi
 import org.sumidoku.android.core.api.model.Category
 import org.sumidoku.android.core.api.model.CategoryNameRequest
 import org.sumidoku.android.core.api.model.ReorderRequest
 import org.sumidoku.android.core.api.model.UpdateCategoryRequest
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import org.sumidoku.android.core.ui.SettingsGroupCard
@@ -89,13 +89,13 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = CategoriesUiState(
                     loading = false,
                     error = appContext.getString(R.string.misc_no_server_selected),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val categories = clientFactory.create<CategoriesApi>(profile).listCategories().await()
@@ -130,8 +130,8 @@ class CategoriesViewModel @Inject constructor(
     }
 
     private fun mutate(message: String, call: (CategoriesApi) -> retrofit2.Call<*>) {
-        viewModelScope.launch {
-            val profile = repository.activeProfile.first() ?: return@launch
+        viewModelScope.launchGuarded {
+            val profile = repository.activeProfile.first() ?: return@launchGuarded
             try {
                 call(clientFactory.create(profile)).await()
                 _state.value = _state.value.copy(message = message)

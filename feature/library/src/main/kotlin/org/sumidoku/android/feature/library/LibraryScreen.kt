@@ -1,6 +1,7 @@
 package org.sumidoku.android.feature.library
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -38,6 +39,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -55,6 +59,7 @@ import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -65,7 +70,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +78,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -92,15 +97,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -111,6 +121,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.api.model.Category
 import org.sumidoku.android.core.api.model.LibraryEntry
@@ -121,7 +132,7 @@ import org.sumidoku.android.core.common.coverUrl
 import org.sumidoku.android.core.data.FORM_COMPACT
 import org.sumidoku.android.core.data.FORM_COMFORTABLE
 import org.sumidoku.android.core.data.FORM_LIST
-import org.sumidoku.android.core.data.LIBRARY_COLUMN_CHOICES
+import org.sumidoku.android.core.data.LIBRARY_COLUMNS_MAX
 import org.sumidoku.android.core.data.LibraryDisplay
 import org.sumidoku.android.core.model.ServerProfile
 
@@ -160,6 +171,9 @@ fun LibraryScreen(
         viewModel.clearNotice()
     }
 
+    // Komikku SearchToolbar: system back closes the search bar first.
+    BackHandler(enabled = state.query != null && !state.selectionMode) { viewModel.setQuery(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -180,53 +194,61 @@ fun LibraryScreen(
                         }
                     },
                 )
+            } else if (state.query != null) {
+                LibrarySearchBar(
+                    query = state.query.orEmpty(),
+                    onQueryChange = { viewModel.setQuery(it) },
+                )
             } else {
                 TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { showCategorySheet = true },
-                    ) {
-                        Text(stringResource(R.string.library_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Icon(Icons.Outlined.ArrowDropDown, contentDescription = stringResource(R.string.library_choose_category))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showDisplaySheet = true }) {
-                        Icon(Icons.Outlined.GridView, contentDescription = stringResource(R.string.library_display))
-                    }
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Outlined.Sort, contentDescription = stringResource(R.string.library_sort))
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { showCategorySheet = true },
+                        ) {
+                            Text(stringResource(R.string.library_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Icon(Icons.Outlined.ArrowDropDown, contentDescription = stringResource(R.string.library_choose_category))
                         }
-                        DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                            sortOrder.forEach { sort ->
-                                val label = sortLabel(sort)
-                                DropdownMenuItem(
-                                    text = { Text(if (sort == state.sort) "✓ $label" else label) },
-                                    onClick = {
-                                        showSortMenu = false
-                                        viewModel.setSort(sort)
-                                    },
-                                )
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.setQuery("") }) {
+                            Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.library_search))
+                        }
+                        IconButton(onClick = { showDisplaySheet = true }) {
+                            Icon(Icons.Outlined.GridView, contentDescription = stringResource(R.string.library_display))
+                        }
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Outlined.Sort, contentDescription = stringResource(R.string.library_sort))
+                            }
+                            DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                                sortOrder.forEach { sort ->
+                                    val label = sortLabel(sort)
+                                    DropdownMenuItem(
+                                        text = { Text(if (sort == state.sort) "✓ $label" else label) },
+                                        onClick = {
+                                            showSortMenu = false
+                                            viewModel.setSort(sort)
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
-                    IconButton(onClick = { showFilterSheet = true }) {
-                        BadgedBox(
-                            badge = {
-                                if (state.activeFilterCount > 0) {
-                                    Badge { Text("${state.activeFilterCount}") }
-                                }
-                            },
-                        ) {
-                            Icon(Icons.Outlined.FilterList, contentDescription = stringResource(R.string.library_filter))
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            BadgedBox(
+                                badge = {
+                                    if (state.activeFilterCount > 0) {
+                                        Badge { Text("${state.activeFilterCount}") }
+                                    }
+                                },
+                            ) {
+                                Icon(Icons.Outlined.FilterList, contentDescription = stringResource(R.string.library_filter))
+                            }
                         }
-                    }
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.library_refresh))
-                    }
-                },
+                        IconButton(onClick = { viewModel.refresh() }) {
+                            Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.library_refresh))
+                        }
+                    },
                 )
             }
         },
@@ -391,6 +413,67 @@ fun LibraryScreen(
             },
         )
     }
+}
+
+/** Top bar in search mode (Komikku SearchToolbar parity): the back arrow
+ *  closes search, the title becomes the field, and a non-empty query gets a
+ *  trailing × that clears the text while the bar stays open and focused. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibrarySearchBar(
+    query: String,
+    onQueryChange: (String?) -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    // Every entry into this bar (icon tap, clear) starts with the field focused.
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = { onQueryChange(null) }) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.library_search_close),
+                )
+            }
+        },
+        title = {
+            BasicTextField(
+                value = query,
+                onValueChange = { onQueryChange(it) },
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { inner ->
+                    Box {
+                        if (query.isEmpty()) {
+                            Text(
+                                stringResource(R.string.library_search_placeholder),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        inner()
+                    }
+                },
+            )
+        },
+        actions = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = {
+                    onQueryChange("")
+                    focusRequester.requestFocus()
+                }) {
+                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.library_search_clear))
+                }
+            }
+        },
+    )
 }
 
 private val sortOrder: List<LibrarySort> = listOf(
@@ -960,13 +1043,14 @@ private fun LibraryGrid(
             }
     }
 
-    // Auto = adaptive (design 34 note); a fixed choice wins. On tablets
-    // (smallest width ≥ 600dp, the Material compact/medium breakpoint) the
-    // minimum cell grows to 152dp — KMReader's tablet large grid size
-    // (ui/library LibraryScreen: LargeGrid = Adaptive(152.dp)).
+    // Auto = adaptive (design 34 note); a fixed choice wins. The compact auto
+    // cell matches Komikku's default grid size (GridCells.Adaptive(128.dp)).
+    // On tablets (smallest width ≥ 600dp, the Material compact/medium
+    // breakpoint) the minimum cell stays at 152dp — KMReader's tablet large
+    // grid size (ui/library LibraryScreen: LargeGrid = Adaptive(152.dp)).
     val columns = state.display.columns(landscape)
     val compact = state.display.form == FORM_COMPACT
-    val autoMinCell = if (LocalConfiguration.current.smallestScreenWidthDp >= 600) 152.dp else 100.dp
+    val autoMinCell = if (LocalConfiguration.current.smallestScreenWidthDp >= 600) 152.dp else 128.dp
 
     LazyVerticalGrid(
         columns = if (columns == null) GridCells.Adaptive(minSize = autoMinCell) else GridCells.Fixed(columns),
@@ -1416,14 +1500,26 @@ private fun DisplaySheet(
             FormOption(stringResource(R.string.library_form_list), FORM_LIST, display.form, onForm) { ListPreview() }
         }
         SectionLabel(stringResource(R.string.library_columns))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LIBRARY_COLUMN_CHOICES.forEach { choice ->
-                FilterChip(
-                    selected = display.columns(landscape) == choice,
-                    onClick = { onColumns(choice) },
-                    label = { Text(choice?.let { stringResource(R.string.library_column_count, it) } ?: "Auto") },
-                )
-            }
+        // Komikku LibrarySettingsDialog SliderItem parity: the slider runs
+        // 0..10, where 0 is Auto (adaptive) and 1..10 fix the column count;
+        // the choice is remembered per orientation.
+        val columns = display.columns(landscape)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Slider(
+                value = columns?.toFloat() ?: 0f,
+                onValueChange = { onColumns(it.roundToInt().takeIf { v -> v > 0 }) },
+                valueRange = 0f..LIBRARY_COLUMNS_MAX.toFloat(),
+                steps = LIBRARY_COLUMNS_MAX - 1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = columns?.let { stringResource(R.string.library_column_count, it) }
+                    ?: stringResource(R.string.library_columns_auto),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(72.dp).padding(start = 12.dp),
+            )
         }
         Text(
             stringResource(R.string.library_columns_hint),

@@ -8,10 +8,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.sumidoku.android.core.api.ReposApi
 import org.sumidoku.android.core.api.model.AddRepoRequest
 import org.sumidoku.android.core.api.model.SourceRepo
+import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
@@ -49,14 +49,14 @@ class ReposViewModel @Inject constructor(
     /** Whole-screen load: only the first fetch (or an explicit retry) shows
      *  the spinner. `refreshRepo` reloads the list in place instead. */
     fun refresh(reload: Boolean = true) {
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(loading = reload && _state.value.repos.isEmpty(), error = null)
             val profile = repository.activeProfile.first() ?: run {
                 _state.value = ReposUiState(
                     loading = false,
                     error = appContext.getString(R.string.repos_error_no_server),
                 )
-                return@launch
+                return@launchGuarded
             }
             try {
                 val repos = clientFactory.create<ReposApi>(profile).listSourceRepos().await()
@@ -73,7 +73,7 @@ class ReposViewModel @Inject constructor(
             _state.value = _state.value.copy(addError = problem)
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(addInFlight = true, addError = null)
             try {
                 clientFactory.create<ReposApi>(profile)
@@ -111,7 +111,7 @@ class ReposViewModel @Inject constructor(
 
     fun refreshRepo(id: Long) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(refreshing = _state.value.refreshing + id, message = null)
             try {
                 clientFactory.create<ReposApi>(profile).refreshSourceRepo(id).await()
@@ -135,7 +135,7 @@ class ReposViewModel @Inject constructor(
 
     fun deleteRepo(id: Long) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
+        viewModelScope.launchGuarded {
             _state.value = _state.value.copy(deleting = _state.value.deleting + id, message = null)
             try {
                 clientFactory.create<ReposApi>(profile).deleteSourceRepo(id).await()
