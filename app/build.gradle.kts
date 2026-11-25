@@ -16,8 +16,33 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+    // Signing is opt-in and secret-driven, so a plain checkout builds without it:
+    // set KEYSTORE_FILE (a .jks path), KEYSTORE_PASSWORD, KEY_ALIAS and
+    // KEY_PASSWORD and `assembleRelease` produces a signed APK; otherwise the
+    // release build stays unsigned.
+    val keystorePath = providers.environmentVariable("KEYSTORE_FILE").orNull
+    val keystorePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+    val keyAliasName = providers.environmentVariable("KEY_ALIAS").orNull
+    val keyAliasPassword = providers.environmentVariable("KEY_PASSWORD").orNull
+    val signingKeystore = keystorePath?.takeIf { path ->
+        file(path).exists() &&
+            keystorePassword != null &&
+            keyAliasName != null &&
+            keyAliasPassword != null
+    }
+    signingConfigs {
+        if (signingKeystore != null) {
+            create("release") {
+                storeFile = file(signingKeystore)
+                storePassword = keystorePassword
+                keyAlias = keyAliasName
+                keyPassword = keyAliasPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

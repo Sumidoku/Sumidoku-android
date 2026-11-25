@@ -1,5 +1,7 @@
 # Sumidoku for Android
 
+[![CI](https://github.com/Sumidoku/Sumidoku-android/actions/workflows/ci.yml/badge.svg)](https://github.com/Sumidoku/Sumidoku-android/actions/workflows/ci.yml)
+
 The official Android client for **[Sumidoku](https://github.com/Sumidoku/Sumidoku)** — a self-hosted manga server that exposes a REST `/api/v1` API, runs its sources as WASM modules and streams events over SSE.
 
 The app brings the Sumidoku web UI to Android natively, and adds what a browser cannot do: real offline reading, background downloads, background update checks and hardware image decoding. Computation stays on the server — sources, tracker pushes, the update scheduler and the server-side download queue all keep running there; the client is a native interface to every one of them.
@@ -61,17 +63,28 @@ sdk.dir=/path/to/Android/Sdk
 
 The APK lands in `app/build/outputs/apk/debug/app-debug.apk`.
 
-Release builds are unsigned — no signing configuration ships with the repository:
+No keystore ships with the repository, so a release build is unsigned until you supply one:
 
 ```bash
 ./gradlew assembleRelease
 ```
+
+Signing is driven by four environment variables — `KEYSTORE_FILE` (path to a `.jks`), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. When all four are set, the release build is signed; when any is missing, the build is simply unsigned.
 
 Unit tests:
 
 ```bash
 ./gradlew test
 ```
+
+## CI and releases
+
+Two GitHub Actions workflows keep the APK shipping:
+
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `master` and on every pull request: unit tests, `assembleDebug`, then `assembleRelease` to keep the release configuration honest.
+- **Release** (`.github/workflows/release.yml`) runs when `app/build.gradle.kts` changes on `master`, or on manual dispatch. It reads `versionName` / `versionCode`, skips if `v<versionName>` already exists, builds the APK, checksums it and publishes a GitHub release with `sha256sum` verification instructions.
+
+The release workflow signs through four repository secrets: `KEYSTORE_BASE64` (base64 of the keystore), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Without them it still publishes a debug-signed APK, so the release channel works before the keystore is configured. Bump `versionCode` and `versionName` in `app/build.gradle.kts` to cut a release.
 
 ## Localization
 
@@ -105,6 +118,6 @@ Sumidoku 官方 Android 客户端，把服务端 web UI 的全部能力搬到原
 .\gradlew.bat assembleDebug
 ```
 
-产物位于 `app/build/outputs/apk/debug/app-debug.apk`。签名需自行配置，仓库不含签名信息。
+产物位于 `app/build/outputs/apk/debug/app-debug.apk`。签名通过环境变量 `KEYSTORE_FILE`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 提供；仓库不含签名信息。持续集成与发版由 `.github/workflows/ci.yml` 和 `release.yml` 两个工作流完成。
 
 许可证：MIT。
