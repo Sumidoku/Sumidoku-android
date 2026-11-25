@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 设置页：对照 GitHub Release 的应用内更新检查（与 KMReader 对齐）。 -->
+    <string name="settings_updates_auto_check">自动检查更新</string>
+    <string name="settings_updates_auto_check_desc">每天最多通过 GitHub Release 检查一次新版本。</string>
+    <string name="settings_updates_check_now">立即检查</string>
+    <string name="settings_updates_checking">正在检查…</string>
+    <string name="settings_updates_up_to_date">已是最新版本</string>
+    <string name="settings_updates_available">发现新版本 %1$s</string>
+    <string name="settings_updates_failed">检查失败</string>
+    <string name="settings_updates_never_checked">尚未检查</string>
+    <string name="settings_updates_last_checked">上次检查：%1$s</string>
+    <string name="settings_updates_dialog_title">发现新版本</string>
+    <string name="settings_updates_dialog_message">新版本 %1$s 已发布，当前版本为 %2$s。</string>
+    <string name="settings_updates_dialog_download">前往下载</string>
+    <string name="settings_updates_dialog_later">稍后</string>
+</resources>

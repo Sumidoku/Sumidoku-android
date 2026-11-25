@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings hub: in-app update check against the project's GitHub releases
+         (KMReader parity, docs/android-client.md §13). -->
+    <string name="settings_updates_auto_check">Check automatically</string>
+    <string name="settings_updates_auto_check_desc">Looks up the latest GitHub release at most once a day.</string>
+    <string name="settings_updates_check_now">Check now</string>
+    <string name="settings_updates_checking">Checking…</string>
+    <string name="settings_updates_up_to_date">Up to date</string>
+    <string name="settings_updates_available">Version %1$s available</string>
+    <string name="settings_updates_failed">Check failed</string>
+    <string name="settings_updates_never_checked">Never checked</string>
+    <string name="settings_updates_last_checked">Last checked %1$s</string>
+    <string name="settings_updates_dialog_title">Update available</string>
+    <string name="settings_updates_dialog_message">Version %1$s is available. You are on %2$s.</string>
+    <string name="settings_updates_dialog_download">Download</string>
+    <string name="settings_updates_dialog_later">Later</string>
+</resources>

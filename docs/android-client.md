@@ -425,6 +425,17 @@ Three kinds, clearly separated:
   behavior (§12). Keys keep the web UI's semantics so a future sync of
   reader preferences is a mapping, not a redesign.
 
+App updates are a client-local concern like the preferences above, not
+a server setting: `GET
+https://api.github.com/repos/Sumidoku/Sumidoku-android/releases/latest`
+is compared with the installed `versionName` by `core:common`'s
+`AppVersion` (numeric segments, so `0.10.0` beats `0.9.3`; a final
+release outranks its pre-releases). The check runs at launch at most
+once a day and can be turned off or triggered by hand from Settings →
+About. A release the user dismissed with "Later" stays quiet until a
+newer one appears, and the download button hands the release APK's
+asset URL to the browser — the client never installs an APK itself.
+
 ## 12. Reader
 
 The reader is the highest-risk module and gets the most direct

@@ -80,6 +80,7 @@ import org.sumidoku.android.feature.repos.ReposScreen
 import org.sumidoku.android.feature.search.SearchScreen
 import org.sumidoku.android.feature.servers.ServersScreen
 import org.sumidoku.android.feature.settings.ApiKeysScreen
+import org.sumidoku.android.feature.settings.AppUpdateViewModel
 import org.sumidoku.android.feature.settings.CacheScreen
 import org.sumidoku.android.feature.settings.CategoriesScreen
 import org.sumidoku.android.feature.settings.FilterGroupsScreen
@@ -88,6 +89,7 @@ import org.sumidoku.android.feature.settings.SettingsScreen
 import org.sumidoku.android.feature.settings.SettingsPage
 import org.sumidoku.android.feature.settings.TasksScreen
 import org.sumidoku.android.feature.settings.TrashScreen
+import org.sumidoku.android.feature.settings.UpdateAvailableDialog
 import org.sumidoku.android.feature.source.SourceHomeScreen
 import org.sumidoku.android.feature.source.SourceSettingsScreen
 import org.sumidoku.android.feature.trackers.TrackersScreen
@@ -197,50 +199,67 @@ private val railTabs = listOf(
 )
 
 @Composable
-fun SumidokuRoot(appViewModel: AppViewModel = hiltViewModel()) {
+fun SumidokuRoot(
+    appViewModel: AppViewModel = hiltViewModel(),
+    /** The one update-check instance: the launch check, the dialog and the
+     *  settings About rows all report into it (KMReader's AppRoot pattern). */
+    updateViewModel: AppUpdateViewModel = hiltViewModel(),
+) {
     val themePref by appViewModel.theme.collectAsState()
     SumidokuTheme(themePref = themePref) {
         val hasServer by appViewModel.hasServer.collectAsState()
-        when (hasServer) {
-            null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                androidx.compose.material3.CircularProgressIndicator()
-            }
-            else -> {
-                val nav = rememberNavController()
-                NavHost(
-                    navController = nav,
-                    startDestination = if (hasServer == true) "main" else "servers",
-                ) {
-                    composable("servers") {
-                        ServersScreen(onServerSelected = {
-                            nav.navigate("main") { popUpTo("servers") { inclusive = true } }
-                        })
-                    }
-                    composable("main") {
-                        val offline by appViewModel.offline.collectAsState()
-                        val probing by appViewModel.probing.collectAsState()
-                        MainTabs(
-                            onOpenReader = { mangaId, chapterId ->
-                                nav.navigate("reader/$mangaId/$chapterId")
-                            },
-                            onManageServers = { nav.navigate("servers") },
-                            offline = offline,
-                            probing = probing,
-                            onRetryConnection = appViewModel::retryConnection,
-                        )
-                    }
-                    composable(
-                        route = "reader/{mangaId}/{chapterId}",
-                        arguments = listOf(
-                            navArgument("mangaId") { type = NavType.LongType },
-                            navArgument("chapterId") { type = NavType.LongType },
-                        ),
+        val updateState by updateViewModel.state.collectAsState()
+        Box(Modifier.fillMaxSize()) {
+            when (hasServer) {
+                null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+                else -> {
+                    val nav = rememberNavController()
+                    NavHost(
+                        navController = nav,
+                        startDestination = if (hasServer == true) "main" else "servers",
                     ) {
-                        // The reader is deliberately an outer real route: fully
-                        // immersive, and exiting lands back on the two-pane/tab shell.
-                        ReaderScreen(onBack = { nav.popBackStack() })
+                        composable("servers") {
+                            ServersScreen(onServerSelected = {
+                                nav.navigate("main") { popUpTo("servers") { inclusive = true } }
+                            })
+                        }
+                        composable("main") {
+                            val offline by appViewModel.offline.collectAsState()
+                            val probing by appViewModel.probing.collectAsState()
+                            MainTabs(
+                                onOpenReader = { mangaId, chapterId ->
+                                    nav.navigate("reader/$mangaId/$chapterId")
+                                },
+                                onManageServers = { nav.navigate("servers") },
+                                offline = offline,
+                                probing = probing,
+                                onRetryConnection = appViewModel::retryConnection,
+                                updateViewModel = updateViewModel,
+                            )
+                        }
+                        composable(
+                            route = "reader/{mangaId}/{chapterId}",
+                            arguments = listOf(
+                                navArgument("mangaId") { type = NavType.LongType },
+                                navArgument("chapterId") { type = NavType.LongType },
+                            ),
+                        ) {
+                            // The reader is deliberately an outer real route: fully
+                            // immersive, and exiting lands back on the two-pane/tab shell.
+                            ReaderScreen(onBack = { nav.popBackStack() })
+                        }
                     }
                 }
+            }
+            // Above the whole nav stack, reader included: a release found at
+            // launch announces itself wherever the user ended up.
+            if (updateState.dialogVisible) {
+                UpdateAvailableDialog(
+                    state = updateState,
+                    onDismiss = updateViewModel::dismissDialog,
+                )
             }
         }
     }
@@ -253,6 +272,7 @@ private fun MainTabs(
     offline: Boolean,
     probing: Boolean,
     onRetryConnection: () -> Unit,
+    updateViewModel: AppUpdateViewModel,
 ) {
     val innerNav = rememberNavController()
     val backStack by innerNav.currentBackStackEntryAsState()
@@ -483,6 +503,9 @@ private fun MainTabs(
                     onOpenFilterGroups = { innerNav.navigate("filter-groups") },
                     onOpenServerSettings = { innerNav.navigate("server-settings") },
                     onOpenReaderDefaults = { innerNav.navigate("reader-defaults") },
+                    // The root's instance, so "Check now" and the dialog state
+                    // are the same ones the launch check writes (KMReader pattern).
+                    updateViewModel = updateViewModel,
                     // Wide tablet: hub stays on the left, the chosen page
                     // renders in the right pane (KMReader settings split).
                     splitDetail = { page, onDismiss, onNavigate ->
