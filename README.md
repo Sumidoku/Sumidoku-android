@@ -1,10 +1,14 @@
 # Sumidoku for Android
 
-The official Android client for **Sumidoku** — a self-hosted manga server that exposes a REST `/api/v1` API, runs its sources as WASM modules and streams events over SSE.
+The official Android client for **[Sumidoku](https://github.com/Sumidoku/Sumidoku)** — a self-hosted manga server that exposes a REST `/api/v1` API, runs its sources as WASM modules and streams events over SSE.
 
 The app brings the Sumidoku web UI to Android natively, and adds what a browser cannot do: real offline reading, background downloads, background update checks and hardware image decoding. Computation stays on the server — sources, tracker pushes, the update scheduler and the server-side download queue all keep running there; the client is a native interface to every one of them.
 
 Targets Android 8.0 (API 26) and up, built with Kotlin and Jetpack Compose (Material 3).
+
+- Server: **[Sumidoku/Sumidoku](https://github.com/Sumidoku/Sumidoku)** — run it before pointing the app at it
+- Documentation: **[sumidoku.github.io](https://sumidoku.github.io)** — installation, sources, API reference
+- Docker image: **[sumidoku/sumidoku](https://hub.docker.com/r/sumidoku/sumidoku)**
 
 ## Features
 
@@ -92,6 +96,8 @@ MIT — see [LICENSE](LICENSE).
 Sumidoku 官方 Android 客户端，把服务端 web UI 的全部能力搬到原生界面，并补上浏览器做不到的部分：真正的离线阅读、后台下载、后台更新检查与硬件解码。计算仍然留在服务端（WASM 图源、tracker 推送、更新调度、服务端下载队列），客户端是它们的原生入口。
 
 工程分为 `app`、15 个 `feature` 模块与 9 个 `core` 模块；接口客户端由 `api/openapi.json` 快照在构建期生成。
+
+相关仓库与文档：[服务端](https://github.com/Sumidoku/Sumidoku) · [文档站](https://sumidoku.github.io) · [Docker 镜像](https://hub.docker.com/r/sumidoku/sumidoku)。
 
 构建（需要 JDK 17 与 Android SDK platform 37）：
 
