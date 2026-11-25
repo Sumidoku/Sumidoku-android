@@ -461,6 +461,24 @@ lineage from existing work:
   defaults screen. Editing them while reading pins them to that manga,
   and matching the global default drops the override again (the
   self-cleaning rule of `overrideStore.writeOverride`).
+- Hardware keys: an optional global switch (`ReaderField.VOLUME`,
+  DataStore key `reader.g.volume`, off by default) turns the volume
+  rocker into a page turner, after KMReader's `VolumeKeyPaging.kt`.
+  `MainActivity.dispatchKeyEvent` hands the key to
+  `ReaderVolumeKeyDispatcher` before the window manager can turn it
+  into a volume change, so the system volume stays untouched and no
+  volume HUD appears; only the initial press turns, repeats and the
+  key-up are swallowed. Volume-up turns forward and volume-down back;
+  a right-to-left image chapter mirrors the pair with the rest of the
+  reader (`volumeKeyPage`), so volume-up keeps pointing at the
+  physically right page, while the prose column track — which never
+  mirrors — keeps forward on volume-up whatever the chapter direction,
+  and vertical modes only ever scroll downward, so they too keep
+  forward on volume-up. Paged chapters step the pager — a second turn
+  on a chapter transition slot confirms it, like that slot's tap zone —
+  paged prose steps the column track, and vertical modes scroll one
+  viewport. The hook is disarmed while the overlay, the settings sheet
+  or the chapter drawer is open.
 - Images: the server sends original bytes
   (`GET /chapter/{id}/page/{index}`,
   `Cache-Control: private, max-age=3600`); scaling is a client duty by

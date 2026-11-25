@@ -33,6 +33,7 @@ enum class ReaderField(val key: String, val fallback: String) {
     FSIZE("fsize", "1"),        // text page size multiplier, 0.7–2.0x
     FLINE("fline", "1.8"),      // text page line-height multiplier, 1.0–2.5x
     TCOLS("tcols", "true"),     // text pages: paged multi-column layout on wide screens
+    VOLUME("volume", "false"),  // volume keys turn pages (device input, global only)
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -53,6 +54,7 @@ data class ReaderPrefs(
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
     val textColumns: Boolean = true,
+    val volumeKeyPaging: Boolean = false,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
@@ -73,6 +75,7 @@ data class ReaderPrefs(
         ReaderField.FSIZE -> fontSize.toString()
         ReaderField.FLINE -> lineHeight.toString()
         ReaderField.TCOLS -> textColumns.toString()
+        ReaderField.VOLUME -> volumeKeyPaging.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -95,6 +98,7 @@ data class ReaderPrefs(
             ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull()?.coerceIn(FONT_SIZE_RANGE) ?: fontSize)
             ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull()?.coerceIn(LINE_HEIGHT_RANGE) ?: lineHeight)
             ReaderField.TCOLS -> copy(textColumns = raw.toBoolean())
+            ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBoolean())
         }
     }
 

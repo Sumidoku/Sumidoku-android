@@ -33,6 +33,7 @@ data class ReaderDefaultsState(
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
     val textColumns: Boolean = true,
+    val volumeKeyPaging: Boolean = false,
 )
 
 @HiltViewModel
@@ -63,6 +64,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
                 textColumns = prefs.textColumns,
+                volumeKeyPaging = prefs.volumeKeyPaging,
             )
         }
     }
@@ -108,6 +110,11 @@ class ReaderDefaultsViewModel @Inject constructor(
     fun setGrayscale(value: Boolean) = write(ReaderField.GRAY, value.toString())
     fun setSepia(value: Boolean) = write(ReaderField.SEPIA, value.toString())
 
+    fun setVolumeKeyPaging(value: Boolean) {
+        _state.value = _state.value.copy(volumeKeyPaging = value)
+        write(ReaderField.VOLUME, value.toString())
+    }
+
     fun setCoverFirst(value: Boolean) {
         _state.value = _state.value.copy(coverFirst = value)
         viewModelScope.launchGuarded { store.setGlobal(ReaderField.COVER, value.toString()) }
@@ -138,6 +145,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
                 textColumns = prefs.textColumns,
+                volumeKeyPaging = prefs.volumeKeyPaging,
             )
         }
     }
@@ -160,5 +168,6 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull() ?: fontSize)
     ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull() ?: lineHeight)
     ReaderField.TCOLS -> copy(textColumns = raw.toBooleanStrictOrNull() ?: textColumns)
+    ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBooleanStrictOrNull() ?: volumeKeyPaging)
 }
 

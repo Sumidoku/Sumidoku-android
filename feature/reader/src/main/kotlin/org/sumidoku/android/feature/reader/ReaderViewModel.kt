@@ -77,6 +77,10 @@ data class ReaderUiState(
     /** Prose chapters: paged multi-column layout on wide screens (the
      *  webui TextColumns presentation) instead of one scrolling column. */
     val textColumns: Boolean = true,
+    /** Volume rocker turns pages (and is consumed before the system can
+     *  change the volume). Global-only: it describes the device's input, not
+     *  the book. */
+    val volumeKeyPaging: Boolean = false,
     /** Column pager position for a prose chapter, as a spread index plus
      *  the spread count measured on the current viewport. */
     val textSpread: Int = 0,
@@ -268,6 +272,8 @@ class ReaderViewModel @Inject constructor(
             fontSize = merged.fontSize,
             lineHeight = merged.lineHeight,
             textColumns = merged.textColumns,
+            // Not part of the merge: no manga overrides a hardware key.
+            volumeKeyPaging = global.volumeKeyPaging,
             grayscale = (overrideRaw[ReaderField.GRAY] ?: global.raw(ReaderField.GRAY)).toBoolean(),
             sepia = (overrideRaw[ReaderField.SEPIA] ?: global.raw(ReaderField.SEPIA)).toBoolean(),
             viewer = viewer,
@@ -570,6 +576,14 @@ class ReaderViewModel @Inject constructor(
 
     fun setSepia(enabled: Boolean) {
         viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.SEPIA, enabled.toString()) }
+    }
+
+    /** Hardware volume keys as page turners (KMReader parity). Reflects the
+     *  switch immediately; the write is global because the rocker is a
+     *  property of the device, not of this manga. */
+    fun setVolumeKeyPaging(enabled: Boolean) {
+        _state.value = _state.value.copy(volumeKeyPaging = enabled)
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.VOLUME, enabled.toString()) }
     }
 
     fun toggleOverlay() {
