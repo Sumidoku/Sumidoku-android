@@ -13,8 +13,8 @@ android {
         applicationId = "org.sumidoku.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.2.0"
     }
     // Signing is opt-in and secret-driven, so a plain checkout builds without it:
     // set KEYSTORE_FILE (a .jks path), KEYSTORE_PASSWORD, KEY_ALIAS and
