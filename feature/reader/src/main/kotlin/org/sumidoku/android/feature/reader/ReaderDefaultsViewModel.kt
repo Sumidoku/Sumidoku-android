@@ -33,6 +33,8 @@ data class ReaderDefaultsState(
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
     val textColumns: Boolean = true,
+    val drawUnderCutout: Boolean = false,
+    val keepScreenAwake: Boolean = false,
 )
 
 @HiltViewModel
@@ -63,6 +65,8 @@ class ReaderDefaultsViewModel @Inject constructor(
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
                 textColumns = prefs.textColumns,
+                drawUnderCutout = prefs.drawUnderCutout,
+                keepScreenAwake = prefs.keepScreenAwake,
             )
         }
     }
@@ -107,6 +111,8 @@ class ReaderDefaultsViewModel @Inject constructor(
 
     fun setGrayscale(value: Boolean) = write(ReaderField.GRAY, value.toString())
     fun setSepia(value: Boolean) = write(ReaderField.SEPIA, value.toString())
+    fun setDrawUnderCutout(value: Boolean) = write(ReaderField.CUTOUT, value.toString())
+    fun setKeepScreenAwake(value: Boolean) = write(ReaderField.KEEP, value.toString())
 
     fun setCoverFirst(value: Boolean) {
         _state.value = _state.value.copy(coverFirst = value)
@@ -138,6 +144,8 @@ class ReaderDefaultsViewModel @Inject constructor(
                 fontSize = prefs.fontSize,
                 lineHeight = prefs.lineHeight,
                 textColumns = prefs.textColumns,
+                drawUnderCutout = prefs.drawUnderCutout,
+                keepScreenAwake = prefs.keepScreenAwake,
             )
         }
     }
@@ -160,5 +168,7 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull() ?: fontSize)
     ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull() ?: lineHeight)
     ReaderField.TCOLS -> copy(textColumns = raw.toBooleanStrictOrNull() ?: textColumns)
+    ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBooleanStrictOrNull() ?: drawUnderCutout)
+    ReaderField.KEEP -> copy(keepScreenAwake = raw.toBooleanStrictOrNull() ?: keepScreenAwake)
 }
 
