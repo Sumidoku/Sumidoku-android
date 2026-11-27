@@ -33,6 +33,8 @@ enum class ReaderField(val key: String, val fallback: String) {
     FSIZE("fsize", "1"),        // text page size multiplier, 0.7–2.0x
     FLINE("fline", "1.8"),      // text page line-height multiplier, 1.0–2.5x
     TCOLS("tcols", "true"),     // text pages: paged multi-column layout on wide screens
+    CUTOUT("cutout", "false"),  // true = content draws under the notch band (Koharia drawUnderCutout)
+    KEEP("keep", "false"),      // keep the screen awake while reading
     VOLUME("volume", "false"),  // volume keys turn pages (device input, global only)
 }
 
@@ -54,6 +56,13 @@ data class ReaderPrefs(
     val fontSize: Float = 1f,
     val lineHeight: Float = 1.8f,
     val textColumns: Boolean = true,
+    /** Let page content run into the display cutout (notch / punch-hole) band.
+     *  Off (the default) keeps pages and prose clear of the cutout with a band
+     *  of the reader's own background; on gives the page the whole screen
+     *  (KMReader / Koharia drawUnderCutout semantics). */
+    val drawUnderCutout: Boolean = false,
+    /** Keep the screen awake while the reader is the top page. */
+    val keepScreenAwake: Boolean = false,
     val volumeKeyPaging: Boolean = false,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
@@ -75,6 +84,8 @@ data class ReaderPrefs(
         ReaderField.FSIZE -> fontSize.toString()
         ReaderField.FLINE -> lineHeight.toString()
         ReaderField.TCOLS -> textColumns.toString()
+        ReaderField.CUTOUT -> drawUnderCutout.toString()
+        ReaderField.KEEP -> keepScreenAwake.toString()
         ReaderField.VOLUME -> volumeKeyPaging.toString()
     }
 
@@ -98,6 +109,8 @@ data class ReaderPrefs(
             ReaderField.FSIZE -> copy(fontSize = raw.toFloatOrNull()?.coerceIn(FONT_SIZE_RANGE) ?: fontSize)
             ReaderField.FLINE -> copy(lineHeight = raw.toFloatOrNull()?.coerceIn(LINE_HEIGHT_RANGE) ?: lineHeight)
             ReaderField.TCOLS -> copy(textColumns = raw.toBoolean())
+            ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBoolean())
+            ReaderField.KEEP -> copy(keepScreenAwake = raw.toBoolean())
             ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBoolean())
         }
     }

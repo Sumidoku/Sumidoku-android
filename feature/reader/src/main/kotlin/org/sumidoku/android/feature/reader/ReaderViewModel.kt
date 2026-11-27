@@ -87,6 +87,12 @@ data class ReaderUiState(
     val textSpreads: Int = 0,
     val grayscale: Boolean = false,
     val sepia: Boolean = false,
+    /** Content runs into the display-cutout band when on; off letterboxes it
+     *  out of the notch with a band of the reader background (global-only,
+     *  KMReader drawUnderCutout parity). */
+    val drawUnderCutout: Boolean = false,
+    /** Keep the screen awake while the reader is open (global-only). */
+    val keepScreenAwake: Boolean = false,
     /** manga.viewer metadata driving dir/mode until the manga is overridden. */
     val viewer: Viewer? = null,
     /** Fields carrying a per-manga override (the chain block on screens 24/41). */
@@ -276,6 +282,11 @@ class ReaderViewModel @Inject constructor(
             volumeKeyPaging = global.volumeKeyPaging,
             grayscale = (overrideRaw[ReaderField.GRAY] ?: global.raw(ReaderField.GRAY)).toBoolean(),
             sepia = (overrideRaw[ReaderField.SEPIA] ?: global.raw(ReaderField.SEPIA)).toBoolean(),
+            // Global-only behaviour switches (like tap zones/background): a
+            // per-manga override would change the whole window, so they ride
+            // the global layer exclusively.
+            drawUnderCutout = merged.drawUnderCutout,
+            keepScreenAwake = merged.keepScreenAwake,
             viewer = viewer,
             overridden = overrideRaw.keys,
         )
@@ -478,6 +489,15 @@ class ReaderViewModel @Inject constructor(
 
     fun setBackground(value: String) {
         viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.BG, value) }
+    }
+
+    /** Window-level behaviour, global-only like tap zones/background. */
+    fun setDrawUnderCutout(enabled: Boolean) {
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.CUTOUT, enabled.toString()) }
+    }
+
+    fun setKeepScreenAwake(enabled: Boolean) {
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.KEEP, enabled.toString()) }
     }
 
     /** Slider feedback must be immediate; the DataStore write is debounced

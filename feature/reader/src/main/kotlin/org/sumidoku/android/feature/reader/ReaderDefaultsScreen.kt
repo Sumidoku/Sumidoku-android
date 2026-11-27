@@ -293,6 +293,41 @@ fun ReaderDefaultsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
+
+            SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {
+                SectionTitle(stringResource(R.string.reader_behavior_global))
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(R.string.reader_keep_screen_awake)) },
+                    trailingContent = {
+                        Switch(
+                            checked = state.keepScreenAwake,
+                            onCheckedChange = viewModel::setKeepScreenAwake,
+                        )
+                    },
+                )
+                val hasCutout = rememberHasDisplayCutout()
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(R.string.reader_draw_under_cutout)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                if (hasCutout) R.string.reader_draw_under_cutout_hint
+                                else R.string.reader_no_display_cutout,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = state.drawUnderCutout,
+                            onCheckedChange = viewModel::setDrawUnderCutout,
+                            enabled = hasCutout,
+                        )
+                    },
+                )
+            }
         }
     }
 }

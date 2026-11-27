@@ -238,9 +238,19 @@ fun ReaderScreen(
         ReaderTypography(state.font, state.fontSize, state.lineHeight, ink)
     }
 
+    // Keep the screen awake while the reader is open (global-only switch);
+    // the flag rides on the host view so leaving the reader always clears it.
+    KeepScreenOnEffect(enabled = state.keepScreenAwake)
+
+    // Content band: with "draw under cutout" off the pages/prose are
+    // letterboxed out of the notch / punch-hole band (a band of the reader
+    // background shows there); on they get the whole screen (KMReader parity).
+    val contentInset = readerCutoutPadding(state.drawUnderCutout)
+
     CoverSeedTheme(coverTint) {
     CompositionLocalProvider(LocalReaderTypography provides typography) {
     Box(Modifier.fillMaxSize().background(canvasColor)) {
+        Box(Modifier.fillMaxSize().padding(contentInset)) {
         when {
             state.loading -> Box(
                 Modifier
@@ -271,6 +281,7 @@ fun ReaderScreen(
                 PagedTextBody(state, viewModel)
             state.vertical || state.textChapter -> VerticalReaderBody(state, viewModel)
             else -> PagedReaderBody(state, viewModel, landscape)
+        }
         }
 
         // Also drawn during loading: the overlay is the only way out (back /
@@ -2529,6 +2540,44 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
                     modifier = Modifier.weight(1f),
                 )
                 Switch(checked = state.sepia, onCheckedChange = { viewModel.setSepia(it) })
+            }
+
+            // Window behaviour shared by every reading mode (global-only,
+            // KMReader reader settings parity).
+            HorizontalDivider()
+            Text(stringResource(R.string.reader_behavior_global), style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_keep_screen_awake),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = state.keepScreenAwake,
+                    onCheckedChange = { viewModel.setKeepScreenAwake(it) },
+                )
+            }
+            val hasCutout = rememberHasDisplayCutout()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.reader_draw_under_cutout),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(
+                            if (hasCutout) R.string.reader_draw_under_cutout_hint
+                            else R.string.reader_no_display_cutout,
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.drawUnderCutout,
+                    onCheckedChange = { viewModel.setDrawUnderCutout(it) },
+                    enabled = hasCutout,
+                )
             }
         }
     }

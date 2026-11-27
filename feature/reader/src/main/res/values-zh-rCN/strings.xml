@@ -107,6 +107,11 @@
     <string name="reader_brightness">亮度</string>
     <string name="reader_grayscale">灰度</string>
     <string name="reader_sepia">棕褐</string>
+    <string name="reader_behavior_global">阅读行为 · 全局</string>
+    <string name="reader_keep_screen_awake">阅读时屏幕常显</string>
+    <string name="reader_draw_under_cutout">刘海区域显示内容</string>
+    <string name="reader_draw_under_cutout_hint">关闭时页面与文字避开刘海/挖孔区域；开启后内容占满全屏。</string>
+    <string name="reader_no_display_cutout">此设备没有刘海或挖孔。</string>
     <string name="reader_double_tap_zoom">双击缩放</string>
     <string name="reader_double_tap_zoom_hint">双击页面时放大的倍率（1–8 倍）。</string>
     <string name="reader_text_progress">已读 %1$d%%</string>

@@ -107,6 +107,11 @@
     <string name="reader_brightness">Brightness</string>
     <string name="reader_grayscale">Grayscale</string>
     <string name="reader_sepia">Sepia</string>
+    <string name="reader_behavior_global">Behavior · Global</string>
+    <string name="reader_keep_screen_awake">Keep screen awake while reading</string>
+    <string name="reader_draw_under_cutout">Show content in cutout area</string>
+    <string name="reader_draw_under_cutout_hint">Off keeps pages and text clear of the notch or punch-hole; on gives them the full screen.</string>
+    <string name="reader_no_display_cutout">This device has no notch or punch-hole.</string>
     <string name="reader_double_tap_zoom">Double-tap zoom</string>
     <string name="reader_double_tap_zoom_hint">Zoom multiplier applied when double-tapping a page (1–8x).</string>
     <string name="reader_text_progress">%1$d%% read</string>
