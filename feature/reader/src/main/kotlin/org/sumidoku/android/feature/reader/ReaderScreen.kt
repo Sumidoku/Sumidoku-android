@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -453,13 +454,33 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
     LaunchedEffect(pagerState.settledPage) { zoomed = false }
     val pagerScope = rememberCoroutineScope()
     val pageBack: () -> Unit = {
-        if (pagerState.currentPage > 0) {
-            pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        val slot = pagerState.currentPage
+        if (slot - prevSlot < 0) {
+            // Resting on the previous chapter's transition slot: a further
+            // backward turn confirms it, exactly like that slot's tap zone.
+            state.prevChapter?.let { viewModel.openChapter(it.id) }
+        } else if (slot > 0) {
+            pagerScope.launch { pagerState.animateScrollToPage(slot - 1) }
         }
     }
     val pageForward: () -> Unit = {
-        if (pagerState.currentPage < pagerState.pageCount - 1) {
-            pagerScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+        val slot = pagerState.currentPage
+        if (slot - prevSlot >= displayPages.size) {
+            state.nextChapter?.let { viewModel.openChapter(it.id) }
+        } else if (slot < pagerState.pageCount - 1) {
+            pagerScope.launch { pagerState.animateScrollToPage(slot + 1) }
+        }
+    }
+    // Volume rocker as a page turner (KMReader parity). The turn is the same
+    // one the tap zones perform, so the chapter transition slots confirm on
+    // the second press. Disabled while a sheet owns the screen.
+    VolumeKeyPagingEffect(
+        enabled = state.volumeKeyPaging && !state.overlay && !state.chapterSheet,
+        rtl = rtl,
+    ) { page ->
+        when (page) {
+            VolumeKeyPage.Next -> pageForward()
+            VolumeKeyPage.Previous -> pageBack()
         }
     }
     // Second-turn confirm (webui pendingTurn / Komikku parity): while the
@@ -714,6 +735,19 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
     LaunchedEffect(state.seekRequest) {
         if (state.seekRequest > 0 && state.index in 0 until state.pages.size) {
             listState.scrollToItem(state.index)
+        }
+    }
+    // Continuous modes have no pages to turn: a volume-key press scrolls one
+    // viewport instead, the amount a screen-sized step would reveal. Always
+    // down for "next" — vertical flow does not mirror with the direction.
+    val scrollScope = rememberCoroutineScope()
+    VolumeKeyPagingEffect(
+        enabled = state.volumeKeyPaging && !state.overlay && !state.chapterSheet,
+        rtl = false,
+    ) { page ->
+        val step = listState.layoutInfo.viewportSize.height * 0.9f
+        scrollScope.launch {
+            listState.animateScrollBy(if (page == VolumeKeyPage.Next) step else -step)
         }
     }
     // webtoon gap 0 / continuous 12dp (Aidoku webtoon vs continuous).
@@ -1019,6 +1053,19 @@ private fun PagedTextBody(state: ReaderUiState, viewModel: ReaderViewModel) {
             when {
                 pager.currentPage > spreads - 1 -> pager.scrollToPage(spreads - 1)
                 else -> viewModel.setTextSpread(pager.settledPage, spreads)
+            }
+        }
+        val pagerScope = rememberCoroutineScope()
+        // Paged prose turns a screenful at a time with the volume keys too.
+        // The column track never mirrors for RTL, so forward is always
+        // spread + 1 whatever the chapter's reading direction.
+        VolumeKeyPagingEffect(
+            enabled = state.volumeKeyPaging && !state.overlay && !state.chapterSheet,
+            rtl = false,
+        ) { page ->
+            val target = pager.currentPage + if (page == VolumeKeyPage.Next) 1 else -1
+            if (target in 0 until spreads) {
+                pagerScope.launch { pager.animateScrollToPage(target) }
             }
         }
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { spread ->
@@ -2284,6 +2331,23 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
             }
             if (state.tapZones != "off") {
                 TapZonePreview(layout = state.tapZones, rtl = state.dir == "rtl")
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.reader_volume_key_paging),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(R.string.reader_volume_key_paging_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.volumeKeyPaging,
+                    onCheckedChange = { viewModel.setVolumeKeyPaging(it) },
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

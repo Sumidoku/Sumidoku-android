@@ -35,6 +35,7 @@ data class ReaderDefaultsState(
     val textColumns: Boolean = true,
     val drawUnderCutout: Boolean = false,
     val keepScreenAwake: Boolean = false,
+    val volumeKeyPaging: Boolean = false,
 )
 
 @HiltViewModel
@@ -67,6 +68,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 textColumns = prefs.textColumns,
                 drawUnderCutout = prefs.drawUnderCutout,
                 keepScreenAwake = prefs.keepScreenAwake,
+                volumeKeyPaging = prefs.volumeKeyPaging,
             )
         }
     }
@@ -114,6 +116,11 @@ class ReaderDefaultsViewModel @Inject constructor(
     fun setDrawUnderCutout(value: Boolean) = write(ReaderField.CUTOUT, value.toString())
     fun setKeepScreenAwake(value: Boolean) = write(ReaderField.KEEP, value.toString())
 
+    fun setVolumeKeyPaging(value: Boolean) {
+        _state.value = _state.value.copy(volumeKeyPaging = value)
+        write(ReaderField.VOLUME, value.toString())
+    }
+
     fun setCoverFirst(value: Boolean) {
         _state.value = _state.value.copy(coverFirst = value)
         viewModelScope.launchGuarded { store.setGlobal(ReaderField.COVER, value.toString()) }
@@ -146,6 +153,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 textColumns = prefs.textColumns,
                 drawUnderCutout = prefs.drawUnderCutout,
                 keepScreenAwake = prefs.keepScreenAwake,
+                volumeKeyPaging = prefs.volumeKeyPaging,
             )
         }
     }
@@ -170,5 +178,6 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.TCOLS -> copy(textColumns = raw.toBooleanStrictOrNull() ?: textColumns)
     ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBooleanStrictOrNull() ?: drawUnderCutout)
     ReaderField.KEEP -> copy(keepScreenAwake = raw.toBooleanStrictOrNull() ?: keepScreenAwake)
+    ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBooleanStrictOrNull() ?: volumeKeyPaging)
 }
 

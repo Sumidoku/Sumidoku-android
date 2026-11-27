@@ -425,6 +425,17 @@ Three kinds, clearly separated:
   behavior (§12). Keys keep the web UI's semantics so a future sync of
   reader preferences is a mapping, not a redesign.
 
+App updates are a client-local concern like the preferences above, not
+a server setting: `GET
+https://api.github.com/repos/Sumidoku/Sumidoku-android/releases/latest`
+is compared with the installed `versionName` by `core:common`'s
+`AppVersion` (numeric segments, so `0.10.0` beats `0.9.3`; a final
+release outranks its pre-releases). The check runs at launch at most
+once a day and can be turned off or triggered by hand from Settings →
+About. A release the user dismissed with "Later" stays quiet until a
+newer one appears, and the download button hands the release APK's
+asset URL to the browser — the client never installs an APK itself.
+
 ## 12. Reader
 
 The reader is the highest-risk module and gets the most direct
@@ -461,6 +472,24 @@ lineage from existing work:
   defaults screen. Editing them while reading pins them to that manga,
   and matching the global default drops the override again (the
   self-cleaning rule of `overrideStore.writeOverride`).
+- Hardware keys: an optional global switch (`ReaderField.VOLUME`,
+  DataStore key `reader.g.volume`, off by default) turns the volume
+  rocker into a page turner, after KMReader's `VolumeKeyPaging.kt`.
+  `MainActivity.dispatchKeyEvent` hands the key to
+  `ReaderVolumeKeyDispatcher` before the window manager can turn it
+  into a volume change, so the system volume stays untouched and no
+  volume HUD appears; only the initial press turns, repeats and the
+  key-up are swallowed. Volume-up turns forward and volume-down back;
+  a right-to-left image chapter mirrors the pair with the rest of the
+  reader (`volumeKeyPage`), so volume-up keeps pointing at the
+  physically right page, while the prose column track — which never
+  mirrors — keeps forward on volume-up whatever the chapter direction,
+  and vertical modes only ever scroll downward, so they too keep
+  forward on volume-up. Paged chapters step the pager — a second turn
+  on a chapter transition slot confirms it, like that slot's tap zone —
+  paged prose steps the column track, and vertical modes scroll one
+  viewport. The hook is disarmed while the overlay, the settings sheet
+  or the chapter drawer is open.
 - Images: the server sends original bytes
   (`GET /chapter/{id}/page/{index}`,
   `Cache-Control: private, max-age=3600`); scaling is a client duty by

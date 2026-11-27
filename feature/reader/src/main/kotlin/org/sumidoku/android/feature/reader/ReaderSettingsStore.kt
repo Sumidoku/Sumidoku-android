@@ -35,6 +35,7 @@ enum class ReaderField(val key: String, val fallback: String) {
     TCOLS("tcols", "true"),     // text pages: paged multi-column layout on wide screens
     CUTOUT("cutout", "false"),  // true = content draws under the notch band (Koharia drawUnderCutout)
     KEEP("keep", "false"),      // keep the screen awake while reading
+    VOLUME("volume", "false"),  // volume keys turn pages (device input, global only)
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -62,6 +63,7 @@ data class ReaderPrefs(
     val drawUnderCutout: Boolean = false,
     /** Keep the screen awake while the reader is the top page. */
     val keepScreenAwake: Boolean = false,
+    val volumeKeyPaging: Boolean = false,
 ) {
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
@@ -84,6 +86,7 @@ data class ReaderPrefs(
         ReaderField.TCOLS -> textColumns.toString()
         ReaderField.CUTOUT -> drawUnderCutout.toString()
         ReaderField.KEEP -> keepScreenAwake.toString()
+        ReaderField.VOLUME -> volumeKeyPaging.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -108,6 +111,7 @@ data class ReaderPrefs(
             ReaderField.TCOLS -> copy(textColumns = raw.toBoolean())
             ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBoolean())
             ReaderField.KEEP -> copy(keepScreenAwake = raw.toBoolean())
+            ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBoolean())
         }
     }
 

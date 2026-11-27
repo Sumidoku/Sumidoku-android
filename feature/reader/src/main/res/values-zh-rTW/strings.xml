@@ -89,6 +89,8 @@
     <string name="reader_tap_rl">右左</string>
     <string name="reader_tap_edge">邊緣</string>
     <string name="reader_tap_off">關</string>
+    <string name="reader_volume_key_paging">音量鍵翻頁</string>
+    <string name="reader_volume_key_paging_hint">音量上鍵翻到下一頁，音量下鍵翻到上一頁；閱讀時系統音量保持不變。</string>
     <string name="reader_page_scale">頁面縮放</string>
     <string name="reader_scale_fit">符合</string>
     <string name="reader_scale_width">寬度</string>
