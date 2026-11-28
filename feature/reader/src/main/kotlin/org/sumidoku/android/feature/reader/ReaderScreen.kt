@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,6 +109,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -1710,6 +1712,11 @@ private fun ReaderImage(
     } else {
         Modifier
     }
+    // Keep the bitmap the reader is already looking at across a model swap (source → 2x). Coil goes
+    // through a Loading state while the enhanced request decodes, and the loading slot has no
+    // intrinsic size; painting the previous result keeps the page on screen instead of flashing the
+    // spinner (or, in a webtoon strip, a blank frame) during the swap.
+    var lastPainter by remember(url) { mutableStateOf<Painter?>(null) }
     // The enhancement-cache key is a pure function of the URL and the variant config, so the
     // reader does not carry it around and the composable stays stateless across page identity.
     val enhancementKey = upscaleBadgeKey(url)
@@ -1748,10 +1755,25 @@ private fun ReaderImage(
         contentScale = contentScale,
         alignment = alignment,
         colorFilter = colorFilter,
+        onSuccess = { lastPainter = it.painter },
         loading = {
-            // Komikku-style: centered, always-rotating progress indicator.
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            // Source → 2x swap: keep painting the bitmap that is already on screen while the
+            // enhanced request decodes. Only a page with no previous result shows the spinner.
+            val fallback = lastPainter
+            if (fallback != null) {
+                Image(
+                    painter = fallback,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = contentScale,
+                    alignment = alignment,
+                    colorFilter = colorFilter,
+                )
+            } else {
+                // Komikku-style: centered, always-rotating progress indicator.
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         },
         error = {

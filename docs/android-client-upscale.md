@@ -453,5 +453,10 @@ release APK check (ABI filters, no debug symbols shipped) should be part of the 
   the height the page actually rendered at and applies `heightIn(min = …)` across the state
   change, keeping the item's geometry identical while the 2x bitmap decodes. Fixed-size paged and
   spread slots are unaffected.
+- **Source→2x swap keeps the old bitmap**: the loading slot paints the last successful painter
+  (`SubcomposeAsyncImage(onSuccess = …)`) while the enhanced request decodes, so the page never
+  flashes a spinner or a blank frame mid-swap (KMReader does the same with its
+  `fallbackPainter`). Together with the reserved height the webtoon item is geometrically and
+  visually unchanged across the swap.
 - **Defaults confirmed**: mode `off`, all five denoise models bundled (5 × ~1.06 MB), threshold
   `1.05`, precision `auto`, preload `3`.
