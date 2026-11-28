@@ -27,13 +27,13 @@ Targets Android 8.0 (API 26) and up, built with Kotlin and Jetpack Compose (Mate
 
 ## Architecture
 
-25 Gradle modules with a strict dependency direction (`app` → `feature` → `core`):
+26 Gradle modules with a strict dependency direction (`app` → `feature` → `core`):
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
-| `app` | 1 | Application shell, navigation host, theme, update worker |
+| `app` | 1 | Application shell, navigation host, theme, Coil image-loader factory, update worker |
 | `feature:*` | 15 | One Compose screen plus its ViewModel per feature: `servers`, `library`, `browse`, `search`, `manga`, `reader`, `source`, `repos`, `updates`, `history`, `downloads`, `migrate`, `trackers`, `settings`, `backups` |
-| `core:*` | 9 | `api` (generated Retrofit client), `network` (client factory, auth, failover), `data` (Room, DataStore, repositories), `source`, `stream` (SSE), `download`, `model`, `common`, `ui` (design system) |
+| `core:*` | 10 | `api` (generated Retrofit client), `network` (client factory, auth, failover), `data` (Room, DataStore, repositories), `source`, `stream` (SSE), `download`, `image` (waifu2x upscaling: ncnn+Vulkan JNI, enhancement cache, Coil decoder, priority queue), `model`, `common`, `ui` (design system) |
 
 Hilt provides dependency injection; Room and DataStore hold local state; Coil decodes covers; Retrofit talks to the server.
 

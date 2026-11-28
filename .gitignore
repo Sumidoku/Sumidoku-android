@@ -7,6 +7,9 @@ local.properties
 .idea/
 .cxx/
 
+# Prebuilt ncnn SDK fetched by :core:image:fetchNcnnSdk
+third_party/ncnn/
+
 # Kotlin/IDE
 .kotlin/
 *.hprof

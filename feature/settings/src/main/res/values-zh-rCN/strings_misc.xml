@@ -116,4 +116,8 @@
     <string name="tasks_source_number">源 #%1$s</string>
     <string name="tasks_cancel_task">取消任务</string>
     <string name="tasks_cancelled">已取消</string>
+    <string name="cache_device_title">Waifu2x 超分缓存（本机）</string>
+    <string name="cache_device_usage">%1$d 页 · %2$s</string>
+    <string name="cache_device_clear">清除超分页面</string>
+    <string name="cache_device_cleared">已清除超分页面</string>
 </resources>

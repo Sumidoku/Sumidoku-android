@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import org.sumidoku.android.core.common.launchGuarded
+import org.sumidoku.android.core.image.upscale.DenoiseLevel
+import org.sumidoku.android.core.image.upscale.UpscaleMode
+import org.sumidoku.android.core.image.upscale.UpscalePrecision
+import org.sumidoku.android.core.image.upscale.UpscaleSettings
 
 /**
  * Global reader defaults (preview 24-reader-settings.html): the same fields the
@@ -36,6 +40,8 @@ data class ReaderDefaultsState(
     val drawUnderCutout: Boolean = false,
     val keepScreenAwake: Boolean = false,
     val volumeKeyPaging: Boolean = false,
+    /** Waifu2x upscaling defaults (device-only, so they only exist on the global layer). */
+    val upscale: UpscaleSettings = UpscaleSettings(),
 )
 
 @HiltViewModel
@@ -69,6 +75,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 drawUnderCutout = prefs.drawUnderCutout,
                 keepScreenAwake = prefs.keepScreenAwake,
                 volumeKeyPaging = prefs.volumeKeyPaging,
+                upscale = prefs.upscaleSettings(),
             )
         }
     }
@@ -121,6 +128,23 @@ class ReaderDefaultsViewModel @Inject constructor(
         write(ReaderField.VOLUME, value.toString())
     }
 
+    // ---- waifu2x upscaling (device-only, written to the global layer) ----
+
+    fun setUpscaleEnabled(value: Boolean) {
+        val mode = if (value) UpscaleMode.AUTO else UpscaleMode.OFF
+        write(ReaderField.UPSCALE, mode.raw)
+    }
+
+    fun setUpscaleDenoise(value: DenoiseLevel) = write(ReaderField.UPSCALE_DENOISE, value.raw)
+
+    fun setUpscaleThreshold(value: Float) =
+        write(ReaderField.UPSCALE_THRESHOLD, UpscaleSettings.clampAutoTriggerScale(value).toString())
+
+    fun setUpscalePrecision(value: UpscalePrecision) = write(ReaderField.UPSCALE_PRECISION, value.raw)
+
+    fun setUpscalePreload(value: Int) =
+        write(ReaderField.UPSCALE_PRELOAD, UpscaleSettings.clampPreloadAhead(value).toString())
+
     fun setCoverFirst(value: Boolean) {
         _state.value = _state.value.copy(coverFirst = value)
         viewModelScope.launchGuarded { store.setGlobal(ReaderField.COVER, value.toString()) }
@@ -154,6 +178,7 @@ class ReaderDefaultsViewModel @Inject constructor(
                 drawUnderCutout = prefs.drawUnderCutout,
                 keepScreenAwake = prefs.keepScreenAwake,
                 volumeKeyPaging = prefs.volumeKeyPaging,
+                upscale = prefs.upscaleSettings(),
             )
         }
     }
@@ -179,5 +204,22 @@ private fun ReaderDefaultsState.applied(field: ReaderField, raw: String): Reader
     ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBooleanStrictOrNull() ?: drawUnderCutout)
     ReaderField.KEEP -> copy(keepScreenAwake = raw.toBooleanStrictOrNull() ?: keepScreenAwake)
     ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBooleanStrictOrNull() ?: volumeKeyPaging)
+    ReaderField.UPSCALE -> copy(upscale = upscale.copy(mode = UpscaleMode.fromRaw(raw)))
+    ReaderField.UPSCALE_DENOISE -> copy(upscale = upscale.copy(denoise = DenoiseLevel.fromRaw(raw)))
+    ReaderField.UPSCALE_THRESHOLD -> copy(
+        upscale = upscale.copy(
+            autoTriggerScale = UpscaleSettings.clampAutoTriggerScale(
+                raw.toFloatOrNull() ?: upscale.autoTriggerScale,
+            ),
+        ),
+    )
+    ReaderField.UPSCALE_PRECISION -> copy(upscale = upscale.copy(precision = UpscalePrecision.fromRaw(raw)))
+    ReaderField.UPSCALE_PRELOAD -> copy(
+        upscale = upscale.copy(
+            preloadAhead = UpscaleSettings.clampPreloadAhead(
+                raw.toIntOrNull() ?: upscale.preloadAhead,
+            ),
+        ),
+    )
 }
 

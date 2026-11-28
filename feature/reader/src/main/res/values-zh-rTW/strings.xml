@@ -156,6 +156,26 @@
     <string name="reader_defaults_typography">文字排版</string>
     <string name="reader_defaults_typography_hint">文字章節（EPUB 書籍與文字檔）的字型、字級與行距；圖片章節不使用這些設定。</string>
 
+    <!-- Waifu2x 超解析（裝置層級設定，僅全域） -->
+    <string name="reader_upscale_title">Waifu2x 超解析</string>
+    <string name="reader_upscale_enable">低解析度頁面超解析</string>
+    <string name="reader_upscale_enable_hint">當螢幕需要放大頁面時，用 GPU 執行一次 2x waifu2x 處理；封面與縮圖不受影響。頁面會先顯示原圖，超解析完成後就地替換為高解析結果。</string>
+    <string name="reader_upscale_threshold_hint">僅當頁面被放大到自身像素的該倍數以上時才超解析。</string>
+    <string name="reader_upscale_denoise">降噪強度</string>
+    <string name="reader_upscale_denoise_none">無</string>
+    <string name="reader_upscale_denoise_low">低</string>
+    <string name="reader_upscale_denoise_medium">中</string>
+    <string name="reader_upscale_denoise_high">高</string>
+    <string name="reader_upscale_denoise_max">最高</string>
+    <string name="reader_upscale_precision">運算精度</string>
+    <string name="reader_upscale_precision_auto">自動</string>
+    <string name="reader_upscale_precision_fp16">FP16</string>
+    <string name="reader_upscale_precision_fp32">FP32</string>
+    <string name="reader_upscale_preload">預先載入後續頁數</string>
+    <string name="reader_upscale_preload_off">僅目前頁</string>
+    <string name="reader_upscale_device_hint">這是裝置層級設定，不會隨單本漫畫覆寫。超解析佔用 GPU，增強快取約為原圖 4 倍；不支援 Vulkan 的裝置會自動退回原圖。</string>
+    <string name="reader_upscale_badge">2x</string>
+
     <!-- ViewModel errors -->
     <string name="reader_no_server">未選擇伺服器</string>
 </resources>

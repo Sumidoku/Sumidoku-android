@@ -38,6 +38,19 @@ jobs:
       - name: Install SDK platform
         run: sdkmanager --install "platforms;android-37.0" "build-tools;36.0.0"
 
+      # `core:image` builds the ncnn+Vulkan waifu2x engine from C++: the NDK and CMake versions
+      # are pinned in that module's build file and must match what CI installs here.
+      - name: Install NDK and CMake
+        run: sdkmanager --install "ndk;27.2.12479018" "cmake;3.22.1"
+
+      # The prebuilt ncnn SDK is downloaded (and sha256-verified) by fetchNcnnSdk; cache it so
+      # repeat builds skip the ~40 MB fetch.
+      - name: Cache ncnn SDK
+        uses: actions/cache@v4
+        with:
+          path: third_party/ncnn
+          key: ncnn-20260113-android-vulkan-${{ runner.os }}
+
       # JVM tests only, no emulator: the generated OpenAPI client decodes real
       # captured payloads, and the coroutine / reachability guards are pure JVM
       - name: Run unit tests

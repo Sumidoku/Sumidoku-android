@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +18,7 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -82,6 +86,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -104,11 +109,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -133,12 +140,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import coil3.imageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
@@ -151,6 +160,15 @@ import org.sumidoku.android.core.api.model.ChapterWithDownload
 import org.sumidoku.android.core.api.model.Page
 import org.sumidoku.android.core.common.chapterLabel
 import org.sumidoku.android.core.common.chapterNumberLabel
+import org.sumidoku.android.core.image.upscale.DenoiseLevel
+import org.sumidoku.android.core.image.upscale.DisplayScaleMode
+import org.sumidoku.android.core.image.upscale.EnhancementCache
+import org.sumidoku.android.core.image.upscale.EnhancementDecoder
+import org.sumidoku.android.core.image.upscale.ImageEnhancer
+import org.sumidoku.android.core.image.upscale.UpscaleConfig
+import org.sumidoku.android.core.image.upscale.UpscaleMode
+import org.sumidoku.android.core.image.upscale.UpscalePrecision
+import org.sumidoku.android.core.image.upscale.UpscaleSettings
 import org.sumidoku.android.core.ui.AppModalDialog
 import org.sumidoku.android.core.ui.CoverSeedTheme
 import org.sumidoku.android.core.ui.computeCoverTint
@@ -177,6 +195,24 @@ private data class ReaderTypography(
  *  per-page call sites never have to thread the preferences through. */
 private val LocalReaderTypography = staticCompositionLocalOf { ReaderTypography() }
 
+/** Upscaling state for the open reader: the resolved config, the keys that already finished and
+ *  the keys the engine still holds (queued or in flight). */
+private class ReaderUpscaleContext(
+    val config: UpscaleConfig,
+    val readyKeys: Set<String>,
+    val processingKeys: Set<String>,
+)
+
+/**
+ * Provided once by [ReaderScreen]; every page image reads it, so the paged, spread and vertical
+ * call sites never thread the config through their signatures. Enabled requests are marked for
+ * [EnhancementDecoder] inside [ReaderImage], and [UpscaleBadge] turns the processing set into the
+ * page-level "2x" hint.
+ */
+private val LocalReaderUpscale = staticCompositionLocalOf {
+    ReaderUpscaleContext(UpscaleConfig(mode = UpscaleMode.OFF), emptySet(), emptySet())
+}
+
 /** Fields that pin to a single manga once edited inside the reader, and
  *  therefore earn the same override marker as mode/layout/direction. */
 private val TYPOGRAPHY_FIELDS = setOf(ReaderField.FONT, ReaderField.FSIZE, ReaderField.FLINE)
@@ -195,6 +231,17 @@ fun ReaderScreen(
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    // Keys that finished enhancing on the native engine: a page whose key lands here is
+    // re-requested and swaps from the already-shown source bitmap to the 2x result.
+    val enhancedKeys by viewModel.enhancedKeys.collectAsState()
+    // Keys still queued or inside the engine: the current page shows its "2x" chip as a spinner
+    // until its key lands in enhancedKeys and the bitmap swaps in place.
+    val processingKeys by viewModel.processingKeys.collectAsState()
+    // Leaving the reader abandons queued pages (and the one inside the engine), so returning to
+    // the library never leaves the GPU spinning on a book nobody is looking at.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onReaderClosed() }
+    }
     val configuration = LocalConfiguration.current
     val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val canvasColor = when (state.background) {
@@ -247,8 +294,15 @@ fun ReaderScreen(
     // background shows there); on they get the whole screen (KMReader parity).
     val contentInset = readerCutoutPadding(state.drawUnderCutout)
 
+    val upscaleContext = remember(state.upscale, enhancedKeys, processingKeys) {
+        ReaderUpscaleContext(state.upscale.toConfig(), enhancedKeys, processingKeys)
+    }
+
     CoverSeedTheme(coverTint) {
-    CompositionLocalProvider(LocalReaderTypography provides typography) {
+    CompositionLocalProvider(
+        LocalReaderTypography provides typography,
+        LocalReaderUpscale provides upscaleContext,
+    ) {
     Box(Modifier.fillMaxSize().background(canvasColor)) {
         Box(Modifier.fillMaxSize().padding(contentInset)) {
         when {
@@ -400,6 +454,10 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
         initialPage = initialDisplay + prevSlot,
         pageCount = { displayPages.size + prevSlot + if (state.nextChapter != null) 1 else 0 },
     )
+    // While a page is under the finger, park the native tile loop so the compositor keeps the GPU.
+    LaunchedEffect(pagerState.isScrollInProgress) {
+        viewModel.setUpscalePaused(pagerState.isScrollInProgress)
+    }
     LaunchedEffect(pagerState, displayPages) {
         snapshotFlow { pagerState.settledPage }.collect { slot ->
             displayPages.getOrNull(slot - prevSlot)?.let { viewModel.setIndex(it.pages.last().index.toInt()) }
@@ -424,26 +482,47 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
     }
 
     val prefetchContext = LocalContext.current
-    LaunchedEffect(state.index, displayPages.size) {
+    val prefetchUpscale = state.upscale.toConfig()
+    val preloadAhead = state.upscale.preloadAhead
+    LaunchedEffect(state.index, displayPages.size, prefetchUpscale, preloadAhead) {
+        // With upscaling on, every prefetched page is a full 2x native run on one GPU queue: the
+        // window is exactly what the user chose, and 0 means "do not preprocess anything".
+        if (prefetchUpscale.enabled && preloadAhead == 0) return@LaunchedEffect
         val current = displayPages
             .indexOfFirst { slot -> slot.pages.any { it.index.toInt() >= state.index } }
             .takeIf { it >= 0 } ?: 0
         // Prefetch both neighbours: with RTL the "next" swipe is the slot
         // before the current one, so a one-sided window would miss it.
-        for (i in (current - 1)..(current + 2)) {
+        // Plain prefetch keeps the pager's ±1..+2 window; with upscaling it
+        // becomes the configured ahead depth (one slot behind always counts,
+        // it is what an RTL swipe reveals).
+        val ahead = if (prefetchUpscale.enabled) preloadAhead.coerceAtLeast(1) else 2
+        for (i in (current - 1)..(current + ahead)) {
             if (i !in displayPages.indices) continue
             for (page in displayPages[i].pages) {
                 if (page.pageText() != null) continue
-                prefetchContext.imageLoader.enqueue(
-                    ImageRequest.Builder(prefetchContext)
-                        .data(viewModel.pageImageUrl(page))
-                        .apply {
-                            state.profile?.apiKey?.let {
-                                httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
-                            }
-                        }
-                        .build(),
-                )
+                val url = viewModel.pageImageUrl(page)
+                val builder = ImageRequest.Builder(prefetchContext).data(url).apply {
+                    state.profile?.apiKey?.let {
+                        httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build())
+                    }
+                    if (prefetchUpscale.enabled) {
+                        // Queue the page through the decoder at PRELOAD so the native work happens
+                        // before the swipe; the 2x result lands in the enhancement cache and the
+                        // display request then finds it on the first frame.
+                        EnhancementDecoder.applyTo(
+                            builder = this,
+                            config = prefetchUpscale,
+                            pageUrl = url,
+                            priority = ImageEnhancer.PRIORITY_PRELOAD,
+                            scaleMode = DisplayScaleMode.fromReaderScale(state.scale),
+                            srcWidth = (page.width ?: 0L).toInt(),
+                            srcHeight = (page.height ?: 0L).toInt(),
+                        )
+                        memoryCachePolicy(CachePolicy.DISABLED)
+                    }
+                }
+                prefetchContext.imageLoader.enqueue(builder.build())
             }
         }
     }
@@ -572,6 +651,12 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
                 return@HorizontalPager
             }
             val display = displayPages[contentIndex]
+            // Priority follows what the eye sees: the settled page outranks its neighbours.
+            val pagePriority = if (display.pages.any { it.index.toInt() == state.index }) {
+                ImageEnhancer.PRIORITY_VISIBLE
+            } else {
+                ImageEnhancer.PRIORITY_ADJACENT
+            }
             if (display.pages.size == 2) {
                 SpreadPage(
                     pages = display.pages,
@@ -580,6 +665,7 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
                     tapZones = state.tapZones,
                     rtl = rtl,
                     colorFilter = readerColorFilter(state),
+                    priority = pagePriority,
                     onTapLeft = pageBack,
                     onTapCenter = { viewModel.toggleOverlay() },
                     onTapRight = pageForward,
@@ -595,6 +681,7 @@ private fun PagedReaderBody(state: ReaderUiState, viewModel: ReaderViewModel, la
                     pageScale = state.scale,
                     doubleTapZoom = state.doubleTapZoom,
                     colorFilter = readerColorFilter(state),
+                    priority = pagePriority,
                     onZoomChange = { zoomed = it },
                     onTapLeft = pageBack,
                     onTapCenter = { viewModel.toggleOverlay() },
@@ -723,6 +810,11 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.setIndex(it) }
     }
+    // Vertical scrolling is the most GPU-hungry case (a strip can be several screens tall):
+    // park native tile submission while the list moves.
+    LaunchedEffect(listState.isScrollInProgress) {
+        viewModel.setUpscalePaused(listState.isScrollInProgress)
+    }
     // Prose has no page boundary to finish on, so reaching the end of the
     // scrolling column is the end-of-chapter signal (the paged column track
     // reports its own last spread).
@@ -814,6 +906,25 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                             modifier = Modifier.fillMaxWidth(),
                             contentScale = ContentScale.FillWidth,
                             colorFilter = readerColorFilter(state),
+                            // A strip is width-bound: only the horizontal ratio says how much the
+                            // screen enlarges it (its height is the whole scroll extent).
+                            scaleMode = DisplayScaleMode.WIDTH,
+                            priority = if (position == state.index) {
+                                ImageEnhancer.PRIORITY_VISIBLE
+                            } else {
+                                ImageEnhancer.PRIORITY_ADJACENT
+                            },
+                            srcWidth = (page.width ?: 0L).toInt(),
+                            srcHeight = (page.height ?: 0L).toInt(),
+                            // The strip's own bitmap height is what sizes this LazyColumn item,
+                            // so it must not collapse while the 2x request is decoding.
+                            reserveHeightWhileLoading = true,
+                        )
+                        // A strip's box wraps its bitmap, so the chip rides the bottom of each
+                        // page and scrolls with it instead of floating over the viewport.
+                        UpscaleBadge(
+                            url = viewModel.pageImageUrl(page),
+                            modifier = Modifier.align(Alignment.BottomEnd),
                         )
                     }
                 }
@@ -1131,6 +1242,7 @@ private fun ReaderPage(
     pageScale: String,
     doubleTapZoom: Float,
     colorFilter: ColorFilter?,
+    priority: Int,
     onZoomChange: (Boolean) -> Unit,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
@@ -1138,6 +1250,9 @@ private fun ReaderPage(
 ) {
     var scale by remember(page.index) { mutableFloatStateOf(1f) }
     var offset by remember(page.index) { mutableStateOf(Offset.Zero) }
+    // Server-side page metadata, so the upscaling decision needs no bounds decode on the common path.
+    val srcWidth = (page.width ?: 0L).toInt()
+    val srcHeight = (page.height ?: 0L).toInt()
 
     Box(Modifier.fillMaxSize()) {
         val textPage = page.pageText()
@@ -1172,7 +1287,16 @@ private fun ReaderPage(
                         modifier = scrollModifier,
                         contentScale = contentScale,
                         colorFilter = colorFilter,
+                        scaleMode = DisplayScaleMode.fromReaderScale(pageScale),
+                        priority = priority,
+                        srcWidth = srcWidth,
+                        srcHeight = srcHeight,
                     )
+                }
+                // Pinned to the viewport, not the scrolled strip, so a width/height-fit page keeps
+                // its chip visible while the user drags through it.
+                if (textPage == null) {
+                    UpscaleBadge(url, Modifier.align(Alignment.BottomEnd))
                 }
             }
             return@Box
@@ -1279,7 +1403,16 @@ private fun ReaderPage(
                 modifier = imageModifier,
                 contentScale = ContentScale.Fit,
                 colorFilter = colorFilter,
+                // A split wide page is painted stretched 2x horizontally before being clipped to
+                // its visible half, so the trigger must see that doubled scale.
+                scaleMode = if (crop == 0) DisplayScaleMode.fromReaderScale(pageScale) else DisplayScaleMode.SPLIT,
+                priority = priority,
+                srcWidth = srcWidth,
+                srcHeight = srcHeight,
             )
+            // A split page paints 2x-then-clipped, so the chip stays on the viewport corner
+            // rather than inside the zoomed layer where it could be cropped out of sight.
+            UpscaleBadge(url, Modifier.align(Alignment.BottomEnd))
         }
     }
 }
@@ -1431,6 +1564,7 @@ private fun SpreadPage(
     tapZones: String,
     rtl: Boolean,
     colorFilter: ColorFilter?,
+    priority: Int,
     onTapLeft: () -> Unit,
     onTapCenter: () -> Unit,
     onTapRight: () -> Unit,
@@ -1464,6 +1598,19 @@ private fun SpreadPage(
                             contentScale = ContentScale.Fit,
                             alignment = edgeAlignment,
                             colorFilter = colorFilter,
+                            scaleMode = DisplayScaleMode.FIT,
+                            priority = priority,
+                            srcWidth = (page.width ?: 0L).toInt(),
+                            srcHeight = (page.height ?: 0L).toInt(),
+                        )
+                        // One chip per half, pushed to the outer edge (the gutter side is where
+                        // the two pages join, so a chip there would look like it belongs to the
+                        // other page). Start/End mirror with RTL along with edgeAlignment.
+                        UpscaleBadge(
+                            url = urlFor(page),
+                            modifier = Modifier.align(
+                                if (index == 0) Alignment.BottomStart else Alignment.BottomEnd,
+                            ),
                         )
                     }
                 }
@@ -1472,6 +1619,64 @@ private fun SpreadPage(
     }
 }
 
+/** The enhancement-cache key for a page URL under the current config, or null when upscaling is
+ *  off. Pure function of the URL and the denoise/precision variant, so callers only pass the URL. */
+@Composable
+private fun upscaleBadgeKey(url: String): String? {
+    val upscale = LocalReaderUpscale.current
+    val key = remember(url, upscale.config) {
+        EnhancementCache.cacheKey(url, upscale.config.denoise, upscale.config.precision)
+    }
+    return if (upscale.config.enabled) key else null
+}
+
+/**
+ * Page-level upscaling indicator: a "2x" chip with a spinner while the engine holds the page. It is
+ * a one-way hint — it explains the wait, then fades out as the enhanced bitmap swaps in. Completed
+ * pages carry no permanent label: `readyKeys` is intentionally not rendered, so an already
+ * enhanced page looks like a normal page. Pages the decision matrix skipped, and pages under a
+ * disabled config, never show it.
+ */
+@Composable
+private fun UpscaleBadge(url: String, modifier: Modifier = Modifier) {
+    val key = upscaleBadgeKey(url) ?: return
+    val upscale = LocalReaderUpscale.current
+    val processing = key in upscale.processingKeys
+    // Target 0f as soon as the key leaves the queue/engine; 0-alpha chips draw nothing, so the
+    // animation can finish before the surface is dropped from the composition.
+    val alpha by animateFloatAsState(
+        targetValue = if (processing) 1f else 0f,
+        animationSpec = tween(durationMillis = if (processing) 120 else 260),
+        label = "upscaleBadgeAlpha",
+    )
+    if (alpha <= 0f) return
+    Surface(
+        modifier = modifier.padding(10.dp).alpha(alpha),
+        shape = RoundedCornerShape(6.dp),
+        // inverseSurface/inverseOnSurface keeps the chip readable over white manga pages in the
+        // light theme and over black ones in the dark theme.
+        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.72f),
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(10.dp),
+                strokeWidth = 1.5.dp,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+            )
+            Text(
+                stringResource(R.string.reader_upscale_badge),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalCoilApi::class)
 @Composable
 private fun ReaderImage(
     url: String,
@@ -1480,27 +1685,95 @@ private fun ReaderImage(
     contentScale: ContentScale,
     alignment: Alignment = Alignment.Center,
     colorFilter: ColorFilter? = null,
+    /** How the reader paints this page; decides the upscaling trigger's painted-scale axis. */
+    scaleMode: DisplayScaleMode = DisplayScaleMode.FIT,
+    priority: Int = ImageEnhancer.PRIORITY_VISIBLE,
+    /** Page dimensions from the server metadata; 0 lets the decoder run a bounds pass. */
+    srcWidth: Int = 0,
+    srcHeight: Int = 0,
+    /** Keeps the frame's height while the request is between states (see the heightIn note
+     *  below); required wherever the image's own height is what sizes the parent, i.e. webtoon
+     *  strips inside a LazyColumn. No-op in the fixed-size paged/spread slots. */
+    reserveHeightWhileLoading: Boolean = false,
 ) {
     val context = LocalContext.current
+    val upscale = LocalReaderUpscale.current
+    val density = LocalDensity.current
     var retryKey by remember(url) { mutableIntStateOf(0) }
+    // Height this page actually rendered at, in px. Coil swaps the painter state to Loading while it
+    // decodes the enhanced request, and a Loading state has no intrinsic size: in a webtoon strip the
+    // item would collapse to zero height for that frame, and the LazyColumn — anchored by visible
+    // item + pixel offset — re-anchors, which is what reads as "the scroll position jumped after the
+    // 2x image replaced the source". Reserving the last rendered height keeps the item's geometry
+    // identical across the swap, so nothing above the viewport moves.
+    var renderedHeight by remember(url) { mutableIntStateOf(0) }
+    val heightReserve = if (reserveHeightWhileLoading && renderedHeight > 0) {
+        Modifier.heightIn(min = with(density) { renderedHeight.toDp() })
+    } else {
+        Modifier
+    }
+    // Keep the bitmap the reader is already looking at across a model swap (source → 2x). Coil goes
+    // through a Loading state while the enhanced request decodes, and the loading slot has no
+    // intrinsic size; painting the previous result keeps the page on screen instead of flashing the
+    // spinner (or, in a webtoon strip, a blank frame) during the swap.
+    var lastPainter by remember(url) { mutableStateOf<Painter?>(null) }
+    // The enhancement-cache key is a pure function of the URL and the variant config, so the
+    // reader does not carry it around and the composable stays stateless across page identity.
+    val enhancementKey = upscaleBadgeKey(url)
+    val enhanced = enhancementKey != null && enhancementKey in upscale.readyKeys
     // Rebuilding the request on retryKey gives Coil a fresh request object,
     // so retry actually re-runs the fetch (error results are never cached).
-    val model = remember(url, retryKey) {
+    // `enhanced` is part of the request identity through memoryCacheKeyExtra,
+    // so the finished page swaps in without a manual invalidation.
+    val model = remember(url, retryKey, upscale.config, enhanced, scaleMode, priority, srcWidth, srcHeight) {
         ImageRequest.Builder(context).data(url).apply {
             apiKey?.let { httpHeaders(NetworkHeaders.Builder().set("Authorization", "Bearer $it").build()) }
+            if (upscale.config.enabled && enhancementKey != null) {
+                EnhancementDecoder.applyTo(
+                    builder = this,
+                    config = upscale.config,
+                    pageUrl = url,
+                    priority = priority,
+                    scaleMode = scaleMode,
+                    srcWidth = srcWidth,
+                    srcHeight = srcHeight,
+                )
+                // Coil's memory cache would otherwise keep serving the source bitmap for the
+                // request that is meant to show the enhanced one; 2x bitmaps belong in the
+                // enhancement cache and its own memory LRU.
+                memoryCacheKeyExtra("upscale", "${upscale.config.variant}:enhanced=$enhanced")
+                memoryCachePolicy(CachePolicy.DISABLED)
+            }
         }.build()
     }
     SubcomposeAsyncImage(
         model = model,
         contentDescription = null,
-        modifier = modifier,
+        modifier = modifier
+            .then(heightReserve)
+            .onSizeChanged { if (it.height > 0) renderedHeight = it.height },
         contentScale = contentScale,
         alignment = alignment,
         colorFilter = colorFilter,
+        onSuccess = { lastPainter = it.painter },
         loading = {
-            // Komikku-style: centered, always-rotating progress indicator.
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            // Source → 2x swap: keep painting the bitmap that is already on screen while the
+            // enhanced request decodes. Only a page with no previous result shows the spinner.
+            val fallback = lastPainter
+            if (fallback != null) {
+                Image(
+                    painter = fallback,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = contentScale,
+                    alignment = alignment,
+                    colorFilter = colorFilter,
+                )
+            } else {
+                // Komikku-style: centered, always-rotating progress indicator.
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         },
         error = {
@@ -2579,6 +2852,111 @@ private fun ReaderSettingsSheet(state: ReaderUiState, viewModel: ReaderViewModel
                     enabled = hasCutout,
                 )
             }
+
+            // Waifu2x upscaling (device-only, global layer): the same controls as the defaults
+            // screen, kept compact for the sheet.
+            HorizontalDivider()
+            Text(stringResource(R.string.reader_upscale_title), style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.reader_upscale_enable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = state.upscale.enabled,
+                    onCheckedChange = { viewModel.setUpscaleEnabled(it) },
+                )
+            }
+            if (state.upscale.enabled) {
+                Text(
+                    stringResource(R.string.reader_upscale_denoise),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Chips scroll horizontally so five denoise levels never squeeze into one row.
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    DenoiseLevel.entries.forEach { level ->
+                        FilterChip(
+                            selected = state.upscale.denoise == level,
+                            onClick = { viewModel.setUpscaleDenoise(level) },
+                            label = { Text(denoiseChipLabel(level)) },
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.reader_upscale_precision),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    UpscalePrecision.entries.forEach { precision ->
+                        FilterChip(
+                            selected = state.upscale.precision == precision,
+                            onClick = { viewModel.setUpscalePrecision(precision) },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        when (precision) {
+                                            UpscalePrecision.AUTO -> R.string.reader_upscale_precision_auto
+                                            UpscalePrecision.FP16 -> R.string.reader_upscale_precision_fp16
+                                            UpscalePrecision.FP32 -> R.string.reader_upscale_precision_fp32
+                                        },
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.reader_upscale_preload),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    (0..UpscaleSettings.MAX_PRELOAD_AHEAD).forEach { ahead ->
+                        FilterChip(
+                            selected = state.upscale.preloadAhead == ahead,
+                            onClick = { viewModel.setUpscalePreload(ahead) },
+                            label = {
+                                Text(
+                                    if (ahead == 0) {
+                                        stringResource(R.string.reader_upscale_preload_off)
+                                    } else {
+                                        ahead.toString()
+                                    },
+                                )
+                            },
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.reader_upscale_device_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
+
+/** Localized label of one waifu2x denoise level for the in-reader sheet chips. */
+@Composable
+private fun denoiseChipLabel(level: DenoiseLevel): String = stringResource(
+    when (level) {
+        DenoiseLevel.NONE -> R.string.reader_upscale_denoise_none
+        DenoiseLevel.LOW -> R.string.reader_upscale_denoise_low
+        DenoiseLevel.MEDIUM -> R.string.reader_upscale_denoise_medium
+        DenoiseLevel.HIGH -> R.string.reader_upscale_denoise_high
+        DenoiseLevel.MAX -> R.string.reader_upscale_denoise_max
+    },
+)

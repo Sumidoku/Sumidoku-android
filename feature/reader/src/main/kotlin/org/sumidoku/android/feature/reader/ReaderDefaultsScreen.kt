@@ -32,6 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.sumidoku.android.core.image.upscale.DenoiseLevel
+import org.sumidoku.android.core.image.upscale.UpscalePrecision
+import org.sumidoku.android.core.image.upscale.UpscaleSettings
 import org.sumidoku.android.core.ui.SettingsGroupCard
 
 /**
@@ -112,6 +115,77 @@ fun ReaderDefaultsScreen(
                         Switch(checked = state.coverFirst, onCheckedChange = viewModel::setCoverFirst)
                     },
                 )
+            }
+
+            // Waifu2x upscaling: a device capability (GPU time, bundled models, driver quirks), so
+            // it lives on the global layer only and defaults to off.
+            SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {
+                SectionTitle(stringResource(R.string.reader_upscale_title))
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(R.string.reader_upscale_enable)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.reader_upscale_enable_hint),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = state.upscale.enabled,
+                            onCheckedChange = viewModel::setUpscaleEnabled,
+                        )
+                    },
+                )
+                if (state.upscale.enabled) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            "%.2fx".format(state.upscale.autoTriggerScale),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        androidx.compose.material3.Slider(
+                            value = state.upscale.autoTriggerScale,
+                            onValueChange = viewModel::setUpscaleThreshold,
+                            valueRange = UpscaleSettings.MIN_AUTO_TRIGGER_SCALE..UpscaleSettings.MAX_AUTO_TRIGGER_SCALE,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Caption(stringResource(R.string.reader_upscale_threshold_hint))
+                    Caption(stringResource(R.string.reader_upscale_denoise))
+                    ChipRow(
+                        options = DenoiseLevel.entries.map { it.raw to stringResource(denoiseLabel(it)) },
+                        selected = state.upscale.denoise.raw,
+                        onSelect = { viewModel.setUpscaleDenoise(DenoiseLevel.fromRaw(it)) },
+                    )
+                    Caption(stringResource(R.string.reader_upscale_precision))
+                    ChipRow(
+                        options = UpscalePrecision.entries.map {
+                            it.raw to stringResource(
+                                when (it) {
+                                    UpscalePrecision.AUTO -> R.string.reader_upscale_precision_auto
+                                    UpscalePrecision.FP16 -> R.string.reader_upscale_precision_fp16
+                                    UpscalePrecision.FP32 -> R.string.reader_upscale_precision_fp32
+                                },
+                            )
+                        },
+                        selected = state.upscale.precision.raw,
+                        onSelect = { viewModel.setUpscalePrecision(UpscalePrecision.fromRaw(it)) },
+                    )
+                    Caption(stringResource(R.string.reader_upscale_preload))
+                    ChipRow(
+                        options = (0..UpscaleSettings.MAX_PRELOAD_AHEAD).map {
+                            it.toString() to
+                                if (it == 0) stringResource(R.string.reader_upscale_preload_off) else it.toString()
+                        },
+                        selected = state.upscale.preloadAhead.toString(),
+                        onSelect = { viewModel.setUpscalePreload(it.toIntOrNull() ?: 0) },
+                    )
+                    Caption(stringResource(R.string.reader_upscale_device_hint))
+                }
             }
 
             SettingsGroupCard(Modifier.padding(horizontal = 16.dp)) {
@@ -386,4 +460,13 @@ private fun ChipRow(
             )
         }
     }
+}
+
+/** Localized label of one waifu2x denoise level ("none" ships its own weights). */
+private fun denoiseLabel(level: DenoiseLevel): Int = when (level) {
+    DenoiseLevel.NONE -> R.string.reader_upscale_denoise_none
+    DenoiseLevel.LOW -> R.string.reader_upscale_denoise_low
+    DenoiseLevel.MEDIUM -> R.string.reader_upscale_denoise_medium
+    DenoiseLevel.HIGH -> R.string.reader_upscale_denoise_high
+    DenoiseLevel.MAX -> R.string.reader_upscale_denoise_max
 }
