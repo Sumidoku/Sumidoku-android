@@ -104,6 +104,10 @@
     <string name="cache_clear_covers">Clear cover cache</string>
     <string name="cache_cleared_bytes">Freed %1$s</string>
     <string name="cache_cleared_covers">Cleared %1$d cover cache entries</string>
+    <string name="cache_device_title">Waifu2x cache (this device)</string>
+    <string name="cache_device_usage">%1$d pages · %2$s</string>
+    <string name="cache_device_clear">Clear upscaled pages</string>
+    <string name="cache_device_cleared">Upscaled pages cleared</string>
 
     <!-- Tasks screen + view model -->
     <string name="tasks_title">Task queue</string>

@@ -47,6 +47,7 @@ import org.sumidoku.android.core.api.model.ChapterCacheStats
 import org.sumidoku.android.core.api.model.CoverCacheStats
 import org.sumidoku.android.core.common.launchGuarded
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.image.upscale.EnhancementCache
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
 import javax.inject.Inject
@@ -58,6 +59,8 @@ data class CacheUiState(
     val loading: Boolean = true,
     val chapter: ChapterCacheStats? = null,
     val cover: CoverCacheStats? = null,
+    /** Locally cached waifu2x pages for the active profile (device storage, not server storage). */
+    val device: EnhancementCache.Stats? = null,
     val busy: Boolean = false,
     val message: String? = null,
     val error: String? = null,
@@ -68,6 +71,7 @@ class CacheViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val repository: ServerProfileRepository,
     private val clientFactory: SumidokuClientFactory,
+    private val enhancementCache: EnhancementCache,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CacheUiState())
@@ -79,8 +83,12 @@ class CacheViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launchGuarded {
+            // Device storage is independent of the server, so it is read before the profile check:
+            // a device with enhanced pages but no server still shows them.
+            val device = runCatching { enhancementCache.stats() }.getOrNull()
+            _state.value = _state.value.copy(device = device)
             val profile = repository.activeProfile.first() ?: run {
-                _state.value = CacheUiState(
+                _state.value = _state.value.copy(
                     loading = false,
                     error = appContext.getString(R.string.misc_no_server_selected),
                 )
@@ -95,6 +103,24 @@ class CacheViewModel @Inject constructor(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
             }
+        }
+    }
+
+    /** Drops the locally cached waifu2x pages; they regenerate on the next read. */
+    fun clearDeviceCache() {
+        viewModelScope.launchGuarded {
+            _state.value = _state.value.copy(busy = true)
+            runCatching { enhancementCache.clear() }
+                .onSuccess {
+                    _state.value = _state.value.copy(
+                        busy = false,
+                        message = appContext.getString(R.string.cache_device_cleared),
+                    )
+                    refresh()
+                }
+                .onFailure {
+                    _state.value = _state.value.copy(busy = false, error = it.message ?: it.toString())
+                }
         }
     }
 
@@ -233,6 +259,28 @@ fun CacheScreen(
                                     onClick = { viewModel.clearCoverCache() },
                                     enabled = !state.busy,
                                 ) { Text(stringResource(R.string.cache_clear_covers)) }
+                            }
+                        }
+                    }
+                }
+                state.device?.let { device ->
+                    item {
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.cache_device_title), style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    stringResource(
+                                        R.string.cache_device_usage,
+                                        device.count,
+                                        formatBytes(device.bytes),
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                OutlinedButton(
+                                    onClick = { viewModel.clearDeviceCache() },
+                                    enabled = !state.busy && device.count > 0,
+                                ) { Text(stringResource(R.string.cache_device_clear)) }
                             }
                         }
                     }
