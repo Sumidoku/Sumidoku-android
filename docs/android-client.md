@@ -130,6 +130,7 @@ it — the same direction as Aidoku's Features → Core → AidokuRunner):
 :core:source               Source interface, SumidokuSource, failover
 :core:data                 repositories, Room, DataStore, profiles
 :core:download             DownloadManager/Queue/Task, offline store
+:core:image                waifu2x upscaling (ncnn+Vulkan JNI, cache, Coil decoder, queue)
 :core:stream               SSE client, NDJSON decoder
 :core:network              OkHttp/Retrofit setup, auth, errors
 :core:api                  generated client from openapi.json
@@ -151,6 +152,13 @@ Rationale for the split:
   NDJSON are hand-written protocols outside the OpenAPI document
   (the web UI does the same split: generated `types.ts` vs
   hand-maintained `protocol.ts`).
+- `:core:image` owns everything that turns stored bytes into a page
+  bitmap beyond a plain decode: the ncnn+Vulkan waifu2x engine, the
+  enhancement cache and the Coil decoder. It is a module rather than
+  reader code because `app` must register the decoder on the single
+  Coil loader, and because the native build (NDK, CMake, the ncnn SDK
+  fetch) should not live in the application module. Design and
+  decisions: `docs/android-client-upscale.md`.
 - `:core:common` also owns the coroutine failure convention: view-model
   work starts with `viewModelScope.launchGuarded { }`
   (`core/common/src/main/kotlin/org/sumidoku/android/core/common/CoroutineSafety.kt`).

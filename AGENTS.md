@@ -21,14 +21,14 @@ README carries the current module map and build instructions.
 
 ## Module map
 
-25 Gradle modules, strict dependency direction `app` → `feature` → `core`.
+26 Gradle modules, strict dependency direction `app` → `feature` → `core`.
 Do not introduce upward dependencies (feature → feature, core → feature).
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
-| `app` | 1 | Application shell, navigation host, theme, update worker |
+| `app` | 1 | Application shell, navigation host, theme, Coil image-loader factory, update worker |
 | `feature:*` | 15 | One Compose screen + ViewModel per feature: `servers`, `library`, `browse`, `search`, `manga`, `reader`, `source`, `repos`, `updates`, `history`, `downloads`, `migrate`, `trackers`, `settings`, `backups` |
-| `core:*` | 9 | `api` (generated Retrofit client), `network` (client factory, auth, failover), `data` (Room, DataStore, repositories), `source`, `stream` (SSE), `download`, `model`, `common`, `ui` (design system) |
+| `core:*` | 10 | `api` (generated Retrofit client), `network` (client factory, auth, failover), `data` (Room, DataStore, repositories), `source`, `stream` (SSE), `download`, `image` (waifu2x upscaling: ncnn+Vulkan JNI, enhancement cache, Coil decoder, priority queue), `model`, `common`, `ui` (design system) |
 
 Modules are declared in `settings.gradle.kts`; add new ones there.
 
@@ -58,6 +58,14 @@ under PowerShell; under Git Bash `./gradlew` also works.
 
 - The Android SDK is located via `ANDROID_HOME` / `ANDROID_SDK_ROOT` or
   `sdk.dir` in `local.properties`.
+- `core:image` compiles C++ (ncnn + Vulkan waifu2x). It needs **NDK
+  `27.2.12479018`** and **CMake `3.22.1`** installed, and downloads the
+  prebuilt `ncnn-20260113-android-vulkan` SDK into `third_party/ncnn/`
+  (gitignored) via `:core:image:fetchNcnnSdk`, sha256-pinned. A
+  pre-existing SDK directory is reused without re-downloading, so an offline
+  checkout can be primed by copying it in. Only `arm64-v8a` and
+  `armeabi-v7a` are built; x86 emulators get no engine and the reader falls
+  back to the source page.
 - Release signing is driven by four env vars: `KEYSTORE_FILE`,
   `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Missing any → unsigned
   build. **Never commit keystores, secrets, or `local.properties`.**
@@ -95,6 +103,12 @@ under PowerShell; under Git Bash `./gradlew` also works.
   response when streaming fails.
 - **Local state**: Room + DataStore via `core:data` repositories. Features
   consume repositories, not databases directly.
+- **Images**: page rendering goes through Coil's single image loader, whose
+  decoder is registered in `SumidokuApp`. Waifu2x upscaling lives in
+  `core:image` and is requested per page through
+  `EnhancementDecoder.applyTo(...)`; never bypass it with a direct
+  `BitmapFactory` decode in a feature module. Upscaling settings are
+  device-only (global DataStore keys, no per-manga override).
 - **Background work**: WorkManager (offline download resume, 6-hour update
   checks). No raw threads or `GlobalScope`.
 - **UI**: use the `core:ui` design system. Adaptive layout: bottom bar on
