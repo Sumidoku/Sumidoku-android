@@ -437,9 +437,12 @@ release APK check (ABI filters, no debug symbols shipped) should be part of the 
   `EnhancementCache.stats()` (page count + formatted size) plus a clear action that drops the
   variant files but keeps the layout/index bookkeeping. It sits next to the chapter and cover
   cards so the whole on-device footprint is visible in one place.
-- **Not shipped from the plan**: the "2x" processing badge (`processingKeys` exists and is exposed
-  by the ViewModel but no chip is drawn yet — the first frame is the source page and the swap is
-  usually quick enough not to need it); exact per-chapter eviction (the P2-optional Room index).
-  Both are additive and independent of the engine.
+- **Page badge delivered**: `UpscaleBadge` draws a "2x" chip in the page's own box (paged,
+  spread half, webtoon strip) — spinner while the key is still in `processingKeys`, solid marker
+  once it lands in `readyKeys`, nothing when the config is off or the decision matrix skipped the
+  page. The chip is pinned to the viewport corner for width/height-fit and split pages so zooming
+  or scrolling cannot crop it out of sight; spread halves push it to their outer edge.
+- **Not shipped from the plan**: exact per-chapter eviction (the P2-optional Room index). It stays
+  additive and independent of the engine.
 - **Defaults confirmed**: mode `off`, all five denoise models bundled (5 × ~1.06 MB), threshold
   `1.05`, precision `auto`, preload `3`.

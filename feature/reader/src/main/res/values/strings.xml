@@ -174,6 +174,7 @@
     <string name="reader_upscale_preload">Preload pages ahead</string>
     <string name="reader_upscale_preload_off">Current page only</string>
     <string name="reader_upscale_device_hint">A device setting, not per manga. Uses the GPU and about 4x the cache size for enhanced pages; devices without a usable Vulkan driver fall back to the original page.</string>
+    <string name="reader_upscale_badge">2x</string>
 
     <!-- ViewModel errors -->
     <string name="reader_no_server">No server selected</string>

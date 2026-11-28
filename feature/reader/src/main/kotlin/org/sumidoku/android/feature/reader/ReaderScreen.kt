@@ -190,19 +190,22 @@ private data class ReaderTypography(
  *  per-page call sites never have to thread the preferences through. */
 private val LocalReaderTypography = staticCompositionLocalOf { ReaderTypography() }
 
-/** Upscaling state for the open reader: the resolved config plus the keys that already finished. */
+/** Upscaling state for the open reader: the resolved config, the keys that already finished and
+ *  the keys the engine still holds (queued or in flight). */
 private class ReaderUpscaleContext(
     val config: UpscaleConfig,
     val readyKeys: Set<String>,
+    val processingKeys: Set<String>,
 )
 
 /**
  * Provided once by [ReaderScreen]; every page image reads it, so the paged, spread and vertical
  * call sites never thread the config through their signatures. Enabled requests are marked for
- * [EnhancementDecoder] inside [ReaderImage].
+ * [EnhancementDecoder] inside [ReaderImage], and [UpscaleBadge] turns the two key sets into the
+ * page-level "2x" indicator.
  */
 private val LocalReaderUpscale = staticCompositionLocalOf {
-    ReaderUpscaleContext(UpscaleConfig(mode = UpscaleMode.OFF), emptySet())
+    ReaderUpscaleContext(UpscaleConfig(mode = UpscaleMode.OFF), emptySet(), emptySet())
 }
 
 /** Fields that pin to a single manga once edited inside the reader, and
@@ -226,6 +229,9 @@ fun ReaderScreen(
     // Keys that finished enhancing on the native engine: a page whose key lands here is
     // re-requested and swaps from the already-shown source bitmap to the 2x result.
     val enhancedKeys by viewModel.enhancedKeys.collectAsState()
+    // Keys still queued or inside the engine: the current page shows its "2x" chip as a spinner
+    // until its key lands in enhancedKeys and the bitmap swaps in place.
+    val processingKeys by viewModel.processingKeys.collectAsState()
     // Leaving the reader abandons queued pages (and the one inside the engine), so returning to
     // the library never leaves the GPU spinning on a book nobody is looking at.
     DisposableEffect(Unit) {
@@ -283,8 +289,8 @@ fun ReaderScreen(
     // background shows there); on they get the whole screen (KMReader parity).
     val contentInset = readerCutoutPadding(state.drawUnderCutout)
 
-    val upscaleContext = remember(state.upscale, enhancedKeys) {
-        ReaderUpscaleContext(state.upscale.toConfig(), enhancedKeys)
+    val upscaleContext = remember(state.upscale, enhancedKeys, processingKeys) {
+        ReaderUpscaleContext(state.upscale.toConfig(), enhancedKeys, processingKeys)
     }
 
     CoverSeedTheme(coverTint) {
@@ -906,6 +912,12 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                             srcWidth = (page.width ?: 0L).toInt(),
                             srcHeight = (page.height ?: 0L).toInt(),
                         )
+                        // A strip's box wraps its bitmap, so the chip rides the bottom of each
+                        // page and scrolls with it instead of floating over the viewport.
+                        UpscaleBadge(
+                            url = viewModel.pageImageUrl(page),
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                        )
                     }
                 }
             }
@@ -1273,6 +1285,11 @@ private fun ReaderPage(
                         srcHeight = srcHeight,
                     )
                 }
+                // Pinned to the viewport, not the scrolled strip, so a width/height-fit page keeps
+                // its chip visible while the user drags through it.
+                if (textPage == null) {
+                    UpscaleBadge(url, Modifier.align(Alignment.BottomEnd))
+                }
             }
             return@Box
         }
@@ -1385,6 +1402,9 @@ private fun ReaderPage(
                 srcWidth = srcWidth,
                 srcHeight = srcHeight,
             )
+            // A split page paints 2x-then-clipped, so the chip stays on the viewport corner
+            // rather than inside the zoomed layer where it could be cropped out of sight.
+            UpscaleBadge(url, Modifier.align(Alignment.BottomEnd))
         }
     }
 }
@@ -1575,9 +1595,72 @@ private fun SpreadPage(
                             srcWidth = (page.width ?: 0L).toInt(),
                             srcHeight = (page.height ?: 0L).toInt(),
                         )
+                        // One chip per half, pushed to the outer edge (the gutter side is where
+                        // the two pages join, so a chip there would look like it belongs to the
+                        // other page). Start/End mirror with RTL along with edgeAlignment.
+                        UpscaleBadge(
+                            url = urlFor(page),
+                            modifier = Modifier.align(
+                                if (index == 0) Alignment.BottomStart else Alignment.BottomEnd,
+                            ),
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+/** The enhancement-cache key for a page URL under the current config, or null when upscaling is
+ *  off. Pure function of the URL and the denoise/precision variant, so callers only pass the URL. */
+@Composable
+private fun upscaleBadgeKey(url: String): String? {
+    val upscale = LocalReaderUpscale.current
+    val key = remember(url, upscale.config) {
+        EnhancementCache.cacheKey(url, upscale.config.denoise, upscale.config.precision)
+    }
+    return if (upscale.config.enabled) key else null
+}
+
+/**
+ * Page-level upscaling indicator: a "2x" chip with a spinner while the engine still holds the
+ * page, and a solid "2x" marker once the enhanced bitmap is what the page paints. Pages the
+ * decision matrix skipped, and pages under a disabled config, show nothing — the badge reports
+ * what actually happened on this page instead of what the setting would like to happen.
+ */
+@Composable
+private fun UpscaleBadge(url: String, modifier: Modifier = Modifier) {
+    val key = upscaleBadgeKey(url) ?: return
+    val upscale = LocalReaderUpscale.current
+    // `ready` wins over `processing`: a finished page can briefly still be in the in-flight set
+    // while Coil re-requests it with the enhanced cache key.
+    val ready = key in upscale.readyKeys
+    val processing = !ready && key in upscale.processingKeys
+    if (!ready && !processing) return
+    Surface(
+        modifier = modifier.padding(10.dp),
+        shape = RoundedCornerShape(6.dp),
+        // inverseSurface/inverseOnSurface keeps the chip readable over white manga pages in the
+        // light theme and over black ones in the dark theme.
+        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = if (ready) 0.9f else 0.72f),
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (processing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(10.dp),
+                    strokeWidth = 1.5.dp,
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                )
+            }
+            Text(
+                stringResource(R.string.reader_upscale_badge),
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -1603,13 +1686,7 @@ private fun ReaderImage(
     var retryKey by remember(url) { mutableIntStateOf(0) }
     // The enhancement-cache key is a pure function of the URL and the variant config, so the
     // reader does not carry it around and the composable stays stateless across page identity.
-    val enhancementKey = remember(url, upscale.config) {
-        if (upscale.config.enabled) {
-            EnhancementCache.cacheKey(url, upscale.config.denoise, upscale.config.precision)
-        } else {
-            null
-        }
-    }
+    val enhancementKey = upscaleBadgeKey(url)
     val enhanced = enhancementKey != null && enhancementKey in upscale.readyKeys
     // Rebuilding the request on retryKey gives Coil a fresh request object,
     // so retry actually re-runs the fetch (error results are never cached).
