@@ -34,6 +34,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:network"))
     implementation(project(":core:download"))
+    implementation(project(":core:image"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(platform(libs.androidx.compose.bom))

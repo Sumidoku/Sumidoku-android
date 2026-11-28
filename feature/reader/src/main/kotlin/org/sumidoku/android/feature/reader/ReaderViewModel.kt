@@ -30,6 +30,11 @@ import org.sumidoku.android.core.data.IncognitoStore
 import org.sumidoku.android.core.data.OfflineProgressStore
 import org.sumidoku.android.core.data.PendingProgress
 import org.sumidoku.android.core.data.ServerProfileRepository
+import org.sumidoku.android.core.image.upscale.DenoiseLevel
+import org.sumidoku.android.core.image.upscale.ImageEnhancer
+import org.sumidoku.android.core.image.upscale.UpscaleMode
+import org.sumidoku.android.core.image.upscale.UpscalePrecision
+import org.sumidoku.android.core.image.upscale.UpscaleSettings
 import org.sumidoku.android.core.model.ServerProfile
 import org.sumidoku.android.core.network.SumidokuClientFactory
 import retrofit2.await
@@ -93,6 +98,8 @@ data class ReaderUiState(
     val drawUnderCutout: Boolean = false,
     /** Keep the screen awake while the reader is open (global-only). */
     val keepScreenAwake: Boolean = false,
+    /** Waifu2x upscaling settings, resolved from the global (device-only) layer. */
+    val upscale: UpscaleSettings = UpscaleSettings(),
     /** manga.viewer metadata driving dir/mode until the manga is overridden. */
     val viewer: Viewer? = null,
     /** Fields carrying a per-manga override (the chain block on screens 24/41). */
@@ -168,6 +175,7 @@ class ReaderViewModel @Inject constructor(
     private val incognitoStore: IncognitoStore,
     private val settingsStore: ReaderSettingsStore,
     private val chapterPrefsStore: ChapterPrefsStore,
+    private val imageEnhancer: ImageEnhancer,
 ) : ViewModel() {
 
     val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
@@ -176,11 +184,19 @@ class ReaderViewModel @Inject constructor(
     private val _state = MutableStateFlow(ReaderUiState())
     val state: StateFlow<ReaderUiState> = _state
 
+    /** Enhancement-cache keys that just finished on the native engine (drives the source→2x swap). */
+    val enhancedKeys: StateFlow<Set<String>> get() = imageEnhancer.readyKeys
+
+    /** Keys queued or inside the engine, for the current page's "2x" hint. */
+    val processingKeys: StateFlow<Set<String>> get() = imageEnhancer.processingKeys
+
     private var progressJob: Job? = null
     private var brightnessJob: Job? = null
     private var doubleTapZoomJob: Job? = null
     /** Debounced write for the typography sliders (size / line-height). */
     private var typographyJob: Job? = null
+    /** Debounced write for the upscaling auto-trigger slider. */
+    private var upscaleJob: Job? = null
     /** Tier B: extracted local page files for the open chapter, when a
      *  finished on-device copy exists — the reader serves these instead
      *  of network URLs, which is what makes offline reading work. */
@@ -287,6 +303,8 @@ class ReaderViewModel @Inject constructor(
             // the global layer exclusively.
             drawUnderCutout = merged.drawUnderCutout,
             keepScreenAwake = merged.keepScreenAwake,
+            // Device capability, never a book preference: read from the global layer only.
+            upscale = global.upscaleSettings(),
             viewer = viewer,
             overridden = overrideRaw.keys,
         )
@@ -347,6 +365,9 @@ class ReaderViewModel @Inject constructor(
     private var chapterJob: Job? = null
 
     fun openChapter(chapterId: Long) {
+        // A new chapter is a new reading session: drop queued enhancements of the old one (and
+        // abort the page inside the engine) before any of its pages can reach the screen.
+        imageEnhancer.nextGeneration()
         // Cancel the in-flight chapter load: jumping chapters quickly must
         // not let the stale response overwrite the newer chapter's pages.
         chapterJob?.cancel()
@@ -608,6 +629,51 @@ class ReaderViewModel @Inject constructor(
 
     fun toggleOverlay() {
         _state.value = _state.value.copy(overlay = !_state.value.overlay)
+    }
+
+    // ---- waifu2x upscaling (device-only, global layer) ----
+
+    /** Leaving the reader: abandon queued pages and stop the page inside the engine. */
+    fun onReaderClosed() {
+        imageEnhancer.nextGeneration()
+    }
+
+    /** Park the native tile loop while the pager/list is under the finger. */
+    fun setUpscalePaused(paused: Boolean) {
+        imageEnhancer.setPaused(paused)
+    }
+
+    fun setUpscaleEnabled(enabled: Boolean) {
+        val mode = if (enabled) UpscaleMode.AUTO else UpscaleMode.OFF
+        _state.value = _state.value.copy(upscale = _state.value.upscale.copy(mode = mode))
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.UPSCALE, mode.raw) }
+    }
+
+    fun setUpscaleDenoise(value: DenoiseLevel) {
+        _state.value = _state.value.copy(upscale = _state.value.upscale.copy(denoise = value))
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.UPSCALE_DENOISE, value.raw) }
+    }
+
+    /** Slider feedback must be immediate; the DataStore write is debounced like brightness. */
+    fun setUpscaleThreshold(value: Float) {
+        val clamped = UpscaleSettings.clampAutoTriggerScale(value)
+        _state.value = _state.value.copy(upscale = _state.value.upscale.copy(autoTriggerScale = clamped))
+        upscaleJob?.cancel()
+        upscaleJob = viewModelScope.launchGuarded {
+            delay(250)
+            settingsStore.setGlobal(ReaderField.UPSCALE_THRESHOLD, clamped.toString())
+        }
+    }
+
+    fun setUpscalePrecision(value: UpscalePrecision) {
+        _state.value = _state.value.copy(upscale = _state.value.upscale.copy(precision = value))
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.UPSCALE_PRECISION, value.raw) }
+    }
+
+    fun setUpscalePreload(value: Int) {
+        val clamped = UpscaleSettings.clampPreloadAhead(value)
+        _state.value = _state.value.copy(upscale = _state.value.upscale.copy(preloadAhead = clamped))
+        viewModelScope.launchGuarded { settingsStore.setGlobal(ReaderField.UPSCALE_PRELOAD, clamped.toString()) }
     }
 
     fun openChapterSheet(open: Boolean) {

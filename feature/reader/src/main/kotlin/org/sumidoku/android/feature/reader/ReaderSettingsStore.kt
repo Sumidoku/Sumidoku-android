@@ -9,6 +9,11 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.sumidoku.android.core.api.model.Viewer
+import org.sumidoku.android.core.image.upscale.DenoiseLevel
+import org.sumidoku.android.core.image.upscale.UpscaleConfig
+import org.sumidoku.android.core.image.upscale.UpscaleMode
+import org.sumidoku.android.core.image.upscale.UpscalePrecision
+import org.sumidoku.android.core.image.upscale.UpscaleSettings
 
 /**
  * Persistable reader preference fields. Every field is stored as a string so
@@ -16,7 +21,7 @@ import org.sumidoku.android.core.api.model.Viewer
  * read/write path (matching the three-tier resolveDir / resolveMode
  * resolution in webui readerPrefs.ts).
  */
-enum class ReaderField(val key: String, val fallback: String) {
+enum class ReaderField(val key: String, val fallback: String, val deviceOnly: Boolean = false) {
     MODE("mode", "paged"),        // paged | continuous | webtoon
     DIR("dir", "default"),        // default | ltr | rtl
     LAYOUT("layout", "auto"),     // single | double | auto
@@ -35,7 +40,14 @@ enum class ReaderField(val key: String, val fallback: String) {
     TCOLS("tcols", "true"),     // text pages: paged multi-column layout on wide screens
     CUTOUT("cutout", "false"),  // true = content draws under the notch band (Koharia drawUnderCutout)
     KEEP("keep", "false"),      // keep the screen awake while reading
-    VOLUME("volume", "false"),  // volume keys turn pages (device input, global only)
+    VOLUME("volume", "false", deviceOnly = true),  // volume keys turn pages (device input, global only)
+    // Waifu2x upscaling. A device capability, not a book preference: GPU cost, driver quirks and
+    // the APK's model set are properties of the phone, so these never get a per-manga override.
+    UPSCALE("upscale", "off", deviceOnly = true),                       // off | auto
+    UPSCALE_DENOISE("upscaleDenoise", "low", deviceOnly = true),        // none | low | medium | high | max
+    UPSCALE_THRESHOLD("upscaleThreshold", "1.05", deviceOnly = true),   // 1.0–1.5
+    UPSCALE_PRECISION("upscalePrecision", "auto", deviceOnly = true),   // auto | fp16 | fp32
+    UPSCALE_PRELOAD("upscalePreload", "3", deviceOnly = true),          // 0–5 ahead
 }
 
 /** Strongly typed view of the reader preferences; always built via ReaderPrefs.from(map). */
@@ -64,7 +76,24 @@ data class ReaderPrefs(
     /** Keep the screen awake while the reader is the top page. */
     val keepScreenAwake: Boolean = false,
     val volumeKeyPaging: Boolean = false,
+    /** Waifu2x upscaling, device-only (no per-manga override). See ReaderField.UPSCALE*. */
+    val upscale: String = ReaderField.UPSCALE.fallback,
+    val upscaleDenoise: String = ReaderField.UPSCALE_DENOISE.fallback,
+    val upscaleThreshold: Float = UpscaleSettings.DEFAULT_AUTO_TRIGGER_SCALE,
+    val upscalePrecision: String = ReaderField.UPSCALE_PRECISION.fallback,
+    val upscalePreload: Int = UpscaleSettings.DEFAULT_PRELOAD_AHEAD,
 ) {
+    /** Resolved upscaling settings; the single mapping used by the reader and the settings UI. */
+    fun upscaleSettings(): UpscaleSettings = UpscaleSettings(
+        mode = UpscaleMode.fromRaw(upscale),
+        denoise = DenoiseLevel.fromRaw(upscaleDenoise),
+        autoTriggerScale = UpscaleSettings.clampAutoTriggerScale(upscaleThreshold),
+        precision = UpscalePrecision.fromRaw(upscalePrecision),
+        preloadAhead = UpscaleSettings.clampPreloadAhead(upscalePreload),
+    )
+
+    /** Decoder-side configuration (same values, without the preload window). */
+    fun upscaleConfig(): UpscaleConfig = upscaleSettings().toConfig()
     /** Exports the current values as strings (used both for DataStore writes
      *  and for comparing override values). */
     fun raw(field: ReaderField): String = when (field) {
@@ -87,6 +116,11 @@ data class ReaderPrefs(
         ReaderField.CUTOUT -> drawUnderCutout.toString()
         ReaderField.KEEP -> keepScreenAwake.toString()
         ReaderField.VOLUME -> volumeKeyPaging.toString()
+        ReaderField.UPSCALE -> upscale
+        ReaderField.UPSCALE_DENOISE -> upscaleDenoise
+        ReaderField.UPSCALE_THRESHOLD -> upscaleThreshold.toString()
+        ReaderField.UPSCALE_PRECISION -> upscalePrecision
+        ReaderField.UPSCALE_PRELOAD -> upscalePreload.toString()
     }
 
     /** Replaces one field with a string value; invalid values fall back to the current one. */
@@ -112,6 +146,19 @@ data class ReaderPrefs(
             ReaderField.CUTOUT -> copy(drawUnderCutout = raw.toBoolean())
             ReaderField.KEEP -> copy(keepScreenAwake = raw.toBoolean())
             ReaderField.VOLUME -> copy(volumeKeyPaging = raw.toBoolean())
+            ReaderField.UPSCALE -> copy(upscale = raw.takeIf { it in UPSCALE_MODES } ?: upscale)
+            ReaderField.UPSCALE_DENOISE -> copy(upscaleDenoise = raw.takeIf { it in DENOISE_LEVELS } ?: upscaleDenoise)
+            ReaderField.UPSCALE_THRESHOLD -> copy(
+                upscaleThreshold = UpscaleSettings.clampAutoTriggerScale(
+                    raw.toFloatOrNull() ?: upscaleThreshold,
+                ),
+            )
+            ReaderField.UPSCALE_PRECISION -> copy(upscalePrecision = raw.takeIf { it in UPSCALE_PRECISIONS } ?: upscalePrecision)
+            ReaderField.UPSCALE_PRELOAD -> copy(
+                upscalePreload = UpscaleSettings.clampPreloadAhead(
+                    raw.toIntOrNull() ?: upscalePreload,
+                ),
+            )
         }
     }
 
@@ -131,6 +178,11 @@ data class ReaderPrefs(
         val FONTS = setOf("default", "sans", "serif", "mono")
         val FONT_SIZE_RANGE = 0.7f..2f
         val LINE_HEIGHT_RANGE = 1f..2.5f
+
+        /** Upscaling enums as the strings stored in DataStore. */
+        val UPSCALE_MODES: Set<String> = UpscaleMode.entries.mapTo(LinkedHashSet()) { it.raw }
+        val DENOISE_LEVELS: Set<String> = DenoiseLevel.entries.mapTo(LinkedHashSet()) { it.raw }
+        val UPSCALE_PRECISIONS: Set<String> = UpscalePrecision.entries.mapTo(LinkedHashSet()) { it.raw }
 
         fun from(raw: Map<ReaderField, String>): ReaderPrefs =
             ReaderPrefs().overlay(raw)
@@ -180,6 +232,9 @@ class ReaderSettingsStore @Inject constructor(
      * "manga metadata › global default".
      */
     suspend fun setOverride(mangaId: Long, field: ReaderField, raw: String?, keep: Boolean = true) {
+        // Device-only fields (volume keys, waifu2x upscaling) are global by definition: a per-manga
+        // override would silently pin a GPU setting to one book, so the write is dropped instead.
+        if (field.deviceOnly) return
         dataStore.edit { prefs ->
             if (!keep || raw == null) {
                 prefs.remove(mangaKey(mangaId, field))

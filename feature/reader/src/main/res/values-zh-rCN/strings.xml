@@ -156,6 +156,25 @@
     <string name="reader_defaults_typography">文本排版</string>
     <string name="reader_defaults_typography_hint">文本章节（EPUB 书籍与文本文件）的字体、字号与行距；图片章节不使用这些设置。</string>
 
+    <!-- Waifu2x 超分（设备级设置，仅全局） -->
+    <string name="reader_upscale_title">Waifu2x 超分</string>
+    <string name="reader_upscale_enable">低清页面超分</string>
+    <string name="reader_upscale_enable_hint">当屏幕需要放大页面时，用 GPU 做一次 2x waifu2x 处理；封面与缩略图不受影响。页面会先显示原图，超分完成后原位替换为高清结果。</string>
+    <string name="reader_upscale_threshold_hint">仅当页面被放大到自身像素的该倍数以上时才超分。</string>
+    <string name="reader_upscale_denoise">降噪强度</string>
+    <string name="reader_upscale_denoise_none">无</string>
+    <string name="reader_upscale_denoise_low">低</string>
+    <string name="reader_upscale_denoise_medium">中</string>
+    <string name="reader_upscale_denoise_high">高</string>
+    <string name="reader_upscale_denoise_max">最高</string>
+    <string name="reader_upscale_precision">计算精度</string>
+    <string name="reader_upscale_precision_auto">自动</string>
+    <string name="reader_upscale_precision_fp16">FP16</string>
+    <string name="reader_upscale_precision_fp32">FP32</string>
+    <string name="reader_upscale_preload">预加载后续页数</string>
+    <string name="reader_upscale_preload_off">仅当前页</string>
+    <string name="reader_upscale_device_hint">这是设备级设置，不随单部漫画覆盖。超分占用 GPU，增强缓存约为原图 4 倍；不支持 Vulkan 的设备会自动回退为原图。</string>
+
     <!-- ViewModel errors -->
     <string name="reader_no_server">未选择服务器</string>
 </resources>

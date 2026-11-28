@@ -156,6 +156,25 @@
     <string name="reader_defaults_typography">Text typography</string>
     <string name="reader_defaults_typography_hint">Typeface, text size and line spacing for text chapters (EPUB books and text files). Image chapters ignore these.</string>
 
+    <!-- Waifu2x upscaling (device setting, global only) -->
+    <string name="reader_upscale_title">Waifu2x upscaling</string>
+    <string name="reader_upscale_enable">Upscale low-resolution pages</string>
+    <string name="reader_upscale_enable_hint">Runs one 2x waifu2x pass on the GPU when the screen would enlarge the page. Covers and thumbnails are untouched. The page shows immediately and sharpens in place once the result is ready.</string>
+    <string name="reader_upscale_threshold_hint">Upscale only when the page is painted at least this much larger than its own pixel size.</string>
+    <string name="reader_upscale_denoise">Denoise level</string>
+    <string name="reader_upscale_denoise_none">None</string>
+    <string name="reader_upscale_denoise_low">Low</string>
+    <string name="reader_upscale_denoise_medium">Medium</string>
+    <string name="reader_upscale_denoise_high">High</string>
+    <string name="reader_upscale_denoise_max">Max</string>
+    <string name="reader_upscale_precision">Compute precision</string>
+    <string name="reader_upscale_precision_auto">Auto</string>
+    <string name="reader_upscale_precision_fp16">FP16</string>
+    <string name="reader_upscale_precision_fp32">FP32</string>
+    <string name="reader_upscale_preload">Preload pages ahead</string>
+    <string name="reader_upscale_preload_off">Current page only</string>
+    <string name="reader_upscale_device_hint">A device setting, not per manga. Uses the GPU and about 4x the cache size for enhanced pages; devices without a usable Vulkan driver fall back to the original page.</string>
+
     <!-- ViewModel errors -->
     <string name="reader_no_server">No server selected</string>
 </resources>
