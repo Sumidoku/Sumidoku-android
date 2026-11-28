@@ -438,10 +438,12 @@ release APK check (ABI filters, no debug symbols shipped) should be part of the 
   variant files but keeps the layout/index bookkeeping. It sits next to the chapter and cover
   cards so the whole on-device footprint is visible in one place.
 - **Page badge delivered**: `UpscaleBadge` draws a "2x" chip in the page's own box (paged,
-  spread half, webtoon strip) — spinner while the key is still in `processingKeys`, solid marker
-  once it lands in `readyKeys`, nothing when the config is off or the decision matrix skipped the
-  page. The chip is pinned to the viewport corner for width/height-fit and split pages so zooming
-  or scrolling cannot crop it out of sight; spread halves push it to their outer edge.
+  spread half, webtoon strip) while the page's key is in `processingKeys`, and fades it out as the
+  enhanced bitmap swaps in. Completed pages are not labelled — `readyKeys` is deliberately not
+  rendered, so an already enhanced page looks like any other page. Pages the decision matrix
+  skipped, and pages with the config off, never show the chip. The chip is pinned to the viewport
+  corner for width/height-fit and split pages so zooming or scrolling cannot crop it out of sight;
+  spread halves push it to their outer edge.
 - **Not shipped from the plan**: exact per-chapter eviction (the P2-optional Room index). It stays
   additive and independent of the engine.
 - **Webtoon scroll jump on swap (fixed)**: Coil transitions to a `Loading` state while it

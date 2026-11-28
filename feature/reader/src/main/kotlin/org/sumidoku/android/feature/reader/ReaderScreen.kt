@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -203,8 +204,8 @@ private class ReaderUpscaleContext(
 /**
  * Provided once by [ReaderScreen]; every page image reads it, so the paged, spread and vertical
  * call sites never thread the config through their signatures. Enabled requests are marked for
- * [EnhancementDecoder] inside [ReaderImage], and [UpscaleBadge] turns the two key sets into the
- * page-level "2x" indicator.
+ * [EnhancementDecoder] inside [ReaderImage], and [UpscaleBadge] turns the processing set into the
+ * page-level "2x" hint.
  */
 private val LocalReaderUpscale = staticCompositionLocalOf {
     ReaderUpscaleContext(UpscaleConfig(mode = UpscaleMode.OFF), emptySet(), emptySet())
@@ -1628,26 +1629,31 @@ private fun upscaleBadgeKey(url: String): String? {
 }
 
 /**
- * Page-level upscaling indicator: a "2x" chip with a spinner while the engine still holds the
- * page, and a solid "2x" marker once the enhanced bitmap is what the page paints. Pages the
- * decision matrix skipped, and pages under a disabled config, show nothing — the badge reports
- * what actually happened on this page instead of what the setting would like to happen.
+ * Page-level upscaling indicator: a "2x" chip with a spinner while the engine holds the page. It is
+ * a one-way hint — it explains the wait, then fades out as the enhanced bitmap swaps in. Completed
+ * pages carry no permanent label: `readyKeys` is intentionally not rendered, so an already
+ * enhanced page looks like a normal page. Pages the decision matrix skipped, and pages under a
+ * disabled config, never show it.
  */
 @Composable
 private fun UpscaleBadge(url: String, modifier: Modifier = Modifier) {
     val key = upscaleBadgeKey(url) ?: return
     val upscale = LocalReaderUpscale.current
-    // `ready` wins over `processing`: a finished page can briefly still be in the in-flight set
-    // while Coil re-requests it with the enhanced cache key.
-    val ready = key in upscale.readyKeys
-    val processing = !ready && key in upscale.processingKeys
-    if (!ready && !processing) return
+    val processing = key in upscale.processingKeys
+    // Target 0f as soon as the key leaves the queue/engine; 0-alpha chips draw nothing, so the
+    // animation can finish before the surface is dropped from the composition.
+    val alpha by animateFloatAsState(
+        targetValue = if (processing) 1f else 0f,
+        animationSpec = tween(durationMillis = if (processing) 120 else 260),
+        label = "upscaleBadgeAlpha",
+    )
+    if (alpha <= 0f) return
     Surface(
-        modifier = modifier.padding(10.dp),
+        modifier = modifier.padding(10.dp).alpha(alpha),
         shape = RoundedCornerShape(6.dp),
         // inverseSurface/inverseOnSurface keeps the chip readable over white manga pages in the
         // light theme and over black ones in the dark theme.
-        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = if (ready) 0.9f else 0.72f),
+        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.72f),
         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
     ) {
         Row(
@@ -1655,13 +1661,11 @@ private fun UpscaleBadge(url: String, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (processing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(10.dp),
-                    strokeWidth = 1.5.dp,
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                )
-            }
+            CircularProgressIndicator(
+                modifier = Modifier.size(10.dp),
+                strokeWidth = 1.5.dp,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+            )
             Text(
                 stringResource(R.string.reader_upscale_badge),
                 style = MaterialTheme.typography.labelSmall,
