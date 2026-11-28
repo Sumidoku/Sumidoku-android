@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -111,6 +112,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -911,6 +913,9 @@ private fun VerticalReaderBody(state: ReaderUiState, viewModel: ReaderViewModel)
                             },
                             srcWidth = (page.width ?: 0L).toInt(),
                             srcHeight = (page.height ?: 0L).toInt(),
+                            // The strip's own bitmap height is what sizes this LazyColumn item,
+                            // so it must not collapse while the 2x request is decoding.
+                            reserveHeightWhileLoading = true,
                         )
                         // A strip's box wraps its bitmap, so the chip rides the bottom of each
                         // page and scrolls with it instead of floating over the viewport.
@@ -1680,10 +1685,27 @@ private fun ReaderImage(
     /** Page dimensions from the server metadata; 0 lets the decoder run a bounds pass. */
     srcWidth: Int = 0,
     srcHeight: Int = 0,
+    /** Keeps the frame's height while the request is between states (see the heightIn note
+     *  below); required wherever the image's own height is what sizes the parent, i.e. webtoon
+     *  strips inside a LazyColumn. No-op in the fixed-size paged/spread slots. */
+    reserveHeightWhileLoading: Boolean = false,
 ) {
     val context = LocalContext.current
     val upscale = LocalReaderUpscale.current
+    val density = LocalDensity.current
     var retryKey by remember(url) { mutableIntStateOf(0) }
+    // Height this page actually rendered at, in px. Coil swaps the painter state to Loading while it
+    // decodes the enhanced request, and a Loading state has no intrinsic size: in a webtoon strip the
+    // item would collapse to zero height for that frame, and the LazyColumn — anchored by visible
+    // item + pixel offset — re-anchors, which is what reads as "the scroll position jumped after the
+    // 2x image replaced the source". Reserving the last rendered height keeps the item's geometry
+    // identical across the swap, so nothing above the viewport moves.
+    var renderedHeight by remember(url) { mutableIntStateOf(0) }
+    val heightReserve = if (reserveHeightWhileLoading && renderedHeight > 0) {
+        Modifier.heightIn(min = with(density) { renderedHeight.toDp() })
+    } else {
+        Modifier
+    }
     // The enhancement-cache key is a pure function of the URL and the variant config, so the
     // reader does not carry it around and the composable stays stateless across page identity.
     val enhancementKey = upscaleBadgeKey(url)
@@ -1716,7 +1738,9 @@ private fun ReaderImage(
     SubcomposeAsyncImage(
         model = model,
         contentDescription = null,
-        modifier = modifier,
+        modifier = modifier
+            .then(heightReserve)
+            .onSizeChanged { if (it.height > 0) renderedHeight = it.height },
         contentScale = contentScale,
         alignment = alignment,
         colorFilter = colorFilter,

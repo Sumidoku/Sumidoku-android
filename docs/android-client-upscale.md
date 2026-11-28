@@ -444,5 +444,12 @@ release APK check (ABI filters, no debug symbols shipped) should be part of the 
   or scrolling cannot crop it out of sight; spread halves push it to their outer edge.
 - **Not shipped from the plan**: exact per-chapter eviction (the P2-optional Room index). It stays
   additive and independent of the engine.
+- **Webtoon scroll jump on swap (fixed)**: Coil transitions to a `Loading` state while it
+  decodes the enhanced request, and a `Loading` slot has no intrinsic size — inside a webtoon
+  strip that made the `LazyColumn` item collapse for a frame, so the list re-anchored and the
+  view jumped. `ReaderImage(reserveHeightWhileLoading = true)` (webtoon call site) now remembers
+  the height the page actually rendered at and applies `heightIn(min = …)` across the state
+  change, keeping the item's geometry identical while the 2x bitmap decodes. Fixed-size paged and
+  spread slots are unaffected.
 - **Defaults confirmed**: mode `off`, all five denoise models bundled (5 × ~1.06 MB), threshold
   `1.05`, precision `auto`, preload `3`.
