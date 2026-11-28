@@ -37,6 +37,7 @@ include(":feature:repos")
 
 // Core layer
 include(":core:source")
+include(":core:image")
 include(":core:data")
 include(":core:download")
 include(":core:stream")
